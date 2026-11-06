@@ -5,12 +5,14 @@ import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'n
 import { join, relative, sep } from 'node:path';
 import { deflateRawSync, crc32 } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { loadApiKey, configJsWithKey } from './apikey.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
 
-// Lo que va dentro del paquete. Todo lo demás (.cursor, .sign, tools, dist, *.old.*) queda fuera.
+// Lo que va dentro del paquete. Todo lo demás (.cursor, .sign, tools, engine, dist, *.old.*) queda fuera.
+// *.local.* (por ejemplo js/config.local.js con tu api_hash) NUNCA entra al paquete.
 const INCLUDE = ['config.xml', 'index.html', 'icon.png', 'css', 'js', 'images'];
-const EXCLUDE = [/\.old\./, /(^|\/)\./];
+const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./];
 
 function walk(path) {
   const st = statSync(path);
@@ -30,11 +32,20 @@ if (!version) throw new Error('No encontré version="..." en config.xml');
 const DOS_TIME = 0;
 const DOS_DATE = ((2026 - 1980) << 9) | (1 << 5) | 1;
 
+// Clave de Telegram del publicador (secretos de GitHub o .env): va ofuscada dentro de js/config.js del paquete.
+const apiKey = loadApiKey();
+
 const locals = [];
 const centrals = [];
 let offset = 0;
 for (const f of files) {
-  const data = readFileSync(f.abs);
+  let data = readFileSync(f.abs);
+  if (f.name === 'js/config.js') {
+    data = Buffer.from(configJsWithKey(data.toString('utf8'), apiKey), 'utf8');
+  }
+  if (apiKey && data.includes(apiKey.hash)) {
+    throw new Error(`${f.name} contiene el api_hash en texto plano; no se arma el paquete.`);
+  }
   const packed = deflateRawSync(data, { level: 9 });
   const useDeflate = packed.length < data.length;
   const body = useDeflate ? packed : data;
@@ -85,4 +96,7 @@ const out = join(root, 'dist', `homeflix-${version}.wgt`);
 const zip = Buffer.concat([...locals, centralBuf, end]);
 writeFileSync(out, zip);
 console.log(`${relative(root, out)}  ${files.length} archivos, ${(zip.length / 1024).toFixed(0)} KB`);
+console.log(apiKey
+  ? 'Clave de Telegram: incluida (ofuscada). En la TV se va directo al QR.'
+  : 'Clave de Telegram: NO incluida (falta TG_API_ID / TG_API_HASH). En la TV se pedirá api_id y api_hash.');
 for (const f of files) console.log('  ' + f.name);

@@ -10,3 +10,10 @@ dist/
 .env
 *.local.*
 secrets/
+
+# Motor de Telegram: dependencias y temporales de compilación
+engine/node_modules/
+engine/out/
+
+# Credenciales locales de la API de Telegram
+js/config.local.js

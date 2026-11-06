@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://yourdomain/homeflix" version="1.0.0" viewmodes="maximized">
-    <tizen:application id="etDyBtbRRH.homeflix" package="etDyBtbRRH" required_version="2.3"/>
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://yourdomain/homeflix" version="1.1.0" viewmodes="maximized">
+    <tizen:application id="etDyBtbRRH.homeflix" package="etDyBtbRRH" required_version="5.0"/>
+    <!-- Telegram se conecta por WebSocket a *.web.telegram.org: hace falta acceso a cualquier origen.
+         A propósito NO hay <tizen:content-security-policy> ni <tizen:allow-navigation>: con cualquiera de los dos la TV
+         aplica una CSP por defecto que puede bloquear WebAssembly y los blob: del motor (probado por titlog/telegram-tizen). -->
+    <access origin="*" subdomains="true"/>
     <content src="index.html"/>
     <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
     <icon src="icon.png"/>
     <tizen:metadata key="http://tizen.org/metadata/app_ui_type/base_screen_resolution" value="extensive"/>
     <name>homeflix</name>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <tizen:profile name="tv-samsung"/>
-    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>

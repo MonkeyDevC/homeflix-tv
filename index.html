@@ -41,37 +41,76 @@
   </div>
 
   <div id="loginScreen" class="screen" data-screen="login">
-    <div id="loginShell">
+    <div id="loginShell" data-login-state="loading">
       <div id="loginPanel">
-        <div class="login-kicker">BIENVENIDO</div>
-        <div class="login-signup">¿No tienes una cuenta? <span>Regístrate</span></div>
 
-        <div class="login-label">Usuario</div>
-        <div class="login-field" data-area="login" data-focusable="true" data-title="Usuario" data-description="Escribe tu correo con el teclado del TV" tabindex="0">
-          <input id="loginUsernameInput" type="email" value="example@gmail.com" inputmode="email" autocomplete="username" />
+        <div class="login-state" data-state="loading">
+          <div class="login-kicker">TELEGRAM</div>
+          <h2 class="login-heading">Conectando con Telegram…</h2>
+          <p class="login-copy">Un momento. HomeFlix usa tu cuenta de Telegram como biblioteca de películas y series.</p>
         </div>
 
-        <div class="login-label">Contraseña</div>
-        <div id="passwordRow">
-          <div class="login-field password-field" data-area="login" data-focusable="true" data-title="Contraseña" data-description="Escribe tu contraseña con el teclado del TV" tabindex="0">
-            <input id="loginPasswordInput" type="password" value="123456" autocomplete="current-password" />
+        <div class="login-state" data-state="api">
+          <div class="login-kicker">CONFIGURAR TELEGRAM</div>
+          <p class="login-copy">Se hace una sola vez. Desde el teléfono entra a <b>my.telegram.org</b>, abre <b>API development tools</b>, crea una app y copia aquí sus dos valores.</p>
+          <div class="login-label">api_id</div>
+          <div class="login-field" data-area="login-api" data-focusable="true" data-input="apiIdInput" data-title="api_id" data-description="Número de la app de Telegram" tabindex="0">
+            <input id="apiIdInput" type="text" inputmode="numeric" autocomplete="off" placeholder="1234567" />
           </div>
-          <div id="passwordToggle" data-area="login" data-focusable="true" data-title="Mostrar contraseña" data-description="Mostrar u ocultar contraseña" data-password-visible="false" tabindex="0">
-            <span class="eye-icon eye-closed"></span>
-            <span class="eye-label">Mostrar</span>
+          <div class="login-label">api_hash</div>
+          <div class="login-field" data-area="login-api" data-focusable="true" data-input="apiHashInput" data-title="api_hash" data-description="Clave de 32 caracteres de la app de Telegram" tabindex="0">
+            <input id="apiHashInput" type="text" autocomplete="off" spellcheck="false" placeholder="32 caracteres" />
+          </div>
+          <div class="login-error" id="apiError"></div>
+          <div class="login-button" data-area="login-api" data-focusable="true" data-action="save-api" data-title="Guardar y continuar" data-description="Guardar la clave y mostrar el código QR" tabindex="0">Guardar y continuar</div>
+        </div>
+
+        <div class="login-state" data-state="qr">
+          <div class="login-kicker">INICIA SESIÓN</div>
+          <h2 class="login-heading">Escanea el código con Telegram</h2>
+          <ol class="login-steps">
+            <li>Abre <b>Telegram</b> en tu teléfono.</li>
+            <li>Ve a <b>Ajustes → Dispositivos</b>.</li>
+            <li>Toca <b>Vincular un dispositivo</b> y apunta al código.</li>
+          </ol>
+          <p class="login-note" id="loginQrNote">El código se renueva solo cada 30 segundos.</p>
+          <div class="login-actions">
+            <div class="login-button secondary" data-area="login-qr" data-focusable="true" data-action="back" data-title="Volver" data-description="Volver a la pantalla inicial" tabindex="0">Volver</div>
           </div>
         </div>
 
-        <div id="loginOptions">
-          <div class="login-option" data-area="login" data-focusable="true" data-title="Recordarme" data-description="Activar o desactivar recordar sesión" data-checked="true" tabindex="0"><span></span>Recordarme</div>
-          <div class="login-link" data-area="login" data-focusable="true" data-title="Olvidé mi contraseña" data-description="Recuperar contraseña" tabindex="0">¿Olvidaste tu contraseña?</div>
+        <div class="login-state" data-state="password">
+          <div class="login-kicker">DOS PASOS</div>
+          <p class="login-copy">Tu cuenta de Telegram tiene contraseña adicional. Escríbela para terminar de entrar.</p>
+          <div class="login-label">Contraseña de Telegram</div>
+          <div id="passwordRow">
+            <div class="login-field password-field" data-area="login-password" data-focusable="true" data-input="loginPasswordInput" data-title="Contraseña" data-description="Escribe la contraseña de verificación en dos pasos" tabindex="0">
+              <input id="loginPasswordInput" type="password" autocomplete="current-password" />
+            </div>
+            <div id="passwordToggle" data-area="login-password" data-focusable="true" data-action="toggle-password" data-title="Mostrar contraseña" data-description="Mostrar u ocultar contraseña" data-password-visible="false" tabindex="0">
+              <span class="eye-icon eye-closed"></span>
+              <span class="eye-label">Mostrar</span>
+            </div>
+          </div>
+          <div class="login-error" id="passwordError"></div>
+          <div class="login-button" data-area="login-password" data-focusable="true" data-action="send-password" data-title="Continuar" data-description="Enviar la contraseña" tabindex="0">Continuar</div>
         </div>
 
-        <div id="loginSubmit" data-area="login" data-focusable="true" data-title="Ingresar" data-description="Ingresar a HomeFlix" tabindex="0">Ingresar</div>
+        <div class="login-state" data-state="error">
+          <div class="login-kicker">TELEGRAM</div>
+          <h2 class="login-heading">No se pudo conectar</h2>
+          <p class="login-copy" id="loginErrorText">Revisa la conexión a internet.</p>
+          <div class="login-actions">
+            <div class="login-button" data-area="login-error" data-focusable="true" data-action="retry" data-title="Reintentar" data-description="Intentar conectar otra vez" tabindex="0">Reintentar</div>
+            <div class="login-button secondary" data-area="login-error" data-focusable="true" data-action="change-api" data-title="Cambiar clave de API" data-description="Escribir otro api_id y api_hash" tabindex="0">Cambiar clave de API</div>
+          </div>
+        </div>
+
       </div>
 
       <div id="pandaPanel" aria-hidden="true">
         <img id="loginPandaImage" src="images/panda-login.png" alt="Panda HomeFlix"/>
+        <div id="loginQrBox"><div id="loginQr"></div><div id="loginQrScanned">✓ Escaneado, entrando…</div></div>
       </div>
     </div>
   </div>
@@ -84,6 +123,10 @@
         <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Santiago" data-description="Perfil personal" tabindex="0"><div class="profile-avatar profile-avatar-2">S</div><div class="profile-name">Santiago</div></div>
         <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Kids" data-description="Perfil infantil" tabindex="0"><div class="profile-avatar profile-avatar-3">K</div><div class="profile-name">Kids</div></div>
         <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Invitado" data-description="Perfil invitado" tabindex="0"><div class="profile-avatar profile-avatar-4">I</div><div class="profile-name">Invitado</div></div>
+      </div>
+      <div class="profiles-account">
+        <span id="profilesAccountName">Telegram</span>
+        <div class="login-button secondary small" data-area="profiles-actions" data-focusable="true" data-action="logout" data-title="Cerrar sesión de Telegram" data-description="Desvincular esta TV de tu cuenta de Telegram" tabindex="0">Cerrar sesión de Telegram</div>
       </div>
     </div>
   </div>
@@ -209,6 +252,10 @@
     <div id="statusMessage">Listo para navegar</div>
   </div>
 </div>
+<script src="js/tg.bundle.js"></script>
+<script src="js/config.js"></script>
+<script src="js/config.local.js" onerror="void 0"></script>
+<script src="js/telegram.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

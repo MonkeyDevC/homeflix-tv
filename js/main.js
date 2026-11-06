@@ -15,10 +15,11 @@ var routeFocusProfiles = {
     { name: "splash", selector: '[data-area="splash"]' }
   ],
   login: [
-    { name: "login", selector: '[data-area="login"]' }
+    { name: "login", selector: '[data-area="login-loading"]' }
   ],
   profiles: [
-    { name: "profiles", selector: '[data-area="profiles"]' }
+    { name: "profiles", selector: '[data-area="profiles"]' },
+    { name: "profiles-actions", selector: '[data-area="profiles-actions"]' }
   ],
   browse: [
     { name: "topnav", selector: '[data-area="topnav"]' },
@@ -47,13 +48,33 @@ var detailActionIndex = 0;
 var isDetailOpen = false;
 var USE_NATIVE_FOCUS = false;
 var selectedProfileName = "";
-var loginUsernameInputEl = null;
 var loginPasswordInputEl = null;
 var passwordToggleEl = null;
-var rememberOptionEl = null;
 var passwordVisible = false;
 
+/* Login con Telegram */
+var loginShellEl = null;
+var loginState = "loading";
+var loginRun = 0;
+var loginAbort = null;
+var passwordResolver = null;
+var pendingPasswordError = "";
+var telegramUser = null;
+var apiIdInputEl = null;
+var apiHashInputEl = null;
+var apiErrorEl = null;
+var passwordErrorEl = null;
+var loginErrorTextEl = null;
+var loginQrEl = null;
+var loginQrBoxEl = null;
+var profilesAccountEl = null;
+var splashPrimaryEl = null;
+
 function setRouteFocusProfile(routeName) {
+  if (routeName === "login") {
+    focusAreas = [{ name: "login", selector: '[data-area="login-' + loginState + '"]' }];
+    return;
+  }
   focusAreas = routeFocusProfiles[routeName] || [];
 }
 
@@ -156,14 +177,26 @@ function buildDetailRefs() {
 }
 
 function buildLoginRefs() {
-  loginUsernameInputEl = document.getElementById("loginUsernameInput");
+  loginShellEl = document.getElementById("loginShell");
   loginPasswordInputEl = document.getElementById("loginPasswordInput");
   passwordToggleEl = document.getElementById("passwordToggle");
-  rememberOptionEl = document.querySelector(".login-option");
+  apiIdInputEl = document.getElementById("apiIdInput");
+  apiHashInputEl = document.getElementById("apiHashInput");
+  apiErrorEl = document.getElementById("apiError");
+  passwordErrorEl = document.getElementById("passwordError");
+  loginErrorTextEl = document.getElementById("loginErrorText");
+  loginQrEl = document.getElementById("loginQr");
+  loginQrBoxEl = document.getElementById("loginQrBox");
+  profilesAccountEl = document.getElementById("profilesAccountName");
+  splashPrimaryEl = document.querySelector(".prelogin-cta.primary");
+}
+
+function isTypingInInput() {
+  return !!document.activeElement && document.activeElement.tagName === "INPUT";
 }
 
 function blurActiveLoginInput() {
-  if (document.activeElement === loginUsernameInputEl || document.activeElement === loginPasswordInputEl) {
+  if (isTypingInInput()) {
     document.activeElement.blur();
   }
 }
@@ -199,15 +232,229 @@ function togglePasswordVisibility() {
   updateStatus(passwordVisible ? "Contraseña visible" : "Contraseña oculta");
 }
 
-function toggleRememberMe() {
-  var checked;
-  blurActiveLoginInput();
-  if (!rememberOptionEl) {
+/* ===== Login con Telegram ===== */
+
+function setLoginState(nextState) {
+  loginState = nextState;
+  if (loginShellEl) {
+    loginShellEl.setAttribute("data-login-state", nextState);
+  }
+  if (currentRoute !== "login") {
     return;
   }
-  checked = rememberOptionEl.getAttribute("data-checked") !== "true";
-  rememberOptionEl.setAttribute("data-checked", checked ? "true" : "false");
-  updateStatus(checked ? "Recordar sesión activado" : "Recordar sesión desactivado");
+  blurActiveLoginInput();
+  clearPreviousFocus();
+  state.areaIndex = 0;
+  state.itemIndex = 0;
+  rebuildRouteFocus("login");
+  updateFocus();
+}
+
+function cancelLogin() {
+  loginRun += 1;
+  if (loginAbort) {
+    loginAbort.abort();
+    loginAbort = null;
+  }
+  passwordResolver = null;
+}
+
+function showApiForm(message) {
+  var api = HFTelegram.credentials();
+  if (apiIdInputEl && api && !apiIdInputEl.value) {
+    apiIdInputEl.value = String(api.id);
+  }
+  if (apiErrorEl) {
+    apiErrorEl.textContent = message || "";
+  }
+  setLoginState("api");
+  updateStatus("Configura la clave de API de Telegram");
+}
+
+function showLoginError(message) {
+  if (loginErrorTextEl) {
+    loginErrorTextEl.textContent = message;
+  }
+  setLoginState("error");
+  updateStatus("No se pudo conectar con Telegram");
+}
+
+function showPasswordForm() {
+  if (loginPasswordInputEl) {
+    loginPasswordInputEl.value = "";
+  }
+  if (passwordErrorEl) {
+    passwordErrorEl.textContent = pendingPasswordError;
+  }
+  pendingPasswordError = "";
+  setLoginState("password");
+}
+
+function errorText(e) {
+  var message = String((e && e.message) || e || "Error desconocido");
+  if (/network|fetch|websocket|sin respuesta/i.test(message)) {
+    return "No hay conexión con Telegram. Revisa el internet de la TV y vuelve a intentarlo. (" + message + ")";
+  }
+  return message;
+}
+
+function handleLoginFailure(e) {
+  var api;
+  if (HFTelegram.rejectedApi(e)) {
+    api = HFTelegram.credentials();
+    HFTelegram.forgetCredentials();
+    showApiForm(api && api.from === "build"
+      ? "Telegram ya no acepta la clave incluida en esta versión de HomeFlix. Escribe una propia de my.telegram.org o instala una versión más nueva."
+      : "Telegram no aceptó ese api_id / api_hash. Revísalos en my.telegram.org.");
+    return;
+  }
+  showLoginError(errorText(e));
+}
+
+function onTelegramReady(user) {
+  telegramUser = user;
+  if (profilesAccountEl) {
+    profilesAccountEl.textContent = "Telegram: " + user.name + (user.username ? " (@" + user.username + ")" : "");
+  }
+  if (splashPrimaryEl) {
+    splashPrimaryEl.textContent = "CONTINUAR";
+  }
+  navigateTo("profiles", "Hola, " + user.name + ". Selecciona un perfil");
+}
+
+function startQrLogin(run) {
+  loginAbort = typeof AbortController !== "undefined" ? new AbortController() : null;
+  HFTelegram.loginQr({
+    onUrl: function (url) {
+      if (run !== loginRun) {
+        return;
+      }
+      loginQrEl.innerHTML = HFTelegram.qrSvg(url, 8);
+      loginQrBoxEl.setAttribute("data-scanned", "false");
+      if (loginState !== "qr") {
+        setLoginState("qr");
+        updateStatus("Escanea el código con Telegram");
+      }
+    },
+    onScanned: function () {
+      if (run !== loginRun) {
+        return;
+      }
+      loginQrBoxEl.setAttribute("data-scanned", "true");
+      updateStatus("Código escaneado, entrando…");
+    },
+    askPassword: function () {
+      return new Promise(function (resolve) {
+        if (run !== loginRun) {
+          return;
+        }
+        passwordResolver = resolve;
+        showPasswordForm();
+      });
+    },
+    onBadPassword: function () {
+      pendingPasswordError = "Contraseña incorrecta. Inténtalo de nuevo.";
+    },
+    signal: loginAbort ? loginAbort.signal : undefined
+  }).then(function (user) {
+    if (run === loginRun) {
+      onTelegramReady(user);
+    }
+  }, function (e) {
+    if (run === loginRun) {
+      handleLoginFailure(e);
+    }
+  });
+}
+
+function runTelegramLogin() {
+  var run;
+  cancelLogin();
+  run = loginRun;
+  if (!HFTelegram.available()) {
+    showLoginError("No se cargó el motor de Telegram (js/tg.bundle.js).");
+    return;
+  }
+  if (!HFTelegram.credentials()) {
+    showApiForm("");
+    return;
+  }
+  setLoginState("loading");
+  updateStatus("Conectando con Telegram…");
+  HFTelegram.me().then(function (user) {
+    if (run !== loginRun) {
+      return;
+    }
+    if (user) {
+      onTelegramReady(user);
+      return;
+    }
+    startQrLogin(run);
+  }, function (e) {
+    if (run === loginRun) {
+      handleLoginFailure(e);
+    }
+  });
+}
+
+function saveApiFromForm() {
+  var problem = HFTelegram.validateCredentials(apiIdInputEl.value, apiHashInputEl.value);
+  if (problem) {
+    apiErrorEl.textContent = problem;
+    updateStatus(problem);
+    return;
+  }
+  HFTelegram.saveCredentials(apiIdInputEl.value, apiHashInputEl.value);
+  apiHashInputEl.value = "";
+  runTelegramLogin();
+}
+
+function sendPasswordFromForm() {
+  var value = loginPasswordInputEl ? loginPasswordInputEl.value : "";
+  var resolve = passwordResolver;
+  if (!value) {
+    passwordErrorEl.textContent = "Escribe la contraseña.";
+    return;
+  }
+  if (!resolve) {
+    runTelegramLogin();
+    return;
+  }
+  passwordResolver = null;
+  setLoginState("loading");
+  updateStatus("Verificando contraseña…");
+  resolve(value);
+}
+
+function logoutTelegram() {
+  updateStatus("Cerrando sesión de Telegram…");
+  HFTelegram.logout().then(function () {
+    telegramUser = null;
+    if (splashPrimaryEl) {
+      splashPrimaryEl.textContent = "INICIAR SESIÓN";
+    }
+    navigateTo("splash", "Sesión de Telegram cerrada");
+  });
+}
+
+/* Al abrir la app: si ya hay sesión, el botón principal dice CONTINUAR y entra directo. */
+function warmUpTelegram() {
+  if (!HFTelegram.available() || !HFTelegram.credentials()) {
+    return;
+  }
+  HFTelegram.me().then(function (user) {
+    if (user && !telegramUser) {
+      telegramUser = user;
+      if (splashPrimaryEl) {
+        splashPrimaryEl.textContent = "CONTINUAR";
+      }
+      if (profilesAccountEl) {
+        profilesAccountEl.textContent = "Telegram: " + user.name + (user.username ? " (@" + user.username + ")" : "");
+      }
+    }
+  }, function () {
+    /* se mostrará el error al entrar al login */
+  });
 }
 
 function clampItemIndexToArea() {
@@ -522,6 +769,10 @@ function rebuildRouteFocus(routeName) {
 }
 
 function navigateTo(routeName, message) {
+  if (currentRoute === "login" && routeName !== "login") {
+    cancelLogin();
+    blurActiveLoginInput();
+  }
   currentRoute = routeName;
   if (appRootEl) {
     appRootEl.setAttribute("data-route", routeName);
@@ -540,46 +791,57 @@ function navigateTo(routeName, message) {
 function handleSplashSelect(current) {
   var title = current ? (current._hfTitle || current.getAttribute("data-title") || "") : "";
   if (title === "Crear cuenta") {
-    updateStatus("Creación de cuenta preparada para fase futura");
+    updateStatus("HomeFlix entra con tu cuenta de Telegram: elige Iniciar sesión");
     return;
   }
-  navigateTo("login", "Ingresa para continuar");
+  if (telegramUser) {
+    onTelegramReady(telegramUser);
+    return;
+  }
+  navigateTo("login", "Conectando con Telegram…");
+  runTelegramLogin();
 }
 
 function handleLoginSelect(current) {
-  var title = current ? (current._hfTitle || current.getAttribute("data-title") || "") : "";
-  if (title === "Ingresar") {
-    blurActiveLoginInput();
-    navigateTo("profiles", "Selecciona un perfil");
+  var action = current ? current.getAttribute("data-action") : "";
+  var inputId = current ? current.getAttribute("data-input") : "";
+  if (inputId) {
+    focusLoginInput(document.getElementById(inputId));
+    updateStatus("Escribe con el teclado de la TV y pulsa Listo");
     return;
   }
-  if (title === "Olvidé mi contraseña") {
-    blurActiveLoginInput();
-    updateStatus("Recuperación de contraseña preparada para fase futura");
+  blurActiveLoginInput();
+  if (action === "save-api") {
+    saveApiFromForm();
     return;
   }
-  if (title === "Usuario") {
-    focusLoginInput(loginUsernameInputEl);
-    updateStatus("Escribe tu usuario con el teclado del TV");
+  if (action === "send-password") {
+    sendPasswordFromForm();
     return;
   }
-  if (title === "Contraseña") {
-    focusLoginInput(loginPasswordInputEl);
-    updateStatus("Escribe tu contraseña con el teclado del TV");
-    return;
-  }
-  if (title === "Mostrar contraseña" || title === "Ocultar contraseña") {
+  if (action === "toggle-password") {
     togglePasswordVisibility();
     return;
   }
-  if (title === "Recordarme") {
-    toggleRememberMe();
+  if (action === "change-api") {
+    cancelLogin();
+    showApiForm("");
     return;
   }
-  updateStatus("Campo seleccionado: " + title);
+  if (action === "retry") {
+    runTelegramLogin();
+    return;
+  }
+  if (action === "back") {
+    navigateTo("splash", "Pantalla inicial");
+  }
 }
 
 function handleProfileSelect(current) {
+  if (current && current.getAttribute("data-action") === "logout") {
+    logoutTelegram();
+    return;
+  }
   selectedProfileName = current ? (current._hfTitle || current.getAttribute("data-title") || "Perfil") : "Perfil";
   browseInitialState.areaIndex = 2;
   browseInitialState.itemIndex = 0;
@@ -639,7 +901,7 @@ function goBackByRoute() {
     return;
   }
   if (currentRoute === "profiles") {
-    navigateTo("login", "Volviste al login");
+    navigateTo("splash", "Pantalla inicial");
     return;
   }
   if (currentRoute === "login") {
@@ -657,6 +919,30 @@ function updateStatus(message) {
 
 function handleKeyDown(event) {
   var code = event.keyCode;
+  if (code === 27) {
+    code = 10009; // Esc en el navegador de escritorio = Back del mando
+  }
+  /* Escribiendo en un campo: Enter / "Listo" (65376) del teclado de la TV cierra el teclado y baja al siguiente;
+   * "Cancelar" (65385) solo cierra el teclado. Las demás teclas son del campo. */
+  if (isTypingInInput()) {
+    if (code === 13 || code === 65376) {
+      event.preventDefault();
+      blurActiveLoginInput();
+      if (currentRoute === "login" && loginState === "password") {
+        sendPasswordFromForm();
+      } else {
+        moveDown();
+      }
+      return;
+    }
+    if (code === 65385) {
+      blurActiveLoginInput();
+      return;
+    }
+    if (code !== 38 && code !== 40 && code !== 10009) {
+      return;
+    }
+  }
   if (code === 37 || code === 38 || code === 39 || code === 40 || code === 13 || code === 10009) {
     event.preventDefault();
   }
@@ -722,9 +1008,13 @@ function syncStateToElement(element) {
 
 function handlePointerSelect(event) {
   var element = findFocusableFromTarget(event.target);
-  if (currentRoute === "login" && event.target !== loginUsernameInputEl && event.target !== loginPasswordInputEl) {
-    blurActiveLoginInput();
+  if (event.target && event.target.tagName === "INPUT") {
+    if (element) {
+      syncStateToElement(element);
+    }
+    return;
   }
+  blurActiveLoginInput();
   if (!element) {
     return;
   }
@@ -744,4 +1034,5 @@ window.onload = function () {
   navigateTo("splash", "Selecciona una opción para continuar");
   document.addEventListener("keydown", handleKeyDown, false);
   document.addEventListener("click", handlePointerSelect, false);
+  warmUpTelegram();
 };
