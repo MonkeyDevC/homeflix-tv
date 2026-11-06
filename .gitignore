@@ -1,0 +1,12 @@
+# Paquetes armados (salen en los releases de GitHub)
+dist/
+*.wgt
+*.zip
+
+# Firma de Tizen Studio (Apps2Samsung firma al instalar)
+.sign/
+
+# Claves y configuración local: nunca al repo
+.env
+*.local.*
+secrets/

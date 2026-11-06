@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>HomeFlix TV</title>
+<link href="css/style.css" rel="stylesheet"/>
+</head>
+<body>
+<div id="app" data-route="splash">
+  <div id="splashScreen" class="screen" data-screen="splash">
+    <div id="preloginHero">
+      <div id="preloginBackdrop">
+        <div class="prelogin-strip prelogin-strip-1"></div>
+        <div class="prelogin-strip prelogin-strip-2"></div>
+        <div class="prelogin-strip prelogin-strip-3"></div>
+        <div class="prelogin-strip prelogin-strip-4"></div>
+        <div class="prelogin-strip prelogin-strip-5"></div>
+        <div class="prelogin-strip prelogin-strip-6"></div>
+      </div>
+      <div id="preloginOverlay"></div>
+
+      <div id="preloginBrand">HomeFlix</div>
+
+      <div id="preloginContent">
+        <h1 id="preloginTitle">Disfruta películas y series sin límites.</h1>
+        <p id="preloginCopy">Contenido familiar, series y películas seleccionadas para ver desde tu televisor.</p>
+        <div id="preloginActions">
+          <div class="prelogin-cta primary" data-area="splash" data-focusable="true" data-title="Iniciar sesión" data-description="Entrar con tu cuenta de HomeFlix" tabindex="0">INICIAR SESIÓN</div>
+          <div class="prelogin-cta secondary" data-area="splash" data-focusable="true" data-title="Crear cuenta" data-description="Crear una cuenta de HomeFlix próximamente" tabindex="0">CREAR CUENTA</div>
+        </div>
+      </div>
+
+      <div id="preloginPreview" aria-hidden="true">
+        <div class="prelogin-card"><span>PELÍCULA RECIENTE</span><small>ACCIÓN</small></div>
+        <div class="prelogin-card"><span>SERIE POPULAR</span><small>DRAMA</small></div>
+        <div class="prelogin-card"><span>PELÍCULA FAMILIAR</span><small>AVENTURA</small></div>
+        <div class="prelogin-card"><span>SERIE ANIMADA</span><small>KIDS</small></div>
+        <div class="prelogin-card"><span>ESTRENO</span><small>FAMILIA</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loginScreen" class="screen" data-screen="login">
+    <div id="loginShell">
+      <div id="loginPanel">
+        <div class="login-kicker">BIENVENIDO</div>
+        <div class="login-signup">¿No tienes una cuenta? <span>Regístrate</span></div>
+
+        <div class="login-label">Usuario</div>
+        <div class="login-field" data-area="login" data-focusable="true" data-title="Usuario" data-description="Escribe tu correo con el teclado del TV" tabindex="0">
+          <input id="loginUsernameInput" type="email" value="example@gmail.com" inputmode="email" autocomplete="username" />
+        </div>
+
+        <div class="login-label">Contraseña</div>
+        <div id="passwordRow">
+          <div class="login-field password-field" data-area="login" data-focusable="true" data-title="Contraseña" data-description="Escribe tu contraseña con el teclado del TV" tabindex="0">
+            <input id="loginPasswordInput" type="password" value="123456" autocomplete="current-password" />
+          </div>
+          <div id="passwordToggle" data-area="login" data-focusable="true" data-title="Mostrar contraseña" data-description="Mostrar u ocultar contraseña" data-password-visible="false" tabindex="0">
+            <span class="eye-icon eye-closed"></span>
+            <span class="eye-label">Mostrar</span>
+          </div>
+        </div>
+
+        <div id="loginOptions">
+          <div class="login-option" data-area="login" data-focusable="true" data-title="Recordarme" data-description="Activar o desactivar recordar sesión" data-checked="true" tabindex="0"><span></span>Recordarme</div>
+          <div class="login-link" data-area="login" data-focusable="true" data-title="Olvidé mi contraseña" data-description="Recuperar contraseña" tabindex="0">¿Olvidaste tu contraseña?</div>
+        </div>
+
+        <div id="loginSubmit" data-area="login" data-focusable="true" data-title="Ingresar" data-description="Ingresar a HomeFlix" tabindex="0">Ingresar</div>
+      </div>
+
+      <div id="pandaPanel" aria-hidden="true">
+        <img id="loginPandaImage" src="images/panda-login.png" alt="Panda HomeFlix"/>
+      </div>
+    </div>
+  </div>
+
+  <div id="profilesScreen" class="screen" data-screen="profiles">
+    <div class="profiles-shell">
+      <h2 class="profiles-title">¿Quien esta viendo?</h2>
+      <div class="profiles-row">
+        <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Familia" data-description="Perfil familiar principal" tabindex="0"><div class="profile-avatar profile-avatar-1">F</div><div class="profile-name">Familia</div></div>
+        <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Santiago" data-description="Perfil personal" tabindex="0"><div class="profile-avatar profile-avatar-2">S</div><div class="profile-name">Santiago</div></div>
+        <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Kids" data-description="Perfil infantil" tabindex="0"><div class="profile-avatar profile-avatar-3">K</div><div class="profile-name">Kids</div></div>
+        <div class="profile-card" data-area="profiles" data-focusable="true" data-title="Invitado" data-description="Perfil invitado" tabindex="0"><div class="profile-avatar profile-avatar-4">I</div><div class="profile-name">Invitado</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="browseScreen" class="screen" data-screen="browse">
+  <div id="topbar">
+    <div class="topbar-left">
+      <h1 id="brand">HomeFlix</h1>
+      <nav id="menu">
+        <div class="menu-item" data-active="true" data-area="topnav" data-focusable="true" data-title="HOME" data-description="Contenido destacado de HomeFlix para ver en familia." tabindex="0">HOME</div>
+        <div class="menu-item" data-area="topnav" data-focusable="true" data-title="MOVIES" data-description="Contenido destacado de HomeFlix para ver en familia." tabindex="0">MOVIES</div>
+        <div class="menu-item" data-area="topnav" data-focusable="true" data-title="SERIES" data-description="Contenido destacado de HomeFlix para ver en familia." tabindex="0">SERIES</div>
+        <div class="menu-item" data-area="topnav" data-focusable="true" data-title="MY LIST" data-description="Contenido destacado de HomeFlix para ver en familia." tabindex="0">MY LIST</div>
+        <div class="menu-item topnav-push" data-area="topnav" data-focusable="true" data-title="Buscar" data-description="Contenido destacado de HomeFlix para ver en familia." tabindex="0">Buscar</div>
+        <div class="menu-item" data-area="topnav" data-focusable="true" data-title="Perfil" data-description="Contenido destacado de HomeFlix para ver en familia." tabindex="0">Perfil</div>
+      </nav>
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="hero">
+      <div id="heroTrack">
+        <div class="hero-slide" data-area="hero" data-focusable="true" data-title="Viaje espacial" data-type="movie" data-kind-label="PELÍCULA" data-description="Una aventura familiar de ciencia ficcion entre planetas, decisiones dificiles y nuevos comienzos." tabindex="0">
+          <div class="hero-panel hero-panel-1">
+            <div class="hero-copy">
+              <div class="hero-badge">DESTACADO</div>
+              <h2 class="hero-title">Viaje espacial</h2>
+              <p class="hero-description">Una aventura de ciencia ficcion sobre una familia que cruza la galaxia para encontrar un nuevo hogar.</p>
+              <div class="hero-action-text">▶ Reproducir&nbsp;&nbsp;&nbsp; ⓘ Mas info</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-slide" data-area="hero" data-focusable="true" data-title="Ciudad neon" data-type="series" data-kind-label="SERIE" data-description="En una ciudad futurista, un grupo de amigos descubre que la tecnologia tambien guarda secretos humanos." tabindex="0">
+          <div class="hero-panel hero-panel-2">
+            <div class="hero-copy">
+              <div class="hero-badge">ESTRENO</div>
+              <h2 class="hero-title">Ciudad neon</h2>
+              <p class="hero-description">En una ciudad futurista, un grupo de amigos descubre que la tecnologia tambien guarda secretos humanos.</p>
+              <div class="hero-action-text">▶ Reproducir&nbsp;&nbsp;&nbsp; ⓘ Mas info</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-slide" data-area="hero" data-focusable="true" data-title="Bosque magico" data-type="movie" data-kind-label="PELÍCULA" data-description="Dos hermanos entran a un bosque lleno de luces y personajes que guardan un secreto antiguo." tabindex="0">
+          <div class="hero-panel hero-panel-3">
+            <div class="hero-copy">
+              <div class="hero-badge">FAMILIAR</div>
+              <h2 class="hero-title">Bosque magico</h2>
+              <p class="hero-description">Un bosque lleno de luces y personajes curiosos guia a dos hermanos hacia un secreto antiguo.</p>
+              <div class="hero-action-text">▶ Reproducir&nbsp;&nbsp;&nbsp; ⓘ Mas info</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-slide" data-area="hero" data-focusable="true" data-title="Noche familiar" data-type="movie" data-kind-label="PELÍCULA" data-description="Una pelicula calida para compartir, con humor sencillo y momentos memorables en casa." tabindex="0">
+          <div class="hero-panel hero-panel-4">
+            <div class="hero-copy">
+              <div class="hero-badge">PARA TODOS</div>
+              <h2 class="hero-title">Noche familiar</h2>
+              <p class="hero-description">Una pelicula calida para compartir en casa, con humor, comida y pequenos momentos inolvidables.</p>
+              <div class="hero-action-text">▶ Reproducir&nbsp;&nbsp;&nbsp; ⓘ Mas info</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="heroDots"><span></span><span></span><span></span><span></span></div>
+    </div>
+
+    <div id="contentRows">
+      <div id="rowsStack">
+        <div class="row-block" data-row="0">
+          <div class="row-header"><h3 class="row-title">Continuar viendo</h3><div class="row-indicator" id="indicator-row-0">1 / 10</div></div>
+          <div class="row-viewport">
+            <div class="row-track cards-row-landscape" data-track="row-0">
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Viaje espacial" data-type="movie" data-kind-label="PELÍCULA" data-description="Una aventura familiar de ciencia ficcion entre planetas, decisiones dificiles y nuevos comienzos." tabindex="0"><div class="card-bg card-bg-1"></div><div class="card-label">Viaje espacial</div><div class="progress-bar"><span style="width:58%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Camara antigua" data-type="movie" data-kind-label="PELÍCULA" data-description="Un documental ficticio sobre recuerdos, cine familiar y una camara que revela historias escondidas." tabindex="0"><div class="card-bg card-bg-2"></div><div class="card-label">Camara antigua</div><div class="progress-bar"><span style="width:37%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Mirada cosmica" data-type="series" data-kind-label="SERIE" data-description="Un misterio visual donde una mirada abre la puerta a mundos imposibles y secretos del universo." tabindex="0"><div class="card-bg card-bg-3"></div><div class="card-label">Mirada cosmica</div><div class="progress-bar"><span style="width:75%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Calle lluviosa" data-type="series" data-kind-label="SERIE" data-description="Una historia tranquila de misterio, luces nocturnas y decisiones que cambian una noche." tabindex="0"><div class="card-bg card-bg-4"></div><div class="card-label">Calle lluviosa</div><div class="progress-bar"><span style="width:42%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Luces nocturnas" data-type="series" data-kind-label="SERIE" data-description="Velocidad, ciudad y familia se cruzan en una noche llena de energia y pequenos descubrimientos." tabindex="0"><div class="card-bg card-bg-5"></div><div class="card-label">Luces nocturnas</div><div class="progress-bar"><span style="width:66%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Portal rojo" data-type="movie" data-kind-label="PELÍCULA" data-description="Un portal aparece en casa y convierte una noche comun en una aventura inesperada." tabindex="0"><div class="card-bg card-bg-11"></div><div class="card-label">Portal rojo</div><div class="progress-bar"><span style="width:22%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Noche familiar" data-type="movie" data-kind-label="PELÍCULA" data-description="Una pelicula calida para compartir, con humor sencillo y momentos memorables en casa." tabindex="0"><div class="card-bg card-bg-12"></div><div class="card-label">Noche familiar</div><div class="progress-bar"><span style="width:81%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Ciudad neon" data-type="series" data-kind-label="SERIE" data-description="En una ciudad futurista, un grupo de amigos descubre que la tecnologia tambien guarda secretos humanos." tabindex="0"><div class="card-bg card-bg-13"></div><div class="card-label">Ciudad neon</div><div class="progress-bar"><span style="width:49%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Montana lejana" data-type="movie" data-kind-label="PELÍCULA" data-description="Una familia viaja a la montana y aprende a reconectar lejos del ruido cotidiano." tabindex="0"><div class="card-bg card-bg-14"></div><div class="card-label">Montana lejana</div><div class="progress-bar"><span style="width:12%;"></span></div></div>
+              <div class="card landscape" data-area="row-0" data-focusable="true" data-title="Ultimo episodio" data-type="series" data-kind-label="SERIE" data-description="El cierre de una aventura familiar donde cada personaje debe tomar una decision importante." tabindex="0"><div class="card-bg card-bg-15"></div><div class="card-label">Ultimo episodio</div><div class="progress-bar"><span style="width:91%;"></span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="row-block" data-row="1">
+          <div class="row-header"><h3 class="row-title">Peliculas familiares</h3><div class="row-indicator" id="indicator-row-1">1 / 10</div></div>
+          <div class="row-viewport">
+            <div class="row-track cards-row-poster" data-track="row-1">
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Reino del oceano" data-type="movie" data-kind-label="PELÍCULA" data-description="Un viaje bajo el mar con criaturas amistosas, colores brillantes y una aventura para todos." tabindex="0"><div class="card-bg card-bg-6"></div><div class="card-label">Reino del oceano</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Bosque magico" data-type="series" data-kind-label="SERIE" data-description="Dos hermanos entran a un bosque lleno de luces y personajes que guardan un secreto antiguo." tabindex="0"><div class="card-bg card-bg-7"></div><div class="card-label">Bosque magico</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="La jugueteria" data-type="movie" data-kind-label="PELÍCULA" data-description="Una jugueteria cobra vida durante la noche y convierte objetos olvidados en grandes amigos." tabindex="0"><div class="card-bg card-bg-8"></div><div class="card-label">La jugueteria</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Robot viajero" data-type="series" data-kind-label="SERIE" data-description="Un pequeno robot cruza mundos distintos buscando regresar a casa y entender a las personas." tabindex="0"><div class="card-bg card-bg-9"></div><div class="card-label">Robot viajero</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Cabana nevada" data-type="movie" data-kind-label="PELÍCULA" data-description="Una cabana en la nieve reune a una familia y revela pequenas historias de invierno." tabindex="0"><div class="card-bg card-bg-10"></div><div class="card-label">Cabana nevada</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Aventura lunar" data-type="movie" data-kind-label="PELÍCULA" data-description="Una expedicion infantil a la luna donde la imaginacion pesa mas que la gravedad." tabindex="0"><div class="card-bg card-bg-16"></div><div class="card-label">Aventura lunar</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Isla secreta" data-type="movie" data-kind-label="PELÍCULA" data-description="Un mapa escondido guia a un grupo de amigos hacia una isla llena de juegos y misterios." tabindex="0"><div class="card-bg card-bg-17"></div><div class="card-label">Isla secreta</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Amigos del bosque" data-type="series" data-kind-label="SERIE" data-description="Animales del bosque se unen para proteger su hogar en una aventura tierna y divertida." tabindex="0"><div class="card-bg card-bg-18"></div><div class="card-label">Amigos del bosque</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Tesoro dorado" data-type="movie" data-kind-label="PELÍCULA" data-description="Una busqueda del tesoro ensena que la amistad vale mas que cualquier moneda." tabindex="0"><div class="card-bg card-bg-19"></div><div class="card-label">Tesoro dorado</div></div>
+              <div class="card poster" data-area="row-1" data-focusable="true" data-title="Castillo violeta" data-type="series" data-kind-label="SERIE" data-description="Un castillo encantado abre sus puertas a una aventura de fantasia, humor y valentia." tabindex="0"><div class="card-bg card-bg-20"></div><div class="card-label">Castillo violeta</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <div id="detailOverlay" data-open="false">
+    <div id="detailPanel">
+      <div id="detailBadge">DETALLE</div>
+      <h2 id="detailTitle">Titulo</h2>
+      <p id="detailDescription">Descripcion</p>
+      <div id="detailActions">
+        <div id="detailPrimaryAction" class="detail-action" data-detail-action="primary">▶ Reproducir</div>
+        <div id="detailBackAction" class="detail-action" data-detail-action="back">Volver</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="status">
+    <div class="status-hints">OK Seleccionar | BACK Volver | Flechas Navegar</div>
+    <div id="statusMessage">Listo para navegar</div>
+  </div>
+</div>
+<script src="js/main.js"></script>
+</body>
+</html>

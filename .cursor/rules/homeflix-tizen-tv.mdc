@@ -1,0 +1,100 @@
+---
+description: HomeFlix TV — reglas de ingeniería para app web Samsung Tizen (HTML/CSS/JS vanilla, foco TV, rendimiento).
+alwaysApply: true
+---
+
+# HomeFlix TV — Engineering Rules (Samsung Tizen Web App)
+
+## Alcance y principio
+
+- Proyecto: **HomeFlix TV** como **Tizen Web Application** en **Samsung Smart TV real** (no optimizar como web desktop).
+- Stack: **HTML, CSS, JavaScript vanilla**, sin build.
+- Prioridad: **1)** respuesta al mando **2)** foco predecible **3)** bajo coste de pintado **4)** código simple **5)** compatibilidad WebView Tizen.
+- Nunca priorizar estética de escritorio sobre rendimiento en TV.
+
+## Prohibiciones estrictas
+
+No usar: React, Vue, Angular, Tailwind, Bootstrap, jQuery, TypeScript, bundlers, paquetes npm, scripts CDN, Google Fonts, Material Symbols/Icons ni fuentes de iconos externas, frameworks CSS, **animaciones CSS por defecto**, transiciones pesadas, `backdrop-filter`, `filter`, blur, **box-shadow pesado / multicapa**, **`will-change`**, `scroll-behavior: smooth`, `alert()`, `confirm()`, `prompt()`, **ES modules**, **import dinámicos**, abstracciones innecesarias, ni **el foco visual nativo del navegador como sistema principal de foco**.
+
+## Archivos por defecto
+
+- **Modificar por defecto solo:** `index.html`, `css/style.css`, `js/main.js`.
+- **No tocar** salvo petición explícita: `config.xml`, `icon.png`, `images/`, `*.wgt`, metadatos del proyecto.
+
+## HTML
+
+- Marcado simple y seguro en Tizen. Preferir: `div`, `header`, `nav`, `h1`, `h2`, `p`, `button`, `img`, `span`.
+- Evitar salvo validación explícita en TV: `main`, `section`, `article`, `dialog`, `canvas`, cambios de `video` sin pedirlo.
+- Todo elemento remotamente enfocable debe llevar: `tabindex="0"`, `data-focusable="true"`, `data-area="..."`, `data-title="..."`.
+- No depender solo del orden del DOM: las **áreas de foco** deben quedar claras en el sistema de navegación.
+
+## CSS (render TV)
+
+- Fondo oscuro fijo, gradientes simples, `transform`/`opacity`/color simples, layout predecible.
+- **Siempre** incluir: `*:focus { outline: none; }`.
+- **No usar:** `will-change`, `filter`, `backdrop-filter`, `blur()`, `transition: all`, sombras difusas o muy grandes, animaciones por defecto, selectores anidados complejos, **bordes de foco que cambien el layout**.
+- Foco: preferir **`outline`** o, si no genera lag/flicker, `box-shadow: 0 0 0 4px #ffffff;` en lugar de `border` que mueva layout.
+- Transiciones: **opt-in**, muy cortas, ejemplo: `transition: transform 0.06s linear;`. **Nunca** `transition: all`.
+- Escala de foco en TV: **`transform: scale(1.02)` a `1.04`**. No usar **1.1** salvo aprobación tras prueba en TV real.
+
+## JavaScript
+
+- Vanilla; preferir **`var`** en motores Tizen antiguos.
+- Evitar: módulos ES, async innecesario, clases salvo que simplifiquen de verdad, **múltiples `querySelectorAll` en cada navegación**, escaneo DOM en cada tecla, lógica anónima repartida en handlers.
+- **Un solo** listener `keydown` para el mando.
+- Teclas: `37` izq, `38` arriba, `39` der, `40` abajo, `13` OK, `10009` Back.
+- Sin `alert()`; feedback en **texto de estado visible** en la UI.
+
+## Sistema de foco (custom)
+
+- Desactivar foco visual nativo; el estilo principal **no** debe depender de `:focus`.
+- Estado visual: **`data-focused="true"`** en un solo elemento a la vez.
+- **No** limpiar todos los focusables en cada tecla (evitar `querySelectorAll("[data-focused]")` por pulsación).
+- `.focus()` puede causar lag/flicker en Samsung: **no** llamarlo en cada movimiento salvo necesidad probada en TV; si se usa, preferir solo cuando `document.activeElement !==` el nodo objetivo.
+- Patrón preferido de actualización: quitar `data-focused` solo del **anterior**, poner `data-focused="true"` en el **nuevo**, actualizar referencia global `previousFocusedItem`; salida temprana si el target no cambia.
+
+## Arquitectura de navegación
+
+- **Una sola fuente de verdad** en `state` (p. ej. `areaIndex` + `itemIndex`, o `rowIndex` + `colIndex` si solo hay filas). No duplicar estado de foco entre DOM, arrays y globales sueltos.
+- **Cache de áreas** tras carga DOM (`focusCache` + `buildFocusCache()`); **no** ejecutar `querySelectorAll` dentro de cada pulsación de flecha.
+- Si el DOM cambia dinámicamente, **refrescar el cache explícitamente** tras el render, no dentro del path de navegación.
+
+## Rendimiento (path del mando)
+
+- Debe sentirse **instantáneo**. Antes de un efecto visual: ¿recalcula layout?, ¿repinta mucho?, ¿corre en cada tecla?, ¿es necesario en TV?, ¿probado en Samsung real?
+- En `keydown`: solo **actualizar estado**, **actualizar foco anterior/nuevo**, **texto de estado** si aplica. Sin bucles DOM caros, carga de imágenes, APIs, medición de layout, ni spam de `console` en producción.
+
+## Anti-patrones (no hacer)
+
+- Limpiar todos los `data-focused` en cada movimiento.
+- Estilar el foco principal con `.card:focus { ... }` en lugar de `data-focused`.
+- Efectos pesados (`filter: blur`, `backdrop-filter`, sombras enormes, `transition: all 0.3s`).
+- “Framework brain”: routers, stores, virtual DOM, capas no necesarias en esta fase.
+- Asumir ratón, hover, scroll wheel, layout móvil o rendimiento de desktop.
+
+## Estado / feedback en pantalla
+
+- OK: `Seleccionaste: [title]` (desde `data-title`).
+- Back: `Back presionado`. Sin modales ni diálogos bloqueantes del navegador.
+
+## Proceso al editar
+
+**Antes:** leer `index.html`, `css/style.css`, `js/main.js`; entender foco y áreas; detectar riesgos de rendimiento; **cambio mínimo seguro**.
+
+**Después:** solo archivos permitidos tocados; sin APIs prohibidas; sin queries repetidas en el path de `keydown`; outline nativo desactivado; un solo `data-focused="true"`; límites de navegación seguros.
+
+## Checklist de prueba (TV real)
+
+Abre sin pantalla blanca; foco inicial correcto; izquierda/derecha/arriba/abajo **instantáneos**; mantener tecla sin lag severo; OK y Back OK; sin línea blanca nativa; sin flicker intolerable; un solo `data-focused="true"`; sin errores que rompan consola.
+
+## Dirección del producto (orden)
+
+1. Sistema de foco/navegación estable  
+2. Multizona rápida  
+3. Pulido visual ligero  
+4. Scroll horizontal de filas  
+5. API  
+6. Perfiles/login  
+7. Reproducción de video  
+
+No saltar validación de rendimiento antes de API o playback.

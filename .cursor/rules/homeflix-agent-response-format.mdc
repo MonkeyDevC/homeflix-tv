@@ -1,0 +1,68 @@
+---
+description: Formato obligatorio de respuesta del agente tras cambios en HomeFlix TV (Tizen).
+alwaysApply: true
+---
+
+# HomeFlix TV — Required Agent Response Format
+
+Cuando trabajes en **HomeFlix TV** y hayas **modificado código** (o propongas cambios listos para aplicar), la respuesta al usuario debe seguir **siempre** esta estructura en markdown.
+
+Usar estos encabezados `##` en este orden:
+
+---
+
+## Understanding
+
+En pocas frases: qué pedía el usuario y qué interpretaste como objetivo (sin divagar).
+
+---
+
+## Risk Check
+
+Lista explícita de riesgos para **TV Samsung / Tizen** (rendimiento, compatibilidad WebView, foco, input del mando). Si no hay riesgos relevantes, indicar **Ninguno identificado** y una línea de por qué.
+
+---
+
+## Files Changed
+
+Lista exacta de rutas de archivos tocados (p. ej. `index.html`, `css/style.css`, `js/main.js`). Si no hubo cambios en disco, indicarlo claramente.
+
+---
+
+## Implementation Summary
+
+Qué cambió en el comportamiento o en la UI, en lenguaje claro y **sin exagerar** el alcance.
+
+---
+
+## Performance Notes
+
+Qué se hizo (o se evitó) para **reducir lag, flicker o trabajo en el path del mando** (`keydown`, foco, CSS costoso, queries DOM, etc.).
+
+---
+
+## Manual TV Test Plan
+
+Pasos **concretos** para validar en **Samsung TV real** (orden sugerido: abrir app, foco inicial, flechas, OK, Back, comprobar foco visual y ausencia de anillo nativo, etc.). Deben ser acciones que el usuario pueda seguir tal cual.
+
+---
+
+## Constraints Respected
+
+Confirmar explícitamente (sí/no o breve frase cada uno):
+
+- no frameworks  
+- no CDNs  
+- no heavy CSS effects  
+- no native visual focus dependency  
+- no repeated DOM scans during keydown  
+
+Si alguna no aplica a ese cambio, indicar **N/A** con motivo de una línea.
+
+---
+
+### Notas para el agente
+
+- Si la tarea fue solo lectura o pregunta sin edición, adaptar: en **Files Changed** poner que no hubo modificaciones; el resto de secciones pueden acortarse pero **mantener el orden** de encabezados.
+- Responder en **español** salvo que el usuario pida otro idioma.
+- No omitir secciones: si una sección es mínima, una o dos líneas bastan.
