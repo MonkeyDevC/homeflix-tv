@@ -4,8 +4,8 @@ App de películas y series para televisores Samsung (Tizen), hecha con HTML, CSS
 
 ## Instalar en la TV con Apps2Samsung
 
-1. En Apps2Samsung, agrega esta fuente: `github.com/MonkeyDevC/homeflix`
-   (CLI: `apps2samsung-cli sources add github.com/MonkeyDevC/homeflix`).
+1. En Apps2Samsung, agrega esta fuente: `github.com/MonkeyDevC/homeflix-tv`
+   (CLI: `apps2samsung-cli sources add github.com/MonkeyDevC/homeflix-tv`).
 2. Busca **HomeFlix** en el catálogo e instálala. Apps2Samsung la firma con tu certificado de Samsung.
 3. Cuando salga una versión nueva, el gestor de apps instaladas ofrece actualizarla.
 
