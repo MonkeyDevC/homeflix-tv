@@ -1,0 +1,712 @@
+/* =================== 07 · 08 · 09 · 10 · 16 · Catálogo =================== */
+.hf2.cat {
+  background: linear-gradient(180deg, #131518 0%, #0d0e10 100%);
+}
+
+/* ----- Barra superior ----- */
+.hf2-topbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 120px;
+  padding: 0 88px;
+  display: flex;
+  align-items: center;
+  z-index: 8;
+  background: linear-gradient(180deg, rgba(11, 12, 14, 0.95) 0%, rgba(11, 12, 14, 0.6) 60%, rgba(11, 12, 14, 0) 100%);
+}
+
+.hf2-brand.small {
+  position: static;
+}
+
+.hf2-brand.small .hf2-logo {
+  width: 58px;
+  height: 58px;
+  border-width: 2px;
+}
+
+.hf2-brand.small .hf2-wordmark {
+  margin-left: 14px;
+  font-size: 38px;
+}
+
+.hf2-menu {
+  display: flex;
+  margin-left: 64px;
+}
+
+.hf2-menu span {
+  position: relative;
+  margin-right: 38px;
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 25px;
+  font-weight: 600;
+}
+
+.hf2-menu span.on {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.hf2-menu span.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold-1), var(--gold-2));
+}
+
+.hf2-menu span[data-focused="true"] {
+  color: var(--gold-1);
+}
+
+.hf2-top-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.hf2-round.sm {
+  width: 56px;
+  height: 56px;
+  margin-left: 16px;
+}
+
+.hf2-round.sm svg {
+  width: 26px;
+  height: 26px;
+}
+
+.hf2-sync {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+  color: var(--gold-text);
+  font-size: 19px;
+}
+
+.hf2-sync svg {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  stroke: var(--gold-text);
+}
+
+.hf2-me {
+  display: flex;
+  align-items: center;
+  margin-left: 22px;
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.hf2-me-avatar {
+  width: 52px;
+  height: 52px;
+  margin-right: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hf2-me-avatar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ----- Página ----- */
+.hf2-page {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+
+.hf2-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.hf2-chip.gold {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  color: #2a1d0e;
+}
+
+.hf2-chip.kids svg {
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+}
+
+/* ----- Destacado (billboard) ----- */
+.hf2-billboard {
+  position: relative;
+  height: 780px;
+}
+
+.hf2-bb-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1340px;
+  height: 780px;
+}
+
+.hf2-bb-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-bb-shade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background:
+    linear-gradient(90deg, #131518 0%, #131518 30%, rgba(19, 21, 24, 0.85) 45%, rgba(19, 21, 24, 0.2) 70%, rgba(19, 21, 24, 0) 100%),
+    linear-gradient(0deg, #121417 0%, rgba(18, 20, 23, 0.7) 22%, rgba(18, 20, 23, 0) 45%);
+}
+
+.hf2-bb-copy {
+  position: absolute;
+  left: 88px;
+  top: 190px;
+  width: 820px;
+}
+
+.hf2-bb-copy h1 {
+  margin: 22px 0 0;
+  font-size: 92px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.hf2-bb-meta {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 23px;
+}
+
+.hf2-bb-meta > * {
+  margin-right: 18px;
+}
+
+.hf2-bb-meta b {
+  color: var(--gold-text);
+}
+
+.hf2-q {
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.hf2-bb-copy p {
+  margin: 20px 0 0;
+  color: #d6d8db;
+  font-size: 25px;
+  line-height: 1.5;
+}
+
+.hf2-bb-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 34px;
+}
+
+.hf2-bb-actions .hf2-btn {
+  margin: 0 18px 0 0;
+}
+
+.hf2-bb-actions .hf2-round {
+  margin-left: 0;
+}
+
+.hf2-btn.icon svg {
+  width: 26px;
+  height: 26px;
+  margin-right: 12px;
+}
+
+.hf2-btn.primary.icon svg {
+  color: #2a1d0e;
+}
+
+.hf2-bb-dots {
+  position: absolute;
+  right: 88px;
+  top: 560px;
+  display: flex;
+}
+
+.hf2-bb-dots i {
+  width: 12px;
+  height: 12px;
+  margin-left: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hf2-bb-dots i.on {
+  width: 34px;
+  background: var(--gold-ring);
+}
+
+/* ----- Filas y tarjetas ----- */
+.hf2-rows {
+  position: relative;
+  padding-left: 88px;
+  z-index: 3;
+}
+
+.hf2-row {
+  margin-bottom: 44px;
+}
+
+.hf2-row-head {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 18px;
+}
+
+.hf2-row-head h3 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.hf2-row-head span {
+  margin-left: 16px;
+  color: var(--dim);
+  font-size: 20px;
+}
+
+.hf2-row-track {
+  display: flex;
+  overflow: hidden;
+  padding: 8px 0 8px 8px;
+  margin-left: -8px;
+}
+
+.hf2-card {
+  flex: 0 0 auto;
+  width: 336px;
+  margin-right: 24px;
+}
+
+.hf2-card-art {
+  position: relative;
+  height: 189px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #22252a;
+}
+
+.hf2-card-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-card-type {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(10, 11, 13, 0.72);
+  color: var(--gold-1);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.hf2-card-kids {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hf2-card-kids svg {
+  width: 17px;
+  height: 17px;
+  color: #2a1d0e;
+}
+
+.hf2-card-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.hf2-card-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-1), var(--gold-2));
+}
+
+.hf2-card-left {
+  position: absolute;
+  right: 12px;
+  bottom: 16px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(10, 11, 13, 0.72);
+  color: #e5e7ea;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.hf2-card-title {
+  margin-top: 14px;
+  font-size: 23px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf2-card-sub {
+  margin-top: 5px;
+  color: var(--dim);
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf2-card[data-focused="true"] {
+  transform: scale(1.06);
+  transform-origin: 50% 40%;
+}
+
+.hf2-card[data-focused="true"] .hf2-card-art {
+  box-shadow: 0 0 0 4px var(--gold-ring);
+}
+
+.hf2-card[data-focused="true"] .hf2-card-title {
+  color: var(--gold-1);
+}
+
+/* ----- Cuadrícula ----- */
+.hf2-grid-head {
+  display: flex;
+  align-items: center;
+  padding: 0 88px;
+  margin-bottom: 28px;
+}
+
+.hf2-grid-head h2 {
+  margin: 0;
+  font-size: 54px;
+  font-weight: 900;
+}
+
+.hf2-grid-head h2 span {
+  margin-left: 16px;
+  color: var(--dim);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.hf2-grid-head.small h2 {
+  font-size: 32px;
+}
+
+.hf2-grid-head .hf2-segment {
+  margin-left: auto;
+}
+
+.hf2-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px 0 0 88px;
+}
+
+.hf2-grid .hf2-card {
+  margin-bottom: 34px;
+}
+
+/* ----- Biblioteca vacía ----- */
+.hf2-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 190px;
+  text-align: center;
+  z-index: 3;
+}
+
+.hf2-logo.big {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-width: 4px;
+}
+
+.hf2-empty h2 {
+  margin: 30px 0 0;
+  font-size: 56px;
+  font-weight: 900;
+}
+
+.hf2-empty > p {
+  margin: 16px auto 0;
+  width: 900px;
+  color: var(--muted);
+  font-size: 25px;
+  line-height: 1.5;
+}
+
+.hf2-empty-steps {
+  display: flex;
+  justify-content: center;
+  margin-top: 46px;
+}
+
+.hf2-empty-steps div {
+  width: 330px;
+  margin: 0 14px;
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: rgba(36, 38, 42, 0.8);
+  border: 1.5px solid var(--line);
+}
+
+.hf2-empty-steps span {
+  display: block;
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  color: #2a1d0e;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 50px;
+}
+
+.hf2-empty-steps b {
+  display: block;
+  font-size: 24px;
+}
+
+.hf2-empty-steps small {
+  display: block;
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.hf2-actions.center {
+  justify-content: center;
+}
+
+.hf2-actions.center .hf2-btn {
+  margin: 0 10px;
+}
+
+/* ----- Buscar ----- */
+.hf2-searchbox {
+  display: flex;
+  align-items: center;
+  margin: 0 88px;
+  height: 96px;
+  padding: 0 34px;
+  border-radius: 48px;
+  background: rgba(10, 11, 13, 0.7);
+  border: 2px solid var(--line);
+}
+
+.hf2-searchbox[data-focused="true"] {
+  border-color: var(--gold-ring);
+  box-shadow: 0 0 0 5px rgba(230, 193, 147, 0.2);
+}
+
+.hf2-searchbox svg {
+  width: 38px;
+  height: 38px;
+  stroke: var(--gold-text);
+}
+
+.hf2-search-text {
+  margin-left: 22px;
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.hf2-search-text i {
+  display: inline-block;
+  width: 3px;
+  height: 40px;
+  margin-left: 4px;
+  vertical-align: -6px;
+  background: var(--gold-ring);
+}
+
+.hf2-search-hint {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 19px;
+}
+
+.hf2-recent {
+  display: flex;
+  align-items: center;
+  margin: 26px 88px 44px;
+}
+
+.hf2-recent .lbl {
+  margin-right: 18px;
+  color: var(--dim);
+  font-size: 20px;
+}
+
+.hf2-recent .hf2-chip {
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 700;
+  padding: 8px 18px;
+}
+
+/* Barra inferior del catálogo: el contenido pasa por detrás y se funde */
+.hf2.cat .hf2-footer {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 110px;
+  padding: 44px 88px 0;
+  background: linear-gradient(0deg, #0d0e10 0%, rgba(13, 14, 16, 0.95) 45%, rgba(13, 14, 16, 0) 100%);
+  z-index: 7;
+}
+
+.hf2 .hf2-grid-head h2,
+.hf2 .hf2-empty h2,
+.hf2 .hf2-row-head h3 {
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+.hf2.cat .hf2-glow {
+  background: radial-gradient(ellipse 1000px 600px at 50% 10%, rgba(201, 154, 102, 0.13) 0%, rgba(201, 154, 102, 0) 70%);
+}
+
+/* ----- Carruseles en ciclo con difuminado en los bordes ----- */
+.hf2-row.loop .hf2-row-head {
+  padding-left: 88px;
+}
+
+.hf2-rows {
+  padding-left: 0;
+}
+
+.hf2-rows .hf2-row-head {
+  padding-left: 88px;
+}
+
+.hf2-row-viewport {
+  position: relative;
+  overflow: hidden;
+}
+
+/* La pista arranca a la izquierda de la pantalla: la primera tarjeta (la última de la lista) asoma ~70 px */
+.hf2-row.loop .hf2-row-track {
+  margin-left: -290px;
+  padding-left: 18px;
+  overflow: visible;
+}
+
+.hf2-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hf2-fade.left {
+  left: 0;
+  width: 150px;
+  background: linear-gradient(90deg, rgba(19, 21, 24, 0.96) 0%, rgba(19, 21, 24, 0.7) 45%, rgba(19, 21, 24, 0) 100%);
+}
+
+.hf2-fade.right {
+  right: 0;
+  width: 260px;
+  background: linear-gradient(270deg, rgba(19, 21, 24, 0.96) 0%, rgba(19, 21, 24, 0.75) 40%, rgba(19, 21, 24, 0) 100%);
+}
+
+/* Las tarjetas repetidas son iguales a las reales (solo marcadas para el boceto) */
+.hf2-card.ghost {
+  opacity: 1;
+}
+
+/* Destacado de sección (Series / Películas): un poco más bajo que el de Inicio */
+.hf2-billboard.compact {
+  height: 720px;
+}
+
+.hf2-billboard.compact .hf2-bb-art {
+  height: 720px;
+}
+
+.hf2-billboard.compact .hf2-bb-copy {
+  top: 170px;
+}
+
+.hf2-billboard.compact .hf2-bb-copy h1 {
+  font-size: 84px;
+}
+
+.hf2-billboard.compact .hf2-bb-dots {
+  top: 520px;
+}
+
+.hf2-bb-badges .hf2-chip.kids {
+  background: rgba(230, 193, 147, 0.2);
+  color: var(--gold-1);
+}
+
+/* Fila normal (sin ciclo): empieza alineada con los títulos */
+.hf2-row-viewport.plain .hf2-row-track {
+  padding-left: 96px;
+  margin-left: -8px;
+}

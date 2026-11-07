@@ -1,0 +1,563 @@
+/* =====================================================================
+   HomeFlix · piezas propias de la app (el diseño visual está en hf2.css).
+   ===================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+*:focus {
+  outline: none;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #f4f4f2;
+  font-family: "Segoe UI", "SamsungOne", "TizenSans", "Helvetica Neue", Arial, sans-serif;
+}
+
+#app {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #0b0c0e;
+  transform-origin: 0 0; /* fuera de la TV, fitToWindow() la escala para que quepa entera */
+}
+
+/* Una pantalla visible a la vez, según data-route */
+.screen {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+#app[data-route="splash"] #scrSplash,
+#app[data-route="login"] #scrLogin,
+#app[data-route="profiles"] #scrProfiles,
+#app[data-route="profile-edit"] #scrProfileEdit,
+#app[data-route="settings"] #scrSettings,
+#app[data-route="guide"] #scrGuide,
+#app[data-route="browse"] #scrBrowse,
+#app[data-route="detail"] #scrDetail,
+#app[data-route="tag-edit"] #scrTagEdit,
+#app[data-route="search"] #scrSearch,
+#app[data-route="player"] #scrPlayer {
+  display: block;
+}
+
+/* Títulos: que ninguna regla genérica les cambie el estilo */
+.hf2 h1,
+.hf2 h2,
+.hf2 h3 {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ----- Barra de ayuda global ----- */
+.hf2-footer.app {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96px;
+  padding: 34px 88px 0;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted, #b9bcc0);
+  font-size: 22px;
+  z-index: 50;
+  background: linear-gradient(0deg, rgba(11, 12, 14, 0.96) 0%, rgba(11, 12, 14, 0.85) 45%, rgba(11, 12, 14, 0) 100%);
+  --muted: #b9bcc0;
+  --dim: #8a8e94;
+}
+
+.hf2-footer.app #statusMessage {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 1000px;
+}
+
+.hf2-footer.app .keys {
+  color: #8a8e94;
+  white-space: nowrap;
+}
+
+#app[data-route="splash"] .hf2-footer.app,
+#app[data-route="login"] .hf2-footer.app,
+#app[data-route="profiles"] .hf2-footer.app,
+#app[data-route="profile-edit"] .hf2-footer.app {
+  background: none;
+}
+
+#app[data-route="player"] .hf2-footer.app {
+  display: none;
+}
+
+/* Los footers estáticos del diseño los reemplaza la barra global */
+.screen .hf2-footer:not(.app) {
+  display: none;
+}
+
+/* ----- Páginas que se desplazan con el foco ----- */
+.hf2-scroll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.hf2-scroll > .hf2-scroll-inner {
+  position: relative;
+  transition: transform 0.15s linear;
+}
+
+/* Carruseles: la pista se mueve con transform */
+.hf2-row-track,
+.hf2-ep-track {
+  position: relative;
+}
+
+.hf2-row-track.anim,
+.hf2-ep-track.anim {
+  transition: transform 0.15s linear;
+}
+
+.hf2-row.loop .hf2-row-track {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+/* ----- Campos de texto reales dentro de los estilos del diseño ----- */
+.hf2-input input,
+.hf2-search-input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.hf2-input input::placeholder,
+.hf2-search-input::placeholder {
+  color: #8a8e94;
+}
+
+.hf2-search-input {
+  flex: 1;
+  margin-left: 22px;
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.hf2-search-hint {
+  flex: 0 0 auto;
+}
+
+[data-focused="true"] > .hf2-input,
+.hf2-field[data-focused="true"] .hf2-input,
+.hf2-frow[data-focused="true"] .hf2-input {
+  border-color: #e6c193;
+  box-shadow: 0 0 0 4px rgba(230, 193, 147, 0.25);
+}
+
+/* Botones: el foco de la app usa data-focused en el propio botón */
+.hf2-btn[data-focused="true"],
+.hf2-round[data-focused="true"] {
+  transform: scale(1.05);
+}
+
+.hf2-btn.ghost[data-focused="true"] {
+  background: #f4f4f2;
+  border-color: #f4f4f2;
+  color: #121315;
+}
+
+.hf2-btn.ghost[data-focused="true"] svg {
+  stroke: #121315;
+  color: #121315;
+}
+
+.hf2-btn.primary[data-focused="true"] {
+  box-shadow: 0 0 0 4px #ffffff;
+}
+
+.hf2-pill[data-focused="true"],
+.hf2-tool[data-focused="true"],
+.hf2-segment span[data-focused="true"],
+.hf2-tag-type span[data-focused="true"] {
+  background: linear-gradient(180deg, #f0d2a8, #c99a66);
+  border-color: #e6c193;
+  color: #2a1d0e;
+}
+
+.hf2-tool[data-focused="true"] svg {
+  stroke: #2a1d0e;
+}
+
+.hf2-pill[data-focused="true"] b {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.hf2-menu span[data-focused="true"] {
+  color: #f0d2a8;
+}
+
+.hf2-me[data-focused="true"] {
+  color: #f0d2a8;
+}
+
+.hf2-me[data-focused="true"] .hf2-me-avatar {
+  box-shadow: 0 0 0 3px #e6c193;
+}
+
+.hf2-chip[data-focused="true"] {
+  background: linear-gradient(180deg, #f0d2a8, #c99a66);
+  color: #2a1d0e;
+}
+
+/* Editor de perfil: imagen seleccionada y la que tiene el cursor */
+.hf2-avatar-opt[data-focused="true"] {
+  opacity: 1;
+  box-shadow: 0 0 0 4px #ffffff;
+  transform: scale(1.06);
+}
+
+.hf2-avatar-opt.on[data-focused="true"] {
+  box-shadow: 0 0 0 3px #121315, 0 0 0 7px #ffffff;
+}
+
+/* Filas del formulario de etiquetas */
+.hf2-frow[data-focused="true"] .hf2-stepper,
+.hf2-frow[data-focused="true"] .hf2-toggle-row .hf2-toggle {
+  box-shadow: 0 0 0 4px #e6c193;
+}
+
+.hf2-frow[data-focused="true"] > label {
+  color: #f0d2a8;
+}
+
+.hf2-field[data-focused="true"] > label {
+  color: #f0d2a8;
+}
+
+.hf2-field[data-focused="true"] .hf2-toggle-row .hf2-toggle {
+  box-shadow: 0 0 0 4px #e6c193;
+}
+
+/* Imágenes de Telegram dentro de las tarjetas (fondo de cover) */
+.hf2-img {
+  background-color: #22252a;
+  background-size: cover;
+  background-position: center;
+}
+
+.hf2-img > svg {
+  transition: none;
+}
+
+.hf2-img[data-loaded="true"] > svg {
+  display: none;
+}
+
+/* ----- Reproductor ----- */
+.hf2-pl-videoel,
+.hf2-pl-poster,
+.hf2-pl-subpic {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+}
+
+.hf2-pl-videoel {
+  background: #000000;
+}
+
+.hf2-pl-poster {
+  background-color: #000000;
+  background-size: cover;
+  background-position: center;
+}
+
+.hf2-pl-poster[data-hidden="true"] {
+  display: none;
+}
+
+.hf2-pl-sublines.live {
+  bottom: 110px;
+  z-index: 3;
+  white-space: pre-line;
+}
+
+#scrPlayer[data-overlay="true"] .hf2-pl-sublines.live {
+  bottom: 300px;
+}
+
+#scrPlayer[data-panel="tracks"] .hf2-pl-sublines.live {
+  right: 860px;
+}
+
+#scrPlayer[data-subsize="small"] .hf2-pl-sublines.live { font-size: 36px; }
+#scrPlayer[data-subsize="large"] .hf2-pl-sublines.live { font-size: 58px; }
+
+.hf2-pl-subtop {
+  position: absolute;
+  left: 140px;
+  right: 140px;
+  top: 60px;
+  text-align: center;
+  font-size: 42px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 0 4px #000, 0 2px 4px #000;
+  white-space: pre-line;
+  z-index: 3;
+}
+
+.hf2-pl-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1000px;
+  margin: -60px 0 0 -500px;
+  text-align: center;
+  font-size: 52px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 6px #000000;
+  z-index: 5;
+}
+
+.hf2-pl-center[data-visible="false"] {
+  display: none;
+}
+
+.hf2-pl-center[data-kind="error"] {
+  font-size: 32px;
+  line-height: 1.45;
+}
+
+#playerChrome[data-visible="false"] .hf2-pl-shade,
+#playerChrome[data-visible="false"] .hf2-pl-top,
+#playerChrome[data-visible="false"] .hf2-pl-bottom {
+  display: none;
+}
+
+.hf2-pl-notice {
+  margin-top: 14px;
+  color: #b9bcc0;
+  font-size: 19px;
+  text-align: right;
+}
+
+.hf2-next[data-visible="false"],
+.hf2-tracks[data-visible="false"],
+.hf2-pl-eps[data-visible="false"] {
+  display: none;
+}
+
+/* ----- Varios ----- */
+.hf2-hidden {
+  display: none !important;
+}
+
+.hf2-sync-badge {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  color: #d9b28a;
+  font-size: 19px;
+}
+
+.hf2-sync-badge[data-state="error"] {
+  color: #ffb3a6;
+}
+
+.hf2-update {
+  display: flex;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 28px;
+  border-radius: 18px;
+  border: 2px solid rgba(230, 193, 147, 0.55);
+  background: rgba(110, 90, 66, 0.25);
+  text-align: left;
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.hf2-update b {
+  color: #f0d2a8;
+}
+
+.hf2-update .txt {
+  flex: 1;
+  margin-right: 20px;
+}
+
+.hf2-update small {
+  display: block;
+  color: #b9bcc0;
+  font-size: 18px;
+}
+
+/* ----- Piezas de la app que no estaban en el tablero ----- */
+#playerChrome {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 4;
+}
+
+/* Lista de chats: zona con desplazamiento */
+.hf2-chat-viewport {
+  position: relative;
+  height: 520px;
+  margin-top: 22px;
+  overflow: hidden;
+}
+
+.hf2-chat-viewport .hf2-chatlist {
+  margin-top: 0;
+  transition: transform 0.12s linear;
+}
+
+/* Buscador dentro de la barra de herramientas de chats */
+.hf2-tool-input {
+  width: 170px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.hf2-tool-input::placeholder {
+  color: inherit;
+}
+
+/* Ficha de serie: al bajar a capítulos, la cabecera se reduce */
+.hf2.dt.scrolled .hf2-dt-full {
+  display: none;
+}
+
+.hf2-ep-viewport {
+  overflow: hidden;
+  margin-left: -6px;
+  padding: 6px 0 0 6px;
+}
+
+.hf2-ep-track {
+  overflow: visible;
+  flex-wrap: nowrap;
+}
+
+/* El botón ▶ del capítulo solo aparece al enfocarlo */
+.hf2-ep .hf2-ep-play {
+  display: none;
+}
+
+.hf2-ep[data-focused="true"] .hf2-ep-play {
+  display: flex;
+}
+
+/* Editor de etiquetas: fila con Temporada / Capítulo / Infantil o Año / Infantil */
+.tag-split {
+  display: flex;
+}
+
+.tag-split > .hf2-frow {
+  margin-right: 26px;
+  margin-bottom: 0;
+}
+
+.tag-split .hf2-toggle-row {
+  height: 58px;
+}
+
+.tag-top > .hf2-frow,
+.tag-bottom > .hf2-frow {
+  width: 760px;
+}
+
+/* Reproductor: panel de capítulos */
+.hf2-pl-eps {
+  overflow: visible;
+}
+
+.hf2-pl-eps .hf2-ep-viewport {
+  margin-left: 0;
+}
+
+/* Perfiles: lista con avatares en dos filas */
+.hf2-avatar-grid .av-row {
+  flex-wrap: nowrap;
+}
+
+/* Fila de «Más títulos» de la película: sin desplazamiento de página */
+.hf2-dt-more .hf2-row-viewport {
+  overflow: hidden;
+}
+
+/* Difuminado izquierdo: solo sobre la tarjeta que asoma (la primera completa empieza en 88 px) */
+.hf2-fade.left {
+  width: 84px;
+  background: linear-gradient(90deg, rgba(19, 21, 24, 0.95) 0%, rgba(19, 21, 24, 0.55) 70%, rgba(19, 21, 24, 0) 100%);
+}
+
+.hf2-pl-poster svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-pl-poster[data-loaded="true"] svg {
+  display: none;
+}
+
+/* Con un panel abierto (capítulos o pistas) los controles de abajo se ocultan, como en el diseño */
+#scrPlayer[data-panel] .hf2-pl-bottom {
+  display: none;
+}
+
+#scrPlayer[data-panel="episodes"] .hf2-pl-shade {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 22%),
+    linear-gradient(0deg, rgba(12, 13, 15, 0.98) 0%, rgba(12, 13, 15, 0.95) 48%, rgba(12, 13, 15, 0.55) 70%, rgba(12, 13, 15, 0.2) 100%);
+}
+
+#scrPlayer[data-panel="episodes"] .hf2-pl-sublines.live {
+  display: none;
+}
+
+.hf2-tracks .hf2-text {
+  width: auto;
+}
+
+.hf2-tracks-cols > div {
+  min-width: 0;
+}
+
+/* Con la tarjeta de siguiente capítulo, los controles se ocultan (como en el diseño) */
+#scrPlayer[data-next="true"] .hf2-pl-bottom {
+  display: none;
+}

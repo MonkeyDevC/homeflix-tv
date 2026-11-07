@@ -1,0 +1,587 @@
+/* =====================================================================
+   Propuestas de rediseño (tablero). Todo va dentro de .hf2 para no chocar con el CSS actual.
+   Respeta las reglas de TV: sin filter/blur/backdrop-filter, sin animaciones, foco con data-focused,
+   sombras solo de anillo (0 0 0 Npx), fuentes del sistema.
+   ===================================================================== */
+
+.hf2 {
+  --bg: #111315;
+  --bg-2: #0b0c0e;
+  --panel: rgba(36, 38, 42, 0.88);
+  --line: rgba(255, 255, 255, 0.14);
+  --text: #f4f4f2;
+  --muted: #b9bcc0;
+  --dim: #8a8e94;
+  --gold-1: #f0d2a8;
+  --gold-2: #c99a66;
+  --gold-text: #d9b28a;
+  --gold-ring: #e6c193;
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.hf2 *,
+.hf2 *::before,
+.hf2 *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- Marca y acciones superiores ---------- */
+.hf2-brand {
+  position: absolute;
+  left: 88px;
+  top: 58px;
+  display: flex;
+  align-items: center;
+  z-index: 5;
+}
+
+.hf2-logo {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #f4f4f2 url(../images/panda-login.png) 50% 6% / 150% auto no-repeat;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+}
+
+.hf2-wordmark {
+  margin-left: 18px;
+  font-size: 50px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.hf2-wordmark span {
+  color: var(--gold-text);
+}
+
+.hf2-top-actions {
+  position: absolute;
+  right: 88px;
+  top: 64px;
+  display: flex;
+  z-index: 5;
+}
+
+.hf2-round {
+  width: 68px;
+  height: 68px;
+  margin-left: 22px;
+  border-radius: 50%;
+  background: rgba(46, 48, 52, 0.92);
+  border: 1.5px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hf2-round svg {
+  width: 30px;
+  height: 30px;
+  stroke: var(--text);
+}
+
+.hf2-round[data-focused="true"] {
+  background: var(--gold-ring);
+  border-color: var(--gold-ring);
+}
+
+.hf2-round[data-focused="true"] svg {
+  stroke: #1b1408;
+}
+
+/* ---------- Mosaico de pósters (en la app: portadas reales de la biblioteca) ---------- */
+.hf2-wall {
+  position: absolute;
+  left: -160px;
+  top: -420px;
+  width: 2300px;
+  height: 1900px;
+  display: flex;
+  overflow: hidden;
+  transform: rotate(-7deg);
+  transform-origin: 50% 50%;
+}
+
+.hf2-col {
+  flex: 0 0 auto;
+  width: 318px;
+  margin-right: 18px;
+}
+
+/* Cada columna es una cinta con sus carátulas repetidas dos veces: se mueve media altura (una copia)
+ * en ciclo continuo, así no hay saltos. Columnas pares suben, impares bajan; velocidades y desfases distintos.
+ * Única animación de la app: solo en la pantalla inicial (sin navegación que se pueda trabar) y con translate3d. */
+.hf2-reel {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.hf2-col.up .hf2-reel {
+  animation-name: hf2-up;
+}
+
+.hf2-col.down .hf2-reel {
+  animation-name: hf2-down;
+}
+
+.hf2-col:nth-child(1) .hf2-reel { animation-duration: 95s; animation-delay: -10s; }
+.hf2-col:nth-child(2) .hf2-reel { animation-duration: 120s; animation-delay: -40s; }
+.hf2-col:nth-child(3) .hf2-reel { animation-duration: 85s; animation-delay: -25s; }
+.hf2-col:nth-child(4) .hf2-reel { animation-duration: 110s; animation-delay: -70s; }
+.hf2-col:nth-child(5) .hf2-reel { animation-duration: 100s; animation-delay: -5s; }
+.hf2-col:nth-child(6) .hf2-reel { animation-duration: 130s; animation-delay: -55s; }
+.hf2-col:nth-child(7) .hf2-reel { animation-duration: 90s; animation-delay: -35s; }
+
+@keyframes hf2-up {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, -50%, 0); }
+}
+
+@keyframes hf2-down {
+  from { transform: translate3d(0, -50%, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+.hf2-tile {
+  position: relative;
+  height: 470px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: #2a2d31;
+  background-size: cover;
+  background-position: center;
+}
+
+.hf2-tile svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-tile::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 45%;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+}
+
+/* Colores de relleno del boceto (en la app los reemplazan las portadas) */
+.hf2-t1 { background-image: linear-gradient(160deg, #6b5a44 0%, #2b2a27 55%, #15171a 100%); }
+.hf2-t2 { background-image: linear-gradient(170deg, #4d5a64 0%, #262d33 60%, #121518 100%); }
+.hf2-t3 { background-image: linear-gradient(150deg, #8fb6d8 0%, #c9a77c 45%, #5d6d3a 100%); }
+.hf2-t4 { background-image: linear-gradient(160deg, #d9a36b 0%, #b56a4a 40%, #3c5a7a 100%); }
+.hf2-t5 { background-image: linear-gradient(165deg, #5a5f66 0%, #33363b 55%, #17191c 100%); }
+.hf2-t6 { background-image: linear-gradient(160deg, #3d4a52 0%, #23292e 60%, #101214 100%); }
+.hf2-t7 { background-image: linear-gradient(155deg, #7d6a58 0%, #3e3530 55%, #171513 100%); }
+.hf2-t8 { background-image: linear-gradient(160deg, #6f7a6a 0%, #3a4237 55%, #151813 100%); }
+
+/* Viñeta: oscurece el centro y los bordes para que el texto se lea */
+.hf2-shade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background:
+    radial-gradient(ellipse 980px 520px at 50% 52%, rgba(14, 15, 17, 0.9) 0%, rgba(14, 15, 17, 0.72) 45%, rgba(14, 15, 17, 0.25) 100%),
+    linear-gradient(0deg, rgba(11, 12, 14, 0.98) 0%, rgba(11, 12, 14, 0.85) 22%, rgba(11, 12, 14, 0) 48%),
+    linear-gradient(180deg, rgba(11, 12, 14, 0.85) 0%, rgba(11, 12, 14, 0) 22%);
+}
+
+/* ---------- Mensaje principal ---------- */
+.hf2-hero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 360px;
+  text-align: center;
+  z-index: 4;
+}
+
+.hf2-hero h1 {
+  margin: 0;
+  font-size: 78px;
+  line-height: 1.06;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.hf2-hero p {
+  margin: 20px auto 0;
+  width: 760px;
+  color: var(--muted);
+  font-size: 27px;
+  line-height: 1.45;
+}
+
+.hf2-ctas {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+
+.hf2-btn {
+  height: 86px;
+  min-width: 400px;
+  margin: 0 14px;
+  padding: 0 46px;
+  border-radius: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.hf2-btn.primary {
+  background: linear-gradient(180deg, var(--gold-1) 0%, var(--gold-2) 100%);
+  color: #2a1d0e;
+}
+
+.hf2-btn.ghost {
+  border: 2.5px solid rgba(255, 255, 255, 0.55);
+  background: rgba(17, 19, 21, 0.55);
+  color: var(--text);
+}
+
+.hf2-btn[data-focused="true"] {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 4px #ffffff;
+}
+
+/* ---------- Categorías ---------- */
+.hf2-cats-label {
+  position: absolute;
+  left: 88px;
+  top: 760px;
+  color: var(--muted);
+  font-size: 23px;
+  z-index: 4;
+}
+
+.hf2-cats {
+  position: absolute;
+  left: 88px;
+  top: 804px;
+  display: flex;
+  z-index: 4;
+}
+
+.hf2-cat {
+  position: relative;
+  width: 228px;
+  height: 140px;
+  margin-right: 16px;
+  padding: 26px 18px 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(58, 60, 64, 0.92) 0%, rgba(34, 36, 40, 0.92) 100%);
+  border: 1.5px solid var(--line);
+  text-align: center;
+}
+
+.hf2-cat b {
+  display: block;
+  font-size: 25px;
+  line-height: 1.12;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.hf2-cat small {
+  display: block;
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.hf2-cat svg {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  width: 30px;
+  height: 30px;
+  stroke: var(--gold-text);
+}
+
+.hf2-cat[data-focused="true"] {
+  border: 2.5px solid var(--gold-ring);
+  background: linear-gradient(180deg, rgba(110, 90, 66, 0.95) 0%, rgba(52, 44, 36, 0.95) 100%);
+  box-shadow: 0 0 0 6px rgba(230, 193, 147, 0.22);
+  transform: scale(1.04);
+}
+
+/* ---------- Barra de ayuda inferior ---------- */
+.hf2-footer {
+  position: absolute;
+  left: 88px;
+  right: 88px;
+  bottom: 34px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 22px;
+  z-index: 4;
+}
+
+.hf2-footer .keys {
+  color: var(--dim);
+}
+
+/* =================== 02 / 03 · Login =================== */
+.hf2-wall.dim { opacity: 0.45; }
+.hf2-reel.still { animation: none; }
+.hf2-shade.strong {
+  background:
+    radial-gradient(ellipse 1100px 640px at 50% 55%, rgba(14, 15, 17, 0.96) 0%, rgba(14, 15, 17, 0.86) 55%, rgba(14, 15, 17, 0.6) 100%),
+    linear-gradient(0deg, rgba(11, 12, 14, 0.98) 0%, rgba(11, 12, 14, 0) 30%);
+}
+
+.hf2-panel {
+  position: absolute;
+  left: 210px;
+  right: 210px;
+  top: 160px;
+  height: 790px;
+  display: flex;
+  border-radius: 32px;
+  background: linear-gradient(180deg, rgba(40, 42, 46, 0.94) 0%, rgba(26, 28, 31, 0.96) 100%);
+  border: 1.5px solid var(--line);
+  z-index: 4;
+}
+
+.hf2-panel-main {
+  flex: 1;
+  padding: 70px 0 0 80px;
+}
+
+.hf2-panel-side {
+  flex: 0 0 auto;
+  width: 600px;
+  padding-top: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hf2-kicker {
+  color: var(--gold-text);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+}
+
+.hf2-title {
+  margin: 18px 0 0;
+  font-size: 60px;
+  line-height: 1.08;
+  font-weight: 900;
+}
+
+.hf2-title.small {
+  font-size: 52px;
+}
+
+.hf2-text {
+  margin: 18px 0 0;
+  width: 600px;
+  color: var(--muted);
+  font-size: 25px;
+  line-height: 1.45;
+}
+
+.hf2-steps {
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hf2-steps li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 22px;
+  font-size: 27px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.hf2-steps li span {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 50px;
+  margin-right: 22px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  color: #2a1d0e;
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 50px;
+}
+
+.hf2-steps li div {
+  width: 560px;
+}
+
+.hf2-steps b {
+  color: var(--gold-text);
+}
+
+.hf2-note {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--dim);
+  font-size: 21px;
+}
+
+.hf2-note svg {
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  stroke: var(--dim);
+}
+
+.hf2-actions {
+  display: flex;
+  margin-top: 44px;
+}
+
+.hf2-actions .hf2-btn {
+  margin: 0 20px 0 0;
+}
+
+.hf2-btn.small {
+  height: 72px;
+  min-width: 220px;
+  padding: 0 40px;
+  font-size: 23px;
+}
+
+.hf2-qr {
+  width: 460px;
+  height: 460px;
+  padding: 28px;
+  border-radius: 28px;
+  background: #ffffff;
+}
+
+.hf2-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-qr-caption {
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 21px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Formulario de clave */
+.hf2-field {
+  width: 640px;
+  margin-top: 22px;
+}
+
+.hf2-field label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.hf2-input {
+  height: 66px;
+  padding: 0 26px;
+  border-radius: 14px;
+  background: rgba(10, 11, 13, 0.7);
+  border: 2px solid var(--line);
+  font-size: 26px;
+  line-height: 62px;
+  color: var(--text);
+}
+
+.hf2-input.placeholder {
+  color: var(--dim);
+}
+
+.hf2-input i {
+  display: inline-block;
+  width: 2px;
+  height: 30px;
+  margin-left: 4px;
+  vertical-align: -6px;
+  background: var(--gold-ring);
+}
+
+.hf2-field[data-focused="true"] .hf2-input {
+  border-color: var(--gold-ring);
+  box-shadow: 0 0 0 4px rgba(230, 193, 147, 0.25);
+}
+
+.hf2-error {
+  margin-top: 18px;
+  color: #ff9b8a;
+  font-size: 21px;
+}
+
+.hf2-panel-side.help {
+  align-items: flex-start;
+  margin: 70px 60px 70px 0;
+  padding: 50px 46px 0;
+  width: 560px;
+  border-radius: 24px;
+  background: rgba(10, 11, 13, 0.45);
+  border: 1.5px solid var(--line);
+}
+
+.hf2-help-title {
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.hf2-steps.compact {
+  margin-top: 30px;
+}
+
+.hf2-steps.compact li {
+  font-size: 23px;
+}
+
+.hf2-steps.compact li span {
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  line-height: 42px;
+}
+
+.hf2-steps.compact li div {
+  width: 380px;
+}
+
+.hf2-help-tip {
+  margin-top: 16px;
+  color: var(--dim);
+  font-size: 19px;
+  line-height: 1.45;
+}

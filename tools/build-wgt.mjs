@@ -5,14 +5,15 @@ import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'n
 import { join, relative, sep } from 'node:path';
 import { deflateRawSync, crc32 } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { loadApiKey, configJsWithKey } from './apikey.mjs';
+import { loadApiKey, configJsWithKey, configJsWithVersion } from './apikey.mjs';
+import { portadasJs } from './portadas.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
 
 // Lo que va dentro del paquete. Todo lo demás (.cursor, .sign, tools, engine, dist, *.old.*) queda fuera.
 // *.local.* (por ejemplo js/config.local.js con tu api_hash) NUNCA entra al paquete.
 const INCLUDE = ['config.xml', 'index.html', 'icon.png', 'css', 'js', 'images'];
-const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./];
+const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./, /^images\/portadas\/(originales\/|.*\.(md|txt)$)/i, /^js\/portadas\.js$/];
 
 function walk(path) {
   const st = statSync(path);
@@ -23,6 +24,8 @@ function walk(path) {
 const files = INCLUDE.flatMap((p) => walk(join(root, p)))
   .map((abs) => ({ abs, name: relative(root, abs).split(sep).join('/') }))
   .filter((f) => !EXCLUDE.some((re) => re.test(f.name)));
+// Lista de tus portadas del fondo animado (images/portadas/), generada aquí.
+files.push({ name: 'js/portadas.js', data: Buffer.from(portadasJs(root), 'utf8') });
 
 const config = readFileSync(join(root, 'config.xml'), 'utf8');
 const version = (config.match(/<widget[^>]*\sversion="([^"]+)"/) || [])[1];
@@ -39,9 +42,9 @@ const locals = [];
 const centrals = [];
 let offset = 0;
 for (const f of files) {
-  let data = readFileSync(f.abs);
+  let data = f.data || readFileSync(f.abs);
   if (f.name === 'js/config.js') {
-    data = Buffer.from(configJsWithKey(data.toString('utf8'), apiKey), 'utf8');
+    data = Buffer.from(configJsWithVersion(configJsWithKey(data.toString('utf8'), apiKey), config), 'utf8');
   }
   if (apiKey && data.includes(apiKey.hash)) {
     throw new Error(`${f.name} contiene el api_hash en texto plano; no se arma el paquete.`);

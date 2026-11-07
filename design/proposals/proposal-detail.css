@@ -1,0 +1,611 @@
+/* =================== 11–15 · Fichas =================== */
+.hf2-brand.small.dt {
+  position: absolute;
+  left: 88px;
+  top: 50px;
+  z-index: 6;
+}
+
+.hf2-back {
+  position: absolute;
+  right: 88px;
+  top: 62px;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 21px;
+  z-index: 6;
+}
+
+.hf2-back svg {
+  width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  stroke: var(--muted);
+}
+
+/* Fondo de la ficha */
+.hf2-dt-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1400px;
+  height: 1080px;
+}
+
+.hf2-dt-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-dt-art.muted {
+  opacity: 0.55;
+}
+
+.hf2-dt-shade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background:
+    linear-gradient(90deg, #131518 0%, #131518 28%, rgba(19, 21, 24, 0.88) 44%, rgba(19, 21, 24, 0.3) 72%, rgba(19, 21, 24, 0.15) 100%),
+    linear-gradient(0deg, #101114 0%, rgba(16, 17, 20, 0.92) 30%, rgba(16, 17, 20, 0) 62%),
+    linear-gradient(180deg, rgba(16, 17, 20, 0.7) 0%, rgba(16, 17, 20, 0) 20%);
+}
+
+.hf2-dt-copy {
+  position: absolute;
+  left: 88px;
+  top: 170px;
+  width: 900px;
+  z-index: 4;
+}
+
+.hf2-dt-copy h1 {
+  margin: 20px 0 0;
+  font-size: 88px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.hf2-dt-copy h1.smaller {
+  font-size: 70px;
+}
+
+.hf2-dt-copy p {
+  margin: 18px 0 0;
+  color: #d6d8db;
+  font-size: 24px;
+  line-height: 1.5;
+}
+
+.hf2-dt-source {
+  display: flex;
+  align-items: center;
+  margin-top: 14px;
+  color: var(--dim);
+  font-size: 20px;
+}
+
+.hf2-dt-source svg {
+  width: 22px;
+  height: 22px;
+  margin-right: 10px;
+  stroke: var(--gold-text);
+}
+
+.hf2-dt-source b {
+  margin-left: 6px;
+  color: var(--muted);
+}
+
+.hf2-dt-progress {
+  display: flex;
+  align-items: center;
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: 20px;
+}
+
+.hf2-dt-progress .bar {
+  width: 340px;
+  height: 8px;
+  margin-right: 16px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.hf2-dt-progress .bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-1), var(--gold-2));
+}
+
+.hf2-dt-copy .hf2-bb-actions {
+  margin-top: 30px;
+}
+
+.hf2-dt-copy .hf2-bb-actions .hf2-round {
+  margin: 0 14px 0 0;
+}
+
+/* Rótulos debajo de los botones redondos */
+.hf2-dt-roundlabels {
+  display: flex;
+  margin-top: 8px;
+  padding-left: 692px;
+  color: var(--dim);
+  font-size: 15px;
+}
+
+.hf2-dt-roundlabels span {
+  width: 82px;
+  text-align: center;
+}
+
+.hf2-dt-roundlabels.one {
+  padding-left: 610px;
+}
+
+.hf2-dt-roundlabels.one.third {
+  padding-left: 548px;
+}
+
+.hf2-chip.warn {
+  background: rgba(255, 150, 130, 0.18);
+  color: #ffb3a6;
+}
+
+/* Fila «más títulos» al pie de la ficha */
+.hf2-dt-more {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 740px;
+  z-index: 4;
+}
+
+.hf2-dt-more .hf2-row-head {
+  padding-left: 88px;
+}
+
+/* ----- Capítulos ----- */
+.hf2-dt-episodes {
+  position: absolute;
+  left: 88px;
+  right: 0;
+  top: 742px;
+  z-index: 4;
+}
+
+.hf2.dt.scrolled .hf2-dt-copy {
+  top: 150px;
+}
+
+.hf2.dt.scrolled .hf2-dt-copy h1 {
+  font-size: 64px;
+}
+
+.hf2.dt.scrolled .hf2-dt-episodes {
+  top: 380px;
+}
+
+.hf2.dt.scrolled .hf2-dt-shade {
+  background:
+    linear-gradient(90deg, #131518 0%, rgba(19, 21, 24, 0.9) 40%, rgba(19, 21, 24, 0.5) 100%),
+    linear-gradient(0deg, #101114 0%, rgba(16, 17, 20, 0.95) 60%, rgba(16, 17, 20, 0.4) 100%);
+}
+
+.hf2-seasons {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.hf2-seasons-note {
+  margin-left: 12px;
+  color: var(--dim);
+  font-size: 19px;
+}
+
+.hf2-ep-track {
+  display: flex;
+  padding: 6px 0 0 6px;
+  margin-left: -6px;
+  overflow: hidden;
+}
+
+.hf2-ep {
+  flex: 0 0 auto;
+  width: 400px;
+  margin-right: 26px;
+}
+
+.hf2-ep-art {
+  position: relative;
+  height: 225px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.hf2-ep-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hf2-ep-num {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(10, 11, 13, 0.75);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 44px;
+}
+
+.hf2-ep-done {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  padding: 4px 12px 4px 8px;
+  border-radius: 10px;
+  background: rgba(10, 11, 13, 0.75);
+  color: var(--gold-1);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.hf2-ep-done svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  stroke: var(--gold-1);
+}
+
+.hf2-ep-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70px;
+  height: 70px;
+  margin: -35px 0 0 -35px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hf2-ep-play svg {
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+  color: #2a1d0e;
+}
+
+.hf2-ep-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 14px;
+  font-size: 23px;
+}
+
+.hf2-ep-title span {
+  color: var(--dim);
+  font-size: 18px;
+}
+
+.hf2-ep-desc {
+  margin-top: 6px;
+  color: var(--dim);
+  font-size: 18px;
+  line-height: 1.4;
+  max-height: 50px;
+  overflow: hidden;
+}
+
+.hf2-ep[data-focused="true"] {
+  transform: scale(1.04);
+  transform-origin: 50% 40%;
+}
+
+.hf2-ep[data-focused="true"] .hf2-ep-art {
+  box-shadow: 0 0 0 4px var(--gold-ring);
+}
+
+.hf2-ep[data-focused="true"] .hf2-ep-title b {
+  color: var(--gold-1);
+}
+
+.hf2-ep[data-focused="true"] .hf2-ep-desc {
+  color: var(--muted);
+  max-height: none;
+}
+
+/* ----- Video sin clasificar ----- */
+.hf2-unclassified {
+  margin-top: 24px;
+  width: 820px;
+  padding: 24px 28px;
+  border-radius: 20px;
+  background: rgba(36, 38, 42, 0.85);
+  border: 1.5px solid rgba(255, 179, 166, 0.3);
+}
+
+.hf2-unclassified b {
+  font-size: 26px;
+}
+
+.hf2-unclassified p {
+  margin: 8px 0 0;
+  font-size: 21px;
+  color: var(--muted);
+}
+
+.hf2-current-caption {
+  margin-top: 16px;
+  font-size: 19px;
+}
+
+.hf2-current-caption span {
+  color: var(--dim);
+  margin-right: 12px;
+}
+
+.hf2-current-caption q {
+  color: var(--text);
+  font-style: italic;
+}
+
+/* ----- Etiquetar ----- */
+.hf2-panel.tagger {
+  top: 140px;
+  height: 820px;
+  left: 120px;
+  right: 120px;
+}
+
+.hf2-tag-preview {
+  flex: 0 0 auto;
+  width: 540px;
+  padding: 56px 0 0 56px;
+  border-right: 1.5px solid var(--line);
+}
+
+.hf2-card.big {
+  width: 430px;
+  margin-top: 20px;
+}
+
+.hf2-card.big .hf2-card-art {
+  height: 242px;
+  box-shadow: 0 0 0 3px var(--gold-ring);
+}
+
+.hf2-card.big .hf2-card-title {
+  font-size: 28px;
+}
+
+.hf2-tag-file {
+  margin-top: 40px;
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1.8;
+}
+
+.hf2-tag-file span {
+  display: inline-block;
+  width: 90px;
+  color: var(--dim);
+}
+
+.hf2-panel-main.tagger {
+  padding: 50px 56px 0;
+}
+
+.hf2-tag-type {
+  display: inline-flex;
+  margin-top: 22px;
+  padding: 5px;
+  border-radius: 30px;
+  background: rgba(10, 11, 13, 0.6);
+  border: 1.5px solid var(--line);
+}
+
+.hf2-tag-type span {
+  padding: 10px 28px;
+  border-radius: 24px;
+  color: var(--muted);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.hf2-tag-type span.on {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  color: #2a1d0e;
+}
+
+.hf2-form {
+  margin-top: 18px;
+}
+
+.hf2-frow {
+  margin-bottom: 14px;
+}
+
+.hf2-frow label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.hf2-frow .hf2-input {
+  height: 58px;
+  line-height: 54px;
+  font-size: 23px;
+}
+
+.hf2-frow.split {
+  display: flex;
+}
+
+.hf2-frow.split > div {
+  margin-right: 26px;
+}
+
+.hf2-choice {
+  display: flex;
+  align-items: center;
+  height: 58px;
+  padding: 0 22px;
+  border-radius: 14px;
+  background: rgba(10, 11, 13, 0.7);
+  border: 2px solid var(--line);
+  font-size: 23px;
+}
+
+.hf2-choice b {
+  margin: 0 10px;
+}
+
+.hf2-choice small {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 17px;
+}
+
+.hf2-frow[data-focused="true"] .hf2-choice {
+  border-color: var(--gold-ring);
+  box-shadow: 0 0 0 4px rgba(230, 193, 147, 0.25);
+  color: var(--gold-1);
+}
+
+.hf2-stepper {
+  display: flex;
+  align-items: center;
+  height: 58px;
+  padding: 0 8px;
+  border-radius: 14px;
+  background: rgba(10, 11, 13, 0.7);
+  border: 2px solid var(--line);
+}
+
+.hf2-stepper i {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hf2-stepper i svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--muted);
+}
+
+.hf2-stepper b {
+  width: 64px;
+  text-align: center;
+  font-size: 26px;
+}
+
+.hf2-stepper small {
+  margin: 0 8px 0 14px;
+  color: var(--gold-text);
+  font-size: 16px;
+}
+
+.hf2-form .hf2-toggle-row {
+  height: 50px;
+}
+
+.hf2-tag-code {
+  margin-top: 4px;
+  font-size: 17px;
+  color: var(--dim);
+}
+
+.hf2-tag-code code {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(201, 154, 102, 0.12);
+  color: var(--gold-1);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 17px;
+}
+
+.hf2-panel-main.tagger .hf2-actions {
+  margin-top: 20px;
+}
+
+.hf2-btn {
+  white-space: nowrap;
+}
+
+.hf2-dt-copy .hf2-bb-actions .hf2-btn.small {
+  min-width: 0;
+  padding: 0 32px;
+  margin-right: 16px;
+}
+
+.hf2-dt-copy .hf2-bb-actions .hf2-btn.primary {
+  padding: 0 38px;
+}
+
+.hf2-dt-more {
+  top: 690px;
+}
+
+.hf2-dt-copy .hf2-bb-actions {
+  width: 1400px;
+}
+
+.hf2-bb-actions .hf2-btn,
+.hf2-bb-actions .hf2-round {
+  flex-shrink: 0;
+}
+
+/* Vista de capítulos: tarjetas más grandes (hay espacio libre) */
+.hf2.dt.scrolled .hf2-dt-episodes {
+  top: 360px;
+}
+
+.hf2.dt.scrolled .hf2-ep {
+  width: 500px;
+  margin-right: 30px;
+}
+
+.hf2.dt.scrolled .hf2-ep-art {
+  height: 281px;
+}
+
+.hf2.dt.scrolled .hf2-ep-title {
+  font-size: 26px;
+}
+
+.hf2.dt.scrolled .hf2-ep-desc {
+  font-size: 20px;
+}
+
+.hf2-frow.split .hf2-toggle-row {
+  height: 58px;
+}

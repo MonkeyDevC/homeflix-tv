@@ -68,3 +68,9 @@ export function configJsWithKey(original, key) {
   if (next === original) throw new Error('js/config.js no tiene la línea var HF_TG_API_PACKED = "";');
   return next;
 }
+
+/** Escribe la versión de config.xml en js/config.js (para el aviso de actualizaciones). */
+export function configJsWithVersion(original, configXml) {
+  const version = (configXml.match(/<widget[^>]*\sversion="([^"]+)"/) || [])[1] || "";
+  return original.replace(/var HF_VERSION = "[^"]*";/, `var HF_VERSION = "${version}";`);
+}

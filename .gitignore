@@ -17,3 +17,6 @@ engine/out/
 
 # Credenciales locales de la API de Telegram
 js/config.local.js
+
+# Originales de las portadas (pesados); en el repo y el .wgt van las versiones .jpg
+images/portadas/originales/
