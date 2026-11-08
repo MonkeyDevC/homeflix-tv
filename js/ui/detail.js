@@ -95,7 +95,7 @@ function renderDetail(focusName, focusIndex) {
   var next;
   var inList;
   var defs = [];
-  var art = t.type === "video" ? t.key : t.imageKey;
+  var art = t.type === "video" ? t.key : (t.bannerKey || t.imageKey);
 
   root.className = "screen hf2 cat dt";
   html += '<div class="hf2-dt-art hf2-img' + (t.type === "video" ? " muted" : "") + '"' + (art ? ' data-img="' + esc(art) + '" data-img-w="1280"' : "") + ">" + fallbackArt(art || t.name, "dt") + "</div>" +
@@ -118,7 +118,7 @@ function renderDetail(focusName, focusIndex) {
       buttons += dtButton("tag", IC.pencil, "Editar", false, "Cambiar nombre, año, descripción o si es infantil");
     }
     html += '<div class="hf2-dt-copy"><div class="hf2-bb-badges"><span class="hf2-chip gold">Película</span>' + (t.kids ? '<span class="hf2-chip kids">' + IC.star + "Infantil</span>" : "") + "</div>" +
-      "<h1>" + esc(t.name) + '</h1><div class="hf2-bb-meta">' + (t.year ? "<b>" + t.year + "</b>" : "") + (t.video.duration ? "<span>" + HFLibrary.formatDuration(t.video.duration) + "</span>" : "") +
+      "<h1" + (t.name.length > 20 ? ' class="long"' : "") + ">" + esc(t.name) + '</h1><div class="hf2-bb-meta">' + (t.year ? "<b>" + t.year + "</b>" : "") + (t.video.duration ? "<span>" + HFLibrary.formatDuration(t.video.duration) + "</span>" : "") +
       (t.quality ? '<span class="hf2-q">' + t.quality + "</span>" : "") + (t.video.size ? "<span>" + HFLibrary.formatSize(t.video.size) + "</span>" : "") + "</div>" + sourceLine(t) +
       (prog ? '<div class="hf2-dt-progress"><span class="bar"><i style="width:' + prog.pct + '%"></i></span><span>Viste ' + HFLibrary.formatDuration(p.t) + " · " + prog.left.toLowerCase() + "</span></div>" : "") +
       (t.description ? "<p>" + esc(t.description) + "</p>" : "") +
@@ -149,7 +149,7 @@ function renderDetail(focusName, focusIndex) {
     var season = t.seasons[detail.season] || t.seasons[0];
     var watched = season.episodes.filter(function (ep) { var x = HFLibrary.progress(ep.key); return x && x.done; }).length;
     html += '<div class="hf2-dt-copy"><div class="hf2-bb-badges"><span class="hf2-chip gold">Serie</span>' + (t.kids ? '<span class="hf2-chip kids">' + IC.star + "Infantil</span>" : "") + "</div>" +
-      "<h1>" + esc(t.name) + '</h1><div class="hf2-bb-meta"><b>' + t.seasons.length + (t.seasons.length === 1 ? " temporada" : " temporadas") + "</b><span>" + t.episodeCount + " capítulos</span></div>" +
+      "<h1" + (t.name.length > 20 ? ' class="long"' : "") + ">" + esc(t.name) + '</h1><div class="hf2-bb-meta"><b>' + t.seasons.length + (t.seasons.length === 1 ? " temporada" : " temporadas") + "</b><span>" + t.episodeCount + " capítulos</span></div>" +
       '<div class="hf2-dt-full">' + sourceLine(t) + (t.description ? "<p>" + esc(t.description) + "</p>" : "") + '<div class="hf2-bb-actions">' + buttons + "</div></div></div>" +
       '<div class="hf2-dt-episodes"><div class="hf2-seasons">' + t.seasons.map(function (s, i) {
         return '<span class="hf2-pill' + (i === detail.season ? " on" : "") + '" data-focusable="true" data-season="' + i + '" data-title="Temporada ' + s.number + '" data-description="Temporada ' + s.number + " · " + s.episodes.length + ' capítulos" tabindex="0">Temporada ' + s.number + " <b>" + s.episodes.length + "</b></span>";
@@ -172,7 +172,11 @@ function renderDetail(focusName, focusIndex) {
     defs.push({ name: "seasons", items: root.querySelectorAll(".hf2-seasons [data-focusable]"), dir: "h", onFocus: onSeasonFocus });
     defs.push({ name: "episodes", items: root.querySelectorAll(".hf2-ep"), dir: "h", track: byId("episodeTrack"), onFocus: function () { setDetailScrolled(true); } });
   }
-  defs = defs.concat(rowAreas(root, null));
+  /* «También de…»: al bajar a la fila, la cabecera se recoge y la fila sube (como en las series) */
+  defs = defs.concat(rowAreas(root, null).map(function (d) {
+    d.onFocus = function () { setDetailScrolled(true); };
+    return d;
+  }));
   setAreas(defs, focusName || "actions", focusIndex || 0);
   observeImages(root);
   updateStatus(t.name + " · " + titleMeta(t));
@@ -182,7 +186,7 @@ function renderDetail(focusName, focusIndex) {
 function setDetailScrolled(on) {
   var root = byId("scrDetail");
   var has = root.className.indexOf(" scrolled") >= 0;
-  if (!detail.title || detail.title.type !== "series" || has === on) {
+  if (!detail.title || detail.title.type === "video" || has === on) {
     return;
   }
   root.className = "screen hf2 cat dt" + (on ? " scrolled" : "");
@@ -257,9 +261,10 @@ function handleDetailSelect(el) {
 
 /* ===================== Etiquetar desde la TV ===================== */
 
-var tagEdit = { key: "", f: null, tagged: false, raw: null, seriesNames: [], back: null, newSeries: false };
+var tagEdit = { key: "", f: null, tagged: false, raw: null, seriesNames: [], back: null, newSeries: false, editing: "" };
 
 function openTagEditor(entry, back) {
+  tagEdit.editing = "";
   var raw = entry.video || entry;
   var f;
   tagEdit.key = raw.key;
@@ -268,10 +273,11 @@ function openTagEditor(entry, back) {
   tagEdit.back = back || null;
   tagEdit.seriesNames = fullLibrary.series.map(function (s) { return s.name; });
   if (entry.type === "movie") {
-    f = { type: "movie", name: entry.name, year: entry.year || 0, description: entry.description || "", kids: !!entry.kids };
+    f = { type: "movie", name: entry.name, year: entry.year || 0, description: entry.description || "", kids: !!entry.kids, categories: (entry.categories || []).slice() };
   } else if (entry.type === "episode") {
     f = { type: "series", name: entry.seriesName, season: entry.season, episode: entry.episode,
-      episodeTitle: /^Capítulo \d+$/.test(entry.title) ? "" : entry.title, description: entry.description || "", kids: !!entry.kids };
+      episodeTitle: /^Capítulo \d+$/.test(entry.title) ? "" : entry.title, description: entry.description || "", kids: !!entry.kids,
+      categories: ((library.titles[entry.seriesKey] || {}).categories || []).slice() };
   } else {
     f = { type: "movie", name: entry.name || "", year: 0, description: "", kids: false };
   }
@@ -308,12 +314,17 @@ function tagInput(id, label, value, placeholder) {
   return '<div class="hf2-frow" data-focusable="true" data-input="' + id + '" data-title="' + esc(label) + '" data-description="OK para escribir" tabindex="0"><label>' + esc(label) + '</label><div class="hf2-input"><input id="' + id + '" type="text" autocomplete="off" spellcheck="false" value="' + esc(value) + '" placeholder="' + esc(placeholder) + '"/></div></div>';
 }
 
+/* Año, temporada y capítulo: ◀ ▶ solo mueven entre campos. OK entra en edición (▲ ▼ ±1; en el año ◀ ▶ ±10) y OK o BACK sale. */
 function tagStepper(what, label, value, extra) {
-  return '<div class="hf2-frow" data-focusable="true" data-adjust="' + what + '" data-title="' + esc(label) + '" data-description="◀ ▶ para cambiar" tabindex="0"><label>' + esc(label) + '</label><div class="hf2-stepper"><i>' + IC.minus + "</i><b>" + esc(value) + "</b><i>" + IC.plus + "</i>" + (extra ? "<small>" + esc(extra) + "</small>" : "") + "</div></div>";
+  var editing = tagEdit.editing === what;
+  if (editing) {
+    extra = what === "year" ? "▲ ▼ ±1 · ◀ ▶ ±10 · OK listo" : "▲ ▼ cambiar · OK listo";
+  }
+  return '<div class="hf2-frow' + (editing ? " editing" : "") + '" data-focusable="true" data-adjust="' + what + '" data-title="' + esc(label) + '" data-description="' + (editing ? "▲ ▼ para cambiar · OK para terminar" : "OK para cambiar " + esc(label.toLowerCase())) + '" tabindex="0"><label>' + esc(label) + '</label><div class="hf2-stepper"><i>' + IC.minus + "</i><b>" + esc(value) + "</b><i>" + IC.plus + "</i>" + (extra ? "<small>" + esc(extra) + "</small>" : "") + "</div></div>";
 }
 
 function tagToggle(label, on, text) {
-  return '<div class="hf2-frow" data-focusable="true" data-adjust="kids" data-title="Infantil" data-description="OK o ◀ ▶: si es contenido para niños" tabindex="0"><label>' + esc(label) + '</label><div class="hf2-toggle-row"><span class="hf2-toggle' + (on ? " on" : "") + '"><i></i></span><span>' + esc(text) + "</span></div></div>";
+  return '<div class="hf2-frow" data-focusable="true" data-adjust="kids" data-title="Infantil" data-description="OK: si es contenido para niños" tabindex="0"><label>' + esc(label) + '</label><div class="hf2-toggle-row"><span class="hf2-toggle' + (on ? " on" : "") + '"><i></i></span><span>' + esc(text) + "</span></div></div>";
 }
 
 function renderTagEditor(focusName, focusIndex) {
@@ -377,6 +388,30 @@ function renderTagEditor(focusName, focusIndex) {
     { name: "actions", items: root.querySelectorAll(".hf2-actions [data-focusable]"), dir: "h" }
   ], focusName || "type", focusIndex || 0);
   observeImages(root);
+  setHints(tagEdit.editing ? (tagEdit.editing === "year" ? "▲ ▼ ±1 año · ◀ ▶ ±10 años · OK o BACK Listo" : "▲ ▼ Cambiar · OK o BACK Listo") : routeHints["tag-edit"]);
+}
+
+/* Teclas mientras un campo numérico está en edición. Devuelve true si la tecla se usó aquí. */
+function handleTagEditKey(code) {
+  var what = tagEdit.editing;
+  var el;
+  if (!what) {
+    return false;
+  }
+  el = getCurrentItem();
+  if (!el || el.getAttribute("data-adjust") !== what) {
+    tagEdit.editing = "";
+    return false;
+  }
+  if (code === 38 || code === 40) {
+    adjustTagField(el, code === 38 ? 1 : -1);
+  } else if (code === 37 || code === 39) {
+    adjustTagField(el, (code === 39 ? 1 : -1) * (what === "year" ? 10 : 1));
+  } else if (code === 13 || code === 10009) {
+    tagEdit.editing = "";
+    renderTagEditor(tagRefocus()[0], tagRefocus()[1]);
+  }
+  return true;
 }
 
 function tagRefocus() {
@@ -401,9 +436,12 @@ function adjustTagField(el, dir) {
       f.episode = nextFreeEpisode(f.name, f.season);
     }
   } else if (what === "year") {
+    /* Sin año → año actual; por encima del año próximo vuelve a «sin año»; nunca antes de 1900. */
     f.year = f.year ? f.year + dir : new Date().getFullYear();
-    if (f.year < 1900 || f.year > new Date().getFullYear() + 1) {
+    if (f.year > new Date().getFullYear() + 1) {
       f.year = 0;
+    } else if (f.year && f.year < 1900) {
+      f.year = 1900;
     }
   } else if (what === "season") {
     f.season = Math.max(1, f.season + dir);
@@ -445,7 +483,12 @@ function handleTagEditSelect(el) {
       focusInput(byId("tagNameInput"));
       return;
     }
-    adjustTagField(el, 1);
+    if (el.getAttribute("data-adjust") === "kids" || el.getAttribute("data-adjust") === "series") {
+      adjustTagField(el, 1);
+      return;
+    }
+    tagEdit.editing = tagEdit.editing ? "" : el.getAttribute("data-adjust");
+    renderTagEditor(tagRefocus()[0], tagRefocus()[1]);
     return;
   }
   if (type) {

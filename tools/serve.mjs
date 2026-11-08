@@ -6,7 +6,7 @@ import { readFile, stat, mkdir, writeFile } from 'node:fs/promises';
 import { join, normalize, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadApiKey, configJsWithKey, configJsWithVersion } from './apikey.mjs';
-import { portadasJs } from './portadas.mjs';
+import { imagenesJs, IMAGENES_JS } from './portadas.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
 const port = Number(process.argv[2] || process.env.PORT || 5173);
@@ -27,19 +27,20 @@ const TYPES = {
 
 createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  /* Solo desarrollo: guarda el HTML de una pantalla en design/snapshots/<nombre>.html (tablero de diseño). */
-  if (req.method === 'POST' && path.startsWith('/__snapshot/')) {
-    const name = path.slice('/__snapshot/'.length).replace(/[^a-z0-9-]/gi, '');
+  /* Solo desarrollo: guarda la biblioteca y sus imágenes para el tablero (design/media/<nombre>). */
+  if (req.method === 'POST' && path.startsWith('/__media/')) {
+    const name = path.slice('/__media/'.length).replace(/[^a-z0-9._-]/gi, '_');
+    if (!/\.(jpg|json)$/i.test(name)) { res.writeHead(400).end(); return; }
     const chunks = [];
     for await (const c of req) chunks.push(c);
-    await mkdir(join(root, 'design', 'snapshots'), { recursive: true });
-    await writeFile(join(root, 'design', 'snapshots', name + '.html'), Buffer.concat(chunks));
+    await mkdir(join(root, 'design', 'media'), { recursive: true });
+    await writeFile(join(root, 'design', 'media', name), Buffer.concat(chunks));
     res.writeHead(204).end();
     return;
   }
-  if (path === '/js/portadas.js') {
-    // Igual que en el .wgt: la lista de images/portadas/ se arma al vuelo.
-    res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-store' }).end(portadasJs(root));
+  if (path === '/' + IMAGENES_JS) {
+    // Igual que en el .wgt: las listas de images/portadas/ e images/avatares/ se arman al vuelo.
+    res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-store' }).end(imagenesJs(root));
     return;
   }
   if (path.endsWith('/')) path += 'index.html';

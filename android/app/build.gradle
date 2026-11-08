@@ -1,0 +1,62 @@
+plugins {
+    id "com.android.application"
+}
+
+/* La versión sale de config.xml (la misma que la TV) para no llevar dos números. */
+def appVersion = (file("../../config.xml").text =~ /<widget[^>]*\sversion="([0-9.]+)"/)[0][1]
+def parts = appVersion.tokenize(".").collect { it as int }
+
+/* Los archivos de la app (mobile/, js/, images/) los copia tools/build-apk.mjs a build/www antes de compilar,
+ * con la clave de Telegram ya puesta en js/config.js (igual que el .wgt). */
+def wwwDir = file("build/www")
+
+/* Solo para desarrollo: -PdevUrl=http://localhost:5173/mobile/ carga la app desde el PC (con «adb reverse»)
+ * y cada cambio se ve recargando, sin volver a instalar. */
+def devUrl = project.findProperty("devUrl") ?: ""
+
+android {
+    namespace "com.homeflix.app"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.homeflix.app"
+        minSdk 26
+        targetSdk 35
+        versionCode parts[0] * 10000 + parts[1] * 100 + parts[2]
+        versionName appVersion
+        buildConfigField "String", "DEV_URL", "\"${devUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".dev"
+            manifestPlaceholders = [cleartext: "true", appLabel: "HomeFlix (dev)"]
+        }
+        release {
+            minifyEnabled false
+            manifestPlaceholders = [cleartext: "false", appLabel: "HomeFlix"]
+        }
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs = [wwwDir]
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // alinea las versiones de Kotlin que traen androidx (si no, «Duplicate class kotlin.*»)
+    implementation platform("org.jetbrains.kotlin:kotlin-bom:1.8.22")
+    implementation "androidx.webkit:webkit:1.12.1"
+    implementation "androidx.appcompat:appcompat:1.7.0"
+}

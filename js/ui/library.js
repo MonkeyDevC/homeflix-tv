@@ -8,7 +8,7 @@ var libraryItems = [];
 var syncing = false;
 var syncProgress = "";
 var syncError = "";
-var lastSyncAt = 0;
+var syncedAt = {};               // chatId → cuándo se revisó por última vez en esta sesión
 
 function loadLibraryFromCache() {
   setLibraryItems(HFLibrary.cachedItems());
@@ -16,7 +16,17 @@ function loadLibraryFromCache() {
 
 function setLibraryItems(items) {
   libraryItems = items || [];
-  fullLibrary = HFLibrary.build(libraryItems, HFLibrary.tags());
+  rebuildLibrary();
+}
+
+function itemChat(it) {
+  return String(it.chatId || String(it.key || "").split(":")[0]);
+}
+
+/* La biblioteca del perfil activo: solo los videos de sus chats (y si es infantil, solo lo marcado #infantil). */
+function rebuildLibrary() {
+  var src = HFLibrary.enabledSources() || {};
+  fullLibrary = HFLibrary.build(libraryItems.filter(function (it) { return !!src[itemChat(it)]; }), HFLibrary.tags());
   applyProfileView();
 }
 
@@ -42,11 +52,20 @@ function setSyncBadge() {
   el.setAttribute("data-state", syncing ? "busy" : (syncError ? "error" : "idle"));
 }
 
-/* Revisa los chats activos y rearma la biblioteca. */
+function librarySyncDue() {
+  var now = Date.now();
+  var acc = HFLibrary.accountId();
+  return enabledSourceIds().some(function (id) { var t = syncedAt[acc + ":" + id]; return !t || now - t > 10 * 60 * 1000; });
+}
+
+/* Revisa los chats activos del perfil y rearma la biblioteca. La caché guarda los videos por chat:
+ * lo revisado reemplaza lo de ese chat, y lo de otros perfiles se conserva. */
 function syncLibrary() {
   var ids = enabledSourceIds();
   var all = [];
+  var done = {};
   var failed = 0;
+  var acc = HFLibrary.accountId();
   var i = 0;
   if (syncing || !telegramUser || !HFTelegram.available()) {
     return;
@@ -54,17 +73,28 @@ function syncLibrary() {
   syncing = true;
   syncError = "";
   function next() {
-    if (i >= ids.length) {
+    if (HFLibrary.accountId() !== acc) {
+      /* se cambió de cuenta a mitad de camino: lo leído era de la otra cuenta y se descarta */
       syncing = false;
-      lastSyncAt = Date.now();
+      setSyncBadge();
+      return;
+    }
+    if (i >= ids.length) {
+      var keep = HFLibrary.allEnabledSources();
+      var merged;
+      syncing = false;
       syncError = failed ? failed + " chat(s) no se pudieron leer" : "";
-      HFLibrary.setCachedItems(all.map(function (it) {
+      merged = libraryItems.filter(function (it) {
+        var c = itemChat(it);
+        return !done[c] && !!keep[c];
+      }).concat(all.map(function (it) {
         if (it.caption && it.caption.length > 800) {
           it.caption = it.caption.slice(0, 800);
         }
         return it;
       }));
-      setLibraryItems(all);
+      HFLibrary.setCachedItems(merged);
+      setLibraryItems(merged);
       setSyncBadge();
       if (currentRoute === "browse") {
         var a = currentArea();
@@ -77,6 +107,8 @@ function syncLibrary() {
     setSyncBadge();
     HFTelegram.scan(ids[i]).then(function (items) {
       all = all.concat(items);
+      done[String(ids[i])] = true;
+      syncedAt[acc + ":" + String(ids[i])] = Date.now();
     }, function () {
       failed += 1;
     }).then(function () {
@@ -99,6 +131,7 @@ var KIND_LABEL = { saved: "Guardados", channel: "Canal", group: "Grupo", user: "
 function openSettings(opts) {
   opts = opts || {};
   settings.returnTo = opts.returnTo || (currentRoute === "browse" ? "browse" : "profiles");
+  settings.profile = opts.profile || activeProfile || HFLibrary.profiles()[0];
   settings.firstTime = !!opts.firstTime;
   settings.helpOpen = false;
   settings.filter = "all";
@@ -106,7 +139,7 @@ function openSettings(opts) {
   settings.selected = {};
   (function (map) {
     Object.keys(map || {}).forEach(function (k) { settings.selected[k] = map[k]; });
-  })(HFLibrary.enabledSources());
+  })(HFLibrary.enabledSources(settings.profile.id));
   showRoute("settings");
   renderSettings();
   if (!settings.dialogs && !settings.loading) {
@@ -189,8 +222,8 @@ function renderSettings(focusName, focusIndex) {
       '<div class="hf2-btn primary small top" data-focusable="true" data-action="done" data-title="Listo" data-description="Guardar y ' + (settings.firstTime ? "continuar" : "volver") + '" tabindex="0">' + (settings.firstTime ? "Continuar" : "Listo") + "</div>" +
     "</div>" +
     '<div class="hf2-settings">' +
-      '<div class="hf2-kicker">Ajustes</div><h1 class="hf2-title">¿De qué chats sale tu biblioteca?</h1>' +
-      '<p class="hf2-text wide">Activa los grupos, canales o chats donde subes tus películas y series.</p>' +
+      '<div class="hf2-kicker">Ajustes · perfil ' + esc(settings.profile.name) + '</div><h1 class="hf2-title">¿De qué chats sale la biblioteca de ' + esc(settings.profile.name) + '?</h1>' +
+      '<p class="hf2-text wide">Activa los grupos, canales o chats donde subes tus películas y series. Cada perfil tiene los suyos.</p>' +
       '<div class="hf2-toolbar">' +
         '<div class="hf2-pills">' +
           '<span class="hf2-pill' + (settings.typeTab === "groups" ? " on" : "") + '" data-focusable="true" data-tab="groups" data-title="Canales y grupos" tabindex="0">Canales y grupos <b>' + groups + "</b></span>" +
@@ -229,6 +262,7 @@ function helpPopoverHtml() {
     '<div class="hf2-help-row"><span class="hf2-help-tag">Película</span><code>pelicula#Coco (2017)#Un niño viaja…</code></div>' +
     '<div class="hf2-help-row"><span class="hf2-help-tag">Capítulo</span><code>serie(1/3)#Bluey#Juegan a los médicos</code></div>' +
     '<div class="hf2-help-row"><span class="hf2-help-tag">Infantil</span><code>… #infantil</code><span class="hf2-help-note">al final, para los perfiles infantiles</span></div>' +
+    '<div class="hf2-help-row"><span class="hf2-help-tag">Categoría</span><code>… #Marvel</code><span class="hf2-help-note">al final: cada categoría tiene su fila</span></div>' +
     '<p class="dim">¿Ya los subiste sin comentario? Ábrelos en «Sin clasificar» y usa <b>Etiquetar</b> desde la TV.</p>' +
     '<div class="hf2-btn ghost small" data-focusable="true" data-action="help-close" data-title="Entendido" tabindex="0">Entendido</div> ' +
     '<div class="hf2-btn ghost small" data-focusable="true" data-action="help-guide" data-title="Ver la guía completa" tabindex="0">Ver la guía completa</div>' +
@@ -331,15 +365,22 @@ function handleSettingsSelect(el) {
 }
 
 function finishSettings() {
-  var before = enabledSourceIds().sort().join(",");
+  var pid = settings.profile.id;
+  var before = Object.keys(HFLibrary.enabledSources(pid) || {}).sort().join(",");
   var after = Object.keys(settings.selected).sort().join(",");
-  HFLibrary.setEnabledSources(settings.selected);
-  if (settings.firstTime || settings.returnTo === "profiles" || !activeProfile) {
+  var isActive = activeProfile && activeProfile.id === pid;
+  HFLibrary.setEnabledSources(settings.selected, pid);
+  if (isActive) {
+    rebuildLibrary();
+  }
+  if (settings.returnTo === "profile-edit") {
+    returnToProfileEditor("Chats de " + settings.profile.name + " guardados");
+  } else if (settings.firstTime || settings.returnTo === "profiles" || !activeProfile) {
     openProfiles(after ? "Chats guardados. ¿Quién está viendo?" : "Sin chats activos: puedes elegirlos luego en Ajustes");
   } else {
     openBrowse(browse.section, "Chats guardados");
   }
-  if (before !== after) {
+  if (before !== after && isActive) {
     syncLibrary();
   }
 }
@@ -357,7 +398,8 @@ function openGuide(back) {
     ["Capítulo", "serie(<b>1/3</b>)#<b>Bluey</b>#<i>Juegan a los médicos</i>", "Temporada 1, capítulo 3"],
     ["Con título", "serie(1/3)#Bluey#<b>El hospital</b>#<i>…</i>", "Un campo más para el título del capítulo"],
     ["Portada", "<b>Foto</b> con serie#<b>Bluey</b>#<i>Resumen</i>", "Una foto con ese comentario pone portada y resumen"],
-    ["Infantil", "… <b>#infantil</b>", "Al final del comentario: lo ven los perfiles infantiles"]
+    ["Infantil", "… <b>#infantil</b>", "Al final del comentario: lo ven los perfiles infantiles"],
+    ["Categoría", "… <b>#Marvel #Acción</b>", "Al final: cada categoría tiene su fila en Inicio"]
   ];
   var hasUnclassified = library.unclassified && library.unclassified.length;
   root.innerHTML = '<div class="hf2-glow"></div>' + brandHtml() +
@@ -421,7 +463,7 @@ function openBrowse(section, message) {
   if (message) {
     updateStatus(message);
   }
-  if (!syncing && enabledSourceIds().length && Date.now() - lastSyncAt > 10 * 60 * 1000) {
+  if (!syncing && librarySyncDue()) {
     syncLibrary();
   }
   setSyncBadge();
@@ -485,11 +527,15 @@ function billboardHtml(t, opts) {
   buttons += '<span class="hf2-btn ghost small icon" data-focusable="true" data-action="hero-info" data-title="Más info" tabindex="0">' + IC.info + (t.type === "series" ? "Capítulos" : "Más info") + "</span>" +
     '<span class="hf2-round" data-focusable="true" data-action="hero-list" data-title="Mi lista" data-description="' + (HFLibrary.inMyList(t.titleKey) ? "En tu lista · OK para quitarla" : "Agregar a Mi lista") + '" tabindex="0">' + (HFLibrary.inMyList(t.titleKey) ? IC.check : IC.plus) + "</span>";
   return '<div class="hf2-billboard' + (opts.compact ? " compact" : "") + '" id="billboard" data-ref="t:' + esc(t.titleKey) + '">' +
-    '<div class="hf2-bb-art hf2-img"' + (t.imageKey ? ' data-img="' + esc(t.imageKey) + '" data-img-w="1280"' : "") + ">" + fallbackArt(t.imageKey || t.name, "bb") + "</div>" +
-    '<div class="hf2-bb-shade"></div><div class="hf2-bb-copy"><div class="hf2-bb-badges">' + badges + "</div><h1>" + esc(t.name) + "</h1>" +
-    '<div class="hf2-bb-meta">' + meta + "</div>" + (t.description ? "<p>" + esc(t.description.slice(0, 220)) + "</p>" : "") +
-    '<div class="hf2-bb-actions">' + buttons + "</div></div>" +
-    '<div class="hf2-bb-dots">' + opts.dots + "</div></div>";
+    '<div class="hf2-bb-art hf2-img"' + (t.bannerKey || t.imageKey ? ' data-img="' + esc(t.bannerKey || t.imageKey) + '" data-img-w="1280"' : "") + ">" + fallbackArt() + "</div>" +
+    '<div class="hf2-bb-shade"></div><div class="hf2-bb-copy"><div class="hf2-bb-badges">' + badges + "</div>" +
+    "<h1" + (t.name.length > 20 ? ' class="long"' : "") + ">" + esc(t.name) + "</h1>" +
+    '<div class="hf2-bb-meta">' + meta + "</div>" + (t.description ? "<p>" + esc(t.description) + "</p>" : "") +
+    '<div class="hf2-bb-actions">' + buttons + "</div>" +
+    (opts.count > 1 ? '<div class="hf2-bb-switch"><span class="hf2-bb-dots" data-focusable="true" data-action="hero-next" data-title="Otros destacados" data-description="◀ ▶ para cambiar de título" tabindex="0">' +
+      '<span class="sel"><b class="arr">' + IC.back + '</b><span class="pts">' + opts.dots + '</span><b class="arr next">' + IC.back + "</b></span>" +
+      "<small>" + (opts.index + 1) + " de " + opts.count + "</small></span></div>" : "") +
+    "</div></div>";
 }
 
 function dotsHtml(count, index) {
@@ -526,6 +572,33 @@ function gridHtml(titles) {
   return '<div class="hf2-grid">' + rows.join("") + "</div>";
 }
 
+/* Una fila por categoría (#Marvel, #Terror… en el comentario). withKids agrega «Infantil» con lo marcado #infantil.
+ * Las categorías con algo agregado hace poco van primero. titles ya viene del más nuevo al más viejo. */
+function categoryRows(titles, prefix, withKids) {
+  var groups = {};
+  var order = [];
+  titles.forEach(function (t) {
+    var cats = (t.categories || []).slice();
+    if (withKids && t.kids) {
+      cats.push("Infantil");
+    }
+    cats.forEach(function (c) {
+      var id = normText(c).replace(/[^a-z0-9]+/g, "-");
+      if (!groups[id]) {
+        groups[id] = { name: c, items: [] };
+        order.push(id);
+      }
+      if (groups[id].items.indexOf(t) < 0) {
+        groups[id].items.push(t);
+      }
+    });
+  });
+  return order.map(function (id) {
+    var g = groups[id];
+    return [prefix + "-" + id, g.name, g.items, { note: g.items.length === 1 ? "1 título" : g.items.length + " títulos" }];
+  });
+}
+
 /* Contenido de cada sección: {hero: título destacado | null, rows: [[id, título, entradas, opts]], empty} */
 function sectionContent(section) {
   var movies = library.movies.slice().sort(byDateDesc);
@@ -537,8 +610,9 @@ function sectionContent(section) {
     heroList = library.recent.slice(0, 6);
     var cw = continueWatching();
     if (cw.length) { rows.push(["continue", "Continuar viendo", cw, { loop: false, progress: true }]); }
-    if (library.recent.length) { rows.push(["recent", "Agregados recientemente", library.recent.slice(0, 20), { note: library.recent.length + " títulos" }]); }
-    if (library.movies.length) { rows.push(["movies", "Películas", movies, { note: String(movies.length) }]); }
+    if (library.recent.length) { rows.push(["recent", "Agregados recientemente", library.recent.slice(0, 5), { loop: false, note: "los últimos 5" }]); }
+    rows = rows.concat(categoryRows(movies.concat(series).sort(byDateDesc), "c", !currentProfileIsKids()));
+    if (library.movies.length) { rows.push(["movies", "Todas las películas", movies, { note: String(movies.length) }]); }
     if (library.series.length) { rows.push(["series", "Series", series, { note: String(series.length) }]); }
     if (myListTitles().length) { rows.push(["mylist", "Mi lista", myListTitles()]); }
     if (library.unclassified.length) { rows.push(["unclassified", "Sin clasificar", library.unclassified.slice(0, 40), { loop: false, note: "Videos sin nombre: ábrelos y usa Etiquetar" }]); }
@@ -547,6 +621,7 @@ function sectionContent(section) {
     if (movies.length) { rows.push(["m-recent", "Recién agregadas", movies.slice(0, 20), { note: String(movies.length) }]); }
     var kidsMovies = movies.filter(function (m) { return m.kids; });
     if (kidsMovies.length && !currentProfileIsKids()) { rows.push(["m-kids", "Para niños", kidsMovies, { note: kidsMovies.length + " infantiles" }]); }
+    rows = rows.concat(categoryRows(movies, "mc", false));
     var longMovies = movies.filter(function (m) { return m.video.duration >= 100 * 60; });
     if (longMovies.length) { rows.push(["m-long", "Para una noche de cine", longMovies, { note: "más de 1 h 40 min" }]); }
     if (movies.length) { rows.push(["m-all", "Todas de la A a la Z", library.movies]); }
@@ -559,6 +634,7 @@ function sectionContent(section) {
     if (series.length) { rows.push(["s-recent", "Recién agregadas", series.slice(0, 20), { note: String(series.length) }]); }
     var kidsSeries = series.filter(function (s) { return s.kids; });
     if (kidsSeries.length && !currentProfileIsKids()) { rows.push(["s-kids", "Para niños", kidsSeries, { note: kidsSeries.length + " infantiles" }]); }
+    rows = rows.concat(categoryRows(series, "sc", false));
     if (series.length) { rows.push(["s-all", "Todas de la A a la Z", library.series]); }
   }
   return { heroList: heroList || [], rows: rows };
@@ -585,9 +661,9 @@ function renderBrowse(focusName, focusIndex) {
     if (content.heroList.length) {
       heroIdx = (browse.hero[section] || 0) % content.heroList.length;
       hero = content.heroList[heroIdx];
-      html += billboardHtml(hero, { compact: section !== "home", isNew: section === "home", dots: dotsHtml(content.heroList.length, heroIdx) });
+      html += billboardHtml(hero, { compact: section !== "home", isNew: section === "home", dots: dotsHtml(content.heroList.length, heroIdx), index: heroIdx, count: content.heroList.length });
     }
-    html += '<div class="hf2-rows" style="margin-top:' + (hero ? (section === "home" ? -150 : -120) : 150) + 'px">' +
+    html += '<div class="hf2-rows" style="margin-top:' + (hero ? 28 : 150) + 'px">' +
       content.rows.map(function (r) { return rowHtml(r[0], r[1], r[2], r[3]); }).join("") + '<div style="height:120px"></div></div>';
     html = '<div class="hf2-scroll" id="browseScroll"><div class="hf2-scroll-inner">' + html + "</div></div>";
   }
@@ -597,10 +673,11 @@ function renderBrowse(focusName, focusIndex) {
   defs.push({ name: "top", items: root.querySelectorAll(".hf2-topbar [data-focusable]"), dir: "h" });
   scroll = byId("browseScroll");
   if (hero) {
-    defs.push({
-      name: "hero", items: root.querySelectorAll("#billboard [data-focusable]"), dir: "h", page: scroll, follow: "top",
-      edge: function (dir) { browse.hero[section] = (heroIdx + dir + content.heroList.length) % content.heroList.length; renderBrowse("hero", dir > 0 ? 0 : 0); }
-    });
+    defs.push({ name: "hero", items: root.querySelectorAll("#billboard .hf2-bb-actions [data-focusable]"), dir: "h", page: scroll, follow: "top" });
+    if (content.heroList.length > 1) {
+      /* Fila propia bajo los botones: ◀ ▶ cambian de título sin tener que cruzar los botones */
+      defs.push({ name: "hero-dots", items: root.querySelectorAll("#billboard .hf2-bb-dots"), dir: "h", page: scroll, follow: "top", edge: switchHero });
+    }
   }
   if (scroll) {
     defs = defs.concat(rowAreas(root, scroll));
@@ -620,9 +697,66 @@ function renderBrowse(focusName, focusIndex) {
     setAreas(defs, defs.length > 1 ? 1 : 0, 0);
   }
   observeImages(root);
+  shapeHeroSwitch(root.querySelector(".hf2-bb-dots"));
   if (hero) {
+    if (browse.heroDir) {
+      animateHero(byId("billboard"), browse.heroDir);
+      browse.heroDir = 0;
+    }
     updateStatus(hero.name + " · " + titleMeta(hero));
   }
+}
+
+/* Contorno del selector de destacados: una sola figura, ancha arriba (flechas y puntos) y con una pestaña
+ * más angosta abajo (contador), unidas con curvas hacia adentro. Se dibuja en SVG con las medidas reales. */
+function shapeHeroSwitch(el) {
+  var sel = el && el.querySelector(".sel");
+  var tab = el && el.querySelector("small");
+  var W, H1, H, w2, x0, R, c, rb, d;
+  if (!sel || !tab) {
+    return;
+  }
+  W = sel.offsetWidth;
+  H1 = sel.offsetHeight;
+  H = H1 + tab.offsetHeight;
+  R = Math.min(20, Math.floor(H1 / 2));
+  c = 10;
+  rb = 14;
+  w2 = Math.min(tab.offsetWidth, W - 2 * (R + c));
+  x0 = Math.round((W - w2) / 2);
+  d = "M" + (1 + R) + " 1H" + (W - 1 - R) + "A" + R + " " + R + " 0 0 1 " + (W - 1) + " " + (1 + R) +
+    "V" + (H1 - 1 - R) + "A" + R + " " + R + " 0 0 1 " + (W - 1 - R) + " " + (H1 - 1) +
+    "H" + (x0 + w2 + c) + "A" + c + " " + c + " 0 0 0 " + (x0 + w2) + " " + (H1 - 1 + c) +
+    "V" + (H - 1 - rb) + "A" + rb + " " + rb + " 0 0 1 " + (x0 + w2 - rb) + " " + (H - 1) +
+    "H" + (x0 + rb) + "A" + rb + " " + rb + " 0 0 1 " + x0 + " " + (H - 1 - rb) +
+    "V" + (H1 - 1 + c) + "A" + c + " " + c + " 0 0 0 " + (x0 - c) + " " + (H1 - 1) +
+    "H" + (1 + R) + "A" + R + " " + R + " 0 0 1 1 " + (H1 - 1 - R) +
+    "V" + (1 + R) + "A" + R + " " + R + " 0 0 1 " + (1 + R) + " 1Z";
+  el.insertAdjacentHTML("afterbegin", '<svg class="shape" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '"><path d="' + d + '"/></svg>');
+}
+
+/* Cambia el destacado de la sección actual (dir: 1 siguiente, -1 anterior) y deja el foco en los puntos. */
+function switchHero(dir) {
+  var list = sectionContent(browse.section).heroList;
+  var section = browse.section;
+  if (list.length < 2) {
+    return;
+  }
+  browse.hero[section] = ((browse.hero[section] || 0) % list.length + dir + list.length) % list.length;
+  browse.heroDir = dir;
+  renderBrowse("hero-dots", 0);
+}
+
+/* Entrada del título nuevo: la imagen llega desde el lado del cambio con un pequeño rebote y el texto se reparte detrás, en cascada. */
+function animateHero(el, dir) {
+  if (!el) {
+    return;
+  }
+  el.classList.add(dir > 0 ? "enter-next" : "enter-prev");
+  setTimeout(function () {
+    el.classList.remove("enter-next");
+    el.classList.remove("enter-prev");
+  }, 900);
 }
 
 function entryFromRef(ref) {
@@ -666,6 +800,7 @@ function handleBrowseSelect(el) {
   }
   if (action === "settings") { openSettings({ returnTo: "browse" }); return; }
   if (action === "guide") { openGuide(); return; }
+  if (action === "hero-next") { switchHero(1); return; }
   if (action && action.indexOf("hero-") === 0) {
     hero = entryFromRef(byId("billboard").getAttribute("data-ref"));
     if (!hero) { return; }

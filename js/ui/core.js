@@ -68,6 +68,7 @@ var IC = {
   tag: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   refresh: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>',
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
@@ -92,6 +93,7 @@ var areas = [];
 var state = { areaIndex: 0, itemIndex: 0 };
 var areaMemory = {};
 var previousFocusedItem = null;
+var activeBlockEl = null;
 var pageState = { el: null, viewH: 0, contentH: 0, offset: 0 };
 var LOOP_SLOT = 88;
 
@@ -167,6 +169,7 @@ function measureAreas() {
       });
       a.total = a.pos.length ? a.pos[a.pos.length - 1][0] + a.pos[a.pos.length - 1][1] : 0;
       a.trackOffset = null;
+      a.track._hfOff = null;
       a.track.classList.remove("anim");
       if (a.loop) {
         setTrackOffset(a, a.pos[a.count][0] - LOOP_SLOT);
@@ -209,9 +212,11 @@ function offsetWithin(el, container) {
 }
 
 function setTrackOffset(a, px) {
-  if (a.trackOffset === px) {
+  /* El desplazamiento vive en la pista: dos áreas pueden compartirla (p. ej. las 2 filas de avatares) y moverse juntas. */
+  if (a.track._hfOff === px) {
     return;
   }
+  a.track._hfOff = px;
   a.trackOffset = px;
   a.track.style.transform = a.dir === "h" ? "translate3d(" + (-px) + "px,0,0)" : "translate3d(0," + (-px) + "px,0)";
 }
@@ -221,6 +226,10 @@ function clearPreviousFocus() {
     previousFocusedItem.removeAttribute("data-focused");
   }
   previousFocusedItem = null;
+  if (activeBlockEl) {
+    activeBlockEl.removeAttribute("data-area-on");
+  }
+  activeBlockEl = null;
 }
 
 function currentArea() {
@@ -258,7 +267,7 @@ function scrollTrack(a) {
     return;
   }
   p = a.pos[state.itemIndex];
-  next = a.trackOffset || 0;
+  next = a.track._hfOff || 0;
   if (p[0] + p[1] + pad > next + a.viewSize) {
     next = p[0] + p[1] + pad - a.viewSize;
   }
@@ -303,6 +312,16 @@ function updateFocus() {
   areaMemory[currentRoute + ":" + a.name] = state.itemIndex;
   if (appRootEl && appRootEl.getAttribute("data-active-area") !== a.name) {
     appRootEl.setAttribute("data-active-area", a.name);
+  }
+  /* la fila (o bloque) donde está el foco se marca: las demás tarjetas de esa fila se atenúan */
+  if (activeBlockEl !== (a.block || null)) {
+    if (activeBlockEl) {
+      activeBlockEl.removeAttribute("data-area-on");
+    }
+    activeBlockEl = a.block || null;
+    if (activeBlockEl) {
+      activeBlockEl.setAttribute("data-area-on", "true");
+    }
   }
   if (previousFocusedItem !== el) {
     if (previousFocusedItem) {
@@ -349,7 +368,7 @@ function scheduleLoopSnap(a) {
     previousFocusedItem.setAttribute("data-focused", "true");
     a.track.offsetWidth; // aplicar sin transición antes de volver a activarla
     a.track.classList.add("anim");
-  }, 200);
+  }, 560); // después de que termine la transición de la pista (0,5 s)
 }
 
 function stepLoop(a, delta) {
@@ -479,7 +498,7 @@ var imageObserver = null;
 
 function pumpImages() {
   var el;
-  while (imagesLoading < 2 && imageQueue.length) {
+  while (imagesLoading < 3 && imageQueue.length) {
     el = imageQueue.shift();
     imagesLoading += 1;
     (function (target) {
@@ -499,10 +518,18 @@ function pumpImages() {
 }
 
 function queueImage(el) {
+  var ready;
   if (!el.getAttribute("data-img") || el.getAttribute("data-queued")) {
     return;
   }
   el.setAttribute("data-queued", "true");
+  /* ya descargada en esta sesión: se pinta al instante, sin pasar por la cola */
+  ready = HFTelegram.imageReady && HFTelegram.imageReady(el.getAttribute("data-img"), Number(el.getAttribute("data-img-w")) || 480);
+  if (ready) {
+    el.style.backgroundImage = "url(" + ready + ")";
+    el.setAttribute("data-loaded", "true");
+    return;
+  }
   imageQueue.push(el);
   pumpImages();
 }
@@ -523,7 +550,9 @@ function observeImages(root) {
     }, { rootMargin: "200px 600px" });
   }
   els.forEach(function (el) {
-    if (imageObserver) {
+    if (HFTelegram.imageReady && HFTelegram.imageReady(el.getAttribute("data-img"), Number(el.getAttribute("data-img-w")) || 480)) {
+      queueImage(el);
+    } else if (imageObserver) {
       imageObserver.observe(el);
     } else {
       queueImage(el);
@@ -538,11 +567,13 @@ var routeHints = {
   login: "▲ ▼ Navegar · OK Seleccionar · BACK Volver",
   profiles: "◀ ▶ Elegir · ▼ Opciones · OK Entrar",
   "profile-edit": "◀ ▶ ▲ ▼ Navegar · OK Seleccionar · BACK Cancelar",
+  pin: "Números del control o ◀ ▶ ▲ ▼ y OK · BACK Cancelar",
+  accounts: "▲ ▼ Elegir · OK Seleccionar · BACK Volver",
   settings: "OK Activar / desactivar · ▲ Herramientas · BACK Guardar y salir",
   guide: "◀ ▶ Navegar · OK Seleccionar · BACK Cerrar",
-  browse: "◀ ▶ ▲ ▼ Navegar · OK Abrir · BACK Volver",
+  browse: "◀ ▶ ▲ ▼ Navegar · OK Abrir · BACK Menú",
   detail: "◀ ▶ Botones · ▼ Más · OK Seleccionar · BACK Volver",
-  "tag-edit": "▲ ▼ Campos · ◀ ▶ Cambiar · OK Escribir · BACK Cancelar",
+  "tag-edit": "◀ ▶ ▲ ▼ Moverse · OK Cambiar o escribir · BACK Cancelar",
   search: "▼ Resultados · OK Escribir · BACK Volver",
   player: ""
 };
@@ -586,13 +617,68 @@ function brandHtml(cls) {
   return '<div class="hf2-brand' + (cls ? " " + cls : "") + '"><div class="hf2-logo"></div><div class="hf2-wordmark">Home<span>Flix</span></div></div>';
 }
 
-function avatarSvg(id) {
+/* ===================== Avatares de perfil =====================
+ * Si hay imágenes en images/avatares/ (lista HF_AVATARES de js/imagenes.js) se usan esas; si no, los dibujos SVG.
+ * El id de un avatar propio es el nombre del archivo sin extensión. Un perfil guardado con un id que ya no existe
+ * (p. ej. «panda» de antes) recibe una imagen propia fija según ese id, así nunca queda sin foto. */
+function ownAvatars() {
+  return typeof HF_AVATARES !== "undefined" && HF_AVATARES && HF_AVATARES.length ? HF_AVATARES : null;
+}
+
+function avatarIdOf(src) {
+  return src.replace(/^.*\//, "").replace(/\.[a-z0-9]+$/i, "");
+}
+
+/* [{id, name}] en el orden en que se ofrecen en el editor. */
+function avatarList() {
+  var own = ownAvatars();
+  if (own) {
+    return own.map(function (src) { return { id: avatarIdOf(src), name: avatarName(avatarIdOf(src)) }; });
+  }
+  return HFArt.AVATAR_IDS.map(function (id) { return { id: id, name: HFArt.AVATAR_NAMES[id] }; });
+}
+
+/* «03-gato_negro» → «Gato negro» (el guion bajo es espacio; el guion normal se conserva: «Spider-Man») */
+function avatarName(id) {
+  var own = ownAvatars();
+  var name;
+  if (!own) {
+    return HFArt.AVATAR_NAMES[id] || "";
+  }
+  name = String(id || "").replace(/^[0-9]+[ ._-]*/, "").replace(/_+/g, " ").trim() || String(id || "");
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function avatarSrc(id) {
+  var own = ownAvatars();
+  var i;
+  var svgIdx;
+  for (i = 0; i < own.length; i += 1) {
+    if (avatarIdOf(own[i]) === id) {
+      return own[i];
+    }
+  }
+  svgIdx = HFArt.AVATAR_IDS.indexOf(id);
+  return own[(svgIdx >= 0 ? svgIdx : hashOf(String(id || ""))) % own.length];
+}
+
+/* id efectivo (el que se ve): sirve para marcar en el editor cuál está elegido. */
+function avatarEffectiveId(id) {
+  return ownAvatars() ? avatarIdOf(avatarSrc(id)) : (HFArt.AVATAR_IDS.indexOf(id) >= 0 ? id : "panda");
+}
+
+function avatarHtml(id) {
+  if (ownAvatars()) {
+    return '<img class="hf2-avimg" src="' + esc(encodeURI(avatarSrc(id))) + '" alt="">';
+  }
   return HFArt.avatar(HFArt.AVATAR_IDS.indexOf(id) >= 0 ? id : "panda");
 }
 
-/* Ilustración de respaldo (mientras llega la portada real, o si no hay). */
-function fallbackArt(key, tag) {
-  return HFArt.art(hashOf(key) % HFArt.POSTER_COUNT, (tag || "f") + (hashOf(key) % 9973));
+var avatarSvg = avatarHtml;
+
+/* Respaldo mientras llega la portada real (o si no hay): el logo y el nombre de HomeFlix. */
+function fallbackArt() {
+  return '<div class="hf2-ph"><div class="hf2-ph-logo"></div><div class="hf2-ph-name">Home<span>Flix</span></div></div>';
 }
 
 function titleMeta(t) {

@@ -1,0 +1,14 @@
+Imágenes de perfil de HomeFlix (avatares)
+
+- Pon aquí tus imágenes: .jpg, .jpeg, .png o .webp.
+- Cuadradas, por ejemplo 400 x 400 px (si no son cuadradas se recortan al centro).
+- Peso recomendado: menos de 60 KB cada una.
+- Cantidad: 12 se ven más grandes (2 filas de 6 en el editor de perfil); hasta 18 caben en 3 filas
+  con miniaturas más pequeñas. Más de 18 no se muestran.
+- El nombre del archivo es el nombre que se muestra: «03-gato_negro.png» se ve como «Gato negro»
+  (usa _ para los espacios; el guion se conserva: «01-Spider-Man.jpg» → «Spider-Man»)
+  (el número del inicio solo sirve para ordenar).
+- No hay que tocar código: al empaquetar (node tools/build-wgt.mjs) o con el servidor local
+  (node tools/serve.mjs) la app las encuentra sola.
+- Si cambias o borras una imagen, los perfiles que la usaban reciben otra automáticamente.
+- Si la carpeta queda sin imágenes, se usan los dibujos de ejemplo.

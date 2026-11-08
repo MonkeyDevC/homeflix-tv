@@ -1,21 +1,29 @@
-// Portadas propias del fondo animado (pantalla inicial y login).
-// Pon tus imágenes en images/portadas/ (jpg, jpeg, png o webp, en vertical tipo póster 2:3).
-// Una app de TV no puede listar carpetas, así que serve.mjs y build-wgt.mjs generan js/portadas.js con la lista.
+// Imágenes propias de la app, sin tocar código:
+//   images/portadas/  → fondo animado de la pantalla inicial y el login (vertical tipo póster 2:3)
+//   images/avatares/  → imágenes de perfil (cuadradas)
+// Una app de TV no puede listar carpetas, así que serve.mjs y build-wgt.mjs generan js/imagenes.js con las listas.
 import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const PORTADAS_DIR = 'images/portadas';
+export const AVATARES_DIR = 'images/avatares';
+export const IMAGENES_JS = 'js/imagenes.js';
 const IMG = /\.(jpe?g|png|webp)$/i;
 
-export function listPortadas(root) {
-  const dir = join(root, PORTADAS_DIR);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
+function listDir(root, dir) {
+  const abs = join(root, dir);
+  if (!existsSync(abs)) return [];
+  return readdirSync(abs)
     .filter((f) => IMG.test(f) && !f.startsWith('.'))
     .sort((a, b) => a.localeCompare(b, 'es', { numeric: true }))
-    .map((f) => PORTADAS_DIR + '/' + f);
+    .map((f) => dir + '/' + f);
 }
 
-export function portadasJs(root) {
-  return '/* Generado al empaquetar: imágenes de ' + PORTADAS_DIR + '/ */\nvar HF_PORTADAS = ' + JSON.stringify(listPortadas(root)) + ';\n';
+export const listPortadas = (root) => listDir(root, PORTADAS_DIR);
+export const listAvatares = (root) => listDir(root, AVATARES_DIR);
+
+export function imagenesJs(root) {
+  return '/* Generado al empaquetar: imágenes de ' + PORTADAS_DIR + '/ y ' + AVATARES_DIR + '/ */\n' +
+    'var HF_PORTADAS = ' + JSON.stringify(listPortadas(root)) + ';\n' +
+    'var HF_AVATARES = ' + JSON.stringify(listAvatares(root)) + ';\n';
 }

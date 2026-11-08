@@ -4,8 +4,20 @@
     {
       "name": "homeflix",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["tools/serve.mjs", "5173"],
+      "runtimeArgs": [
+        "tools/serve.mjs",
+        "5173"
+      ],
       "port": 5173
+    },
+    {
+      "name": "preparador",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/preparador/server.mjs",
+        "--no-open"
+      ],
+      "port": 5180
     }
   ]
 }

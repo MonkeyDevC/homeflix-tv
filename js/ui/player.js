@@ -32,7 +32,7 @@ function openPlayer(item, startAt, series) {
   poster.style.backgroundImage = "";
   poster.removeAttribute("data-loaded");
   poster.setAttribute("data-hidden", "false");
-  poster.setAttribute("data-img", item.type === "episode" || item.type === "video" ? item.key : (item.imageKey || entryVideoKey(item)));
+  poster.setAttribute("data-img", item.type === "episode" || item.type === "video" ? item.key : (item.bannerKey || item.imageKey || entryVideoKey(item)));
   poster.innerHTML = fallbackArt(poster.getAttribute("data-img"), "pp");
   poster.setAttribute("data-img-w", "1280");
   poster.removeAttribute("data-queued");
@@ -77,6 +77,9 @@ function renderPlayerChrome() {
     pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="episodes" data-title="Capítulos" data-description="Ver los capítulos sin salir del video" tabindex="0">' + IC.list + "Capítulos</span>";
   }
   pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="tracks" data-title="Audio y subtítulos" tabindex="0">' + IC.subs + "Audio y subtítulos</span>";
+  if (it.versions && it.versions.length > 1) {
+    pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="quality" data-title="Calidad" data-description="Automática según tu internet, o elegirla a mano" tabindex="0">' + IC.gear + "Calidad</span>";
+  }
   if (nextEp) {
     pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="next" data-title="Siguiente" data-description="Siguiente: T' + nextEp.season + ":E" + nextEp.episode + " · " + esc(nextEp.title) + '" tabindex="0">' + IC.next + "Siguiente</span>";
   }
@@ -107,7 +110,8 @@ function setPlayerAreas(focusName, focusIndex) {
   var chrome = playerChrome();
   var defs = [];
   if (player.panel === "tracks") {
-    defs.push({ name: "audio", items: chrome.querySelectorAll("#plTracks .tr-audio .hf2-track"), dir: "v", sideways: true });
+    defs.push({ name: "audio", items: chrome.querySelectorAll("#plTracks .tr-audio .hf2-track:not([data-track-kind=quality])"), dir: "v", sideways: true });
+    defs.push({ name: "quality", items: chrome.querySelectorAll("#plTracks .tr-audio [data-track-kind=quality]"), dir: "v", sideways: true });
     defs.push({ name: "subs", items: chrome.querySelectorAll("#plTracks .tr-subs .hf2-track"), dir: "v", sideways: true });
     defs.push({ name: "size", items: chrome.querySelectorAll("#plTracks .hf2-segment [data-focusable]"), dir: "h" });
   } else if (player.panel === "episodes") {
@@ -347,8 +351,9 @@ function applySubSize() {
   byId("scrPlayer").setAttribute("data-subsize", subSize());
 }
 
-function openTracksPanel() {
+function openTracksPanel(focusQuality) {
   player.panel = "tracks";
+  player.focusQuality = !!focusQuality;
   byId("scrPlayer").setAttribute("data-panel", "tracks");
   if (player.hideTimer) {
     clearTimeout(player.hideTimer);
@@ -364,6 +369,19 @@ function renderTracksPanel() {
   var size = subSize();
   var audio;
   var subs;
+  var qs = HFPlayback.qualities ? HFPlayback.qualities() : null;
+  var quality = "";
+  var qRow = function (key, label, on, desc) {
+    return '<div class="hf2-track' + (on ? " on" : "") + '" data-focusable="true" data-track-kind="quality" data-track-key="' + esc(key) + '" data-title="' + esc(label) + '" data-description="' + esc(desc) + '" tabindex="0"><span class="ck">' + (on ? IC.check : "") + "</span><b>" + esc(label) + "</b></div>";
+  };
+  if (qs) {
+    quality = '<div class="hf2-tracks-h small">' + IC.gear + "Calidad</div>" +
+      qRow("auto", "Automática" + (qs.auto ? " · " + qs.current.q : ""), qs.auto,
+        "Según tu internet" + (qs.speed ? " (ahora unos " + Math.round(qs.speed / 1e6) + " Mbps)" : "")) +
+      qs.list.map(function (v) {
+        return qRow(v.key, v.q, !qs.auto && v.key === qs.current.key, v.q + " · necesita unos " + Math.ceil(v.mbps * 1.4) + " Mbps");
+      }).join("");
+  }
   if (HFPlayback.simulated) {
     audio = '<div class="hf2-text" style="font-size:20px">El video de demostración no tiene pistas.</div>';
     subs = "";
@@ -376,8 +394,8 @@ function renderTracksPanel() {
         return '<div class="hf2-track' + (s.current ? " on" : "") + '" data-focusable="true" data-track-kind="sub" data-track-key="' + esc(s.key) + '" data-title="' + esc(s.label) + '" tabindex="0"><span class="ck">' + (s.current ? IC.check : "") + "</span><b>" + esc(s.label) + "</b></div>";
       }).join("") + (tr.subs.length ? "" : '<div class="hf2-text" style="font-size:19px">Este video no trae subtítulos</div>');
   }
-  el.innerHTML = "<h2>Audio y subtítulos</h2>" +
-    '<div class="hf2-tracks-cols"><div class="tr-audio"><div class="hf2-tracks-h">' + IC.audio + "Audio</div>" + audio + "</div>" +
+  el.innerHTML = "<h2>" + (qs ? "Audio, subtítulos y calidad" : "Audio y subtítulos") + "</h2>" +
+    '<div class="hf2-tracks-cols"><div class="tr-audio"><div class="hf2-tracks-h">' + IC.audio + "Audio</div>" + audio + quality + "</div>" +
     '<div class="tr-subs"><div class="hf2-tracks-h">' + IC.subs + "Subtítulos</div>" + subs +
     '<div class="hf2-tracks-h small">Tamaño</div><div class="hf2-segment">' +
       [["small", "Pequeño"], ["medium", "Mediano"], ["large", "Grande"]].map(function (s) {
@@ -385,7 +403,12 @@ function renderTracksPanel() {
       }).join("") + "</div></div></div>" +
     '<div class="hf2-tracks-note">Se recuerda para este video · BACK cerrar</div>';
   el.setAttribute("data-visible", "true");
-  setPlayerAreas(tr.audio.length > 1 ? "audio" : "subs", 0);
+  if (player.focusQuality && qs) {
+    player.focusQuality = false;
+    setPlayerAreas("quality", 0);
+  } else {
+    setPlayerAreas(tr.audio.length > 1 ? "audio" : "subs", 0);
+  }
 }
 
 function closePanel() {
@@ -402,7 +425,12 @@ function handleTrackSelect(el) {
   var key = el.getAttribute("data-track-key");
   var a = currentArea();
   var idx = state.itemIndex;
-  if (kind === "audio") {
+  if (kind === "quality") {
+    if (!el.classList.contains("on")) {
+      HFPlayback.setQuality(key);
+      updateStatus("Calidad: " + el.getAttribute("data-title"));
+    }
+  } else if (kind === "audio") {
     if (!el.classList.contains("on")) {
       HFPlayback.setAudio(key);
       updateStatus("Audio: " + el.getAttribute("data-title"));
@@ -525,6 +553,7 @@ function handlePlayerAction(el) {
   else if (action === "next-cancel") { hideNextCard(); }
   else if (action === "episodes") { openEpisodesPanel(); }
   else if (action === "tracks") { openTracksPanel(); }
+  else if (action === "quality") { openTracksPanel(true); }
   else if (action === "edit-tag") {
     editing = player.item;
     series = player.series;

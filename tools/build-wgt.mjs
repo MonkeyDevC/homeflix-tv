@@ -6,14 +6,14 @@ import { join, relative, sep } from 'node:path';
 import { deflateRawSync, crc32 } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { loadApiKey, configJsWithKey, configJsWithVersion } from './apikey.mjs';
-import { portadasJs } from './portadas.mjs';
+import { imagenesJs, IMAGENES_JS } from './portadas.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
 
 // Lo que va dentro del paquete. Todo lo demás (.cursor, .sign, tools, engine, dist, *.old.*) queda fuera.
 // *.local.* (por ejemplo js/config.local.js con tu api_hash) NUNCA entra al paquete.
 const INCLUDE = ['config.xml', 'index.html', 'icon.png', 'css', 'js', 'images'];
-const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./, /^images\/portadas\/(originales\/|.*\.(md|txt)$)/i, /^js\/portadas\.js$/];
+const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./, /^images\/(portadas|avatares)\/(originales\/|.*\.(md|txt)$)/i, /^js\/(portadas|imagenes)\.js$/];
 
 function walk(path) {
   const st = statSync(path);
@@ -24,8 +24,8 @@ function walk(path) {
 const files = INCLUDE.flatMap((p) => walk(join(root, p)))
   .map((abs) => ({ abs, name: relative(root, abs).split(sep).join('/') }))
   .filter((f) => !EXCLUDE.some((re) => re.test(f.name)));
-// Lista de tus portadas del fondo animado (images/portadas/), generada aquí.
-files.push({ name: 'js/portadas.js', data: Buffer.from(portadasJs(root), 'utf8') });
+// Listas de tus portadas (images/portadas/) y avatares (images/avatares/), generadas aquí.
+files.push({ name: IMAGENES_JS, data: Buffer.from(imagenesJs(root), 'utf8') });
 
 const config = readFileSync(join(root, 'config.xml'), 'utf8');
 const version = (config.match(/<widget[^>]*\sversion="([^"]+)"/) || [])[1];

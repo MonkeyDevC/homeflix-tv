@@ -88,13 +88,10 @@ function renderUpdateBanner() {
 
 function onAdjust(el, dir) {
   if (currentRoute === "tag-edit") {
-    return adjustTagField(el, dir);
+    /* Solo «Serie» (sola en su fila) cambia con ◀ ▶; en la fila de año/temporada/capítulo/infantil ◀ ▶ mueven. */
+    return el.getAttribute("data-adjust") === "series" ? adjustTagField(el, dir) : false;
   }
-  if (currentRoute === "profile-edit" && el.getAttribute("data-adjust") === "kids") {
-    profileEdit.kids = !profileEdit.kids;
-    renderProfileEditor("kids", 0);
-    return true;
-  }
+  /* «Perfil infantil» cambia solo con OK: ◀ ▶ mueven al campo del PIN que está a su lado */
   return false;
 }
 
@@ -116,6 +113,8 @@ function selectCurrentItem() {
   else if (currentRoute === "login") { handleLoginSelect(el); }
   else if (currentRoute === "profiles") { handleProfileSelect(el); }
   else if (currentRoute === "profile-edit") { handleProfileEditSelect(el); }
+  else if (currentRoute === "pin") { handlePinSelect(el); }
+  else if (currentRoute === "accounts") { handleAccountsSelect(el); }
   else if (currentRoute === "settings") { handleSettingsSelect(el); }
   else if (currentRoute === "guide") { handleGuideSelect(el); }
   else if (currentRoute === "browse") { handleBrowseSelect(el); }
@@ -129,6 +128,7 @@ function goBackByRoute() {
   if (currentRoute === "detail") { closeDetail(); return; }
   if (currentRoute === "tag-edit") { cancelTagEdit(); return; }
   if (currentRoute === "profile-edit") { openProfiles("", true); return; }
+  if (currentRoute === "pin") { cancelPin(); return; }
   if (currentRoute === "guide") { closeGuide(); return; }
   if (currentRoute === "search") { openBrowse(browse.section); return; }
   if (currentRoute === "settings") {
@@ -141,6 +141,11 @@ function goBackByRoute() {
     return;
   }
   if (currentRoute === "browse") {
+    /* Desde cualquier fila o el destacado, BACK sube al menú (sobre la sección actual) y la página vuelve arriba. */
+    if (currentArea() && currentArea().name !== "top") {
+      focusAreaByName("top", Math.max(0, MENU.map(function (m) { return m.id; }).indexOf(browse.section)));
+      return;
+    }
     if (browse.section !== "home") {
       browse.section = "home";
       renderBrowse("top", 0);
@@ -158,8 +163,11 @@ function goBackByRoute() {
     return;
   }
   if (currentRoute === "login") {
-    cancelLogin();
-    openSplash("Pantalla inicial");
+    leaveLogin();
+    return;
+  }
+  if (currentRoute === "accounts") {
+    openProfiles("¿Quién está viendo?");
   }
 }
 
@@ -197,6 +205,13 @@ function handleKeyDown(event) {
     event.preventDefault();
   }
   if (currentRoute === "player" && handlePlayerKey(code)) {
+    return;
+  }
+  if (currentRoute === "tag-edit" && handleTagEditKey(code)) {
+    return;
+  }
+  if (currentRoute === "pin" && handlePinKey(code)) {
+    event.preventDefault();
     return;
   }
   switch (code) {
@@ -256,11 +271,27 @@ function handlePointerSelect(event) {
   }
 }
 
+/* Llegaron cambios de otro dispositivo (Mi lista, progreso, perfiles, chats): volver a armar y pintar lo que se ve.
+ * No toca el reproductor ni pantallas con campos de texto (no se interrumpe lo que se está escribiendo). */
+function onSyncRemote() {
+  var a;
+  if (activeProfile) {
+    activeProfile = HFLibrary.profiles().filter(function (p) { return p.id === activeProfile.id; })[0] || activeProfile;
+  }
+  rebuildLibrary();
+  if (currentRoute === "browse") {
+    a = currentArea();
+    renderBrowse(a ? a.name : null, state.itemIndex);
+  } else if (currentRoute === "profiles") {
+    renderProfiles(false);
+  }
+}
+
 /* Tizen: las teclas multimedia del mando solo llegan si se registran. */
 function registerTvKeys() {
   try {
     if (window.tizen && tizen.tvinputdevice) {
-      ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaFastForward", "MediaRewind", "MediaStop"].forEach(function (k) {
+      ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaFastForward", "MediaRewind", "MediaStop", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].forEach(function (k) {
         try { tizen.tvinputdevice.registerKey(k); } catch (e) { /* no disponible en este modelo */ }
       });
     }
@@ -296,6 +327,14 @@ window.onload = function () {
   document.addEventListener("keydown", handleKeyDown, false);
   document.addEventListener("click", handlePointerSelect, false);
   byId("searchInput").addEventListener("input", onSearchInput, false);
+  /* Solo desarrollo: tablero de diseño (design/). La carpeta no va en el .wgt, así que en la TV nunca entra aquí. */
+  if (/[?&]design=/.test(window.location.search)) {
+    var ds = document.createElement("script");
+    ds.src = "design/tv-views.js";
+    document.head.appendChild(ds);
+    return;
+  }
+  HFSync.onRemote(onSyncRemote);
   warmUpTelegram();
   setTimeout(function () { checkUpdates(false); }, 4000);
 };

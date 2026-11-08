@@ -43,6 +43,8 @@ body {
 #app[data-route="login"] #scrLogin,
 #app[data-route="profiles"] #scrProfiles,
 #app[data-route="profile-edit"] #scrProfileEdit,
+#app[data-route="pin"] #scrPin,
+#app[data-route="accounts"] #scrAccounts,
 #app[data-route="settings"] #scrSettings,
 #app[data-route="guide"] #scrGuide,
 #app[data-route="browse"] #scrBrowse,
@@ -94,6 +96,8 @@ body {
 #app[data-route="splash"] .hf2-footer.app,
 #app[data-route="login"] .hf2-footer.app,
 #app[data-route="profiles"] .hf2-footer.app,
+#app[data-route="pin"] .hf2-footer.app,
+#app[data-route="accounts"] .hf2-footer.app,
 #app[data-route="profile-edit"] .hf2-footer.app {
   background: none;
 }
@@ -136,6 +140,12 @@ body {
 .hf2-row.loop .hf2-row-track {
   margin-left: 0;
   padding-left: 0;
+}
+
+/* La pista se mueve con transform: si ella misma recortara, el recorte viajaría con las tarjetas y dejaría
+ * vacía la derecha al avanzar. Recorta el viewport (fijo), nunca la pista. */
+.hf2-row-track {
+  overflow: visible;
 }
 
 /* ----- Campos de texto reales dentro de los estilos del diseño ----- */
@@ -560,4 +570,788 @@ body {
 /* Con la tarjeta de siguiente capítulo, los controles se ocultan (como en el diseño) */
 #scrPlayer[data-next="true"] .hf2-pl-bottom {
   display: none;
+}
+
+/* ----- Menú superior (Inicio · Películas · Series · Mi lista) -----
+ * Fuera del menú: la sección actual en blanco y subrayada, las demás apagadas.
+ * Dentro del menú (BACK o ▲ hasta arriba): la barra se vuelve sólida, el menú gana un riel y el ítem
+ * enfocado es una píldora dorada, como los botones; la sección actual conserva su subrayado si no está enfocada. */
+.hf2-menu {
+  margin-left: 48px;
+  padding: 6px;
+  border-radius: 40px;
+  border: 2px solid transparent;
+}
+
+.hf2-menu span {
+  margin-right: 4px;
+  padding: 10px 24px;
+  border-radius: 30px;
+}
+
+.hf2-menu span:last-child {
+  margin-right: 0;
+}
+
+.hf2-menu span.on::after {
+  left: 24px;
+  right: 24px;
+  bottom: 2px;
+}
+
+#app[data-active-area="top"] .hf2-topbar {
+  background: linear-gradient(180deg, rgba(11, 12, 14, 0.98) 0%, rgba(11, 12, 14, 0.92) 70%, rgba(11, 12, 14, 0) 100%);
+}
+
+#app[data-active-area="top"] .hf2-menu {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(230, 193, 147, 0.35);
+}
+
+#app[data-active-area="top"] .hf2-menu span {
+  color: #d9d9d4;
+}
+
+.hf2-menu span[data-focused="true"],
+#app[data-active-area="top"] .hf2-menu span[data-focused="true"] {
+  background: linear-gradient(180deg, #f0d2a8, #c99a66);
+  color: #2a1d0e;
+  font-weight: 800;
+}
+
+.hf2-menu span.on[data-focused="true"]::after {
+  display: none;
+}
+
+/* Campo numérico en edición (OK sobre Año / Temporada / Capítulo): dorado, como un botón activo */
+.hf2-frow.editing .hf2-stepper {
+  background: linear-gradient(180deg, #f0d2a8, #c99a66);
+  border-color: #f0d2a8;
+  color: #2a1d0e;
+}
+
+.hf2-frow.editing .hf2-stepper i {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.hf2-frow.editing .hf2-stepper i svg {
+  stroke: #2a1d0e;
+}
+
+.hf2-frow.editing .hf2-stepper small {
+  color: #2a1d0e;
+  font-weight: 700;
+}
+
+/* Avatares con imagen propia (images/avatares/): la foto llena el recuadro con sus esquinas */
+.hf2-avimg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hf2-avatar.pic .hf2-avimg {
+  border-radius: 24px;
+}
+
+
+
+.hf2-avatar.big.pic .hf2-avimg {
+  border-radius: 32px;
+}
+
+/* Cuadrícula de avatares: 2 filas en una sola pista que se desplaza con ◀ ▶ (recorta el marco, no la pista) */
+.hf2-avatar-grid.scroll {
+  display: block;
+  overflow: hidden;
+  padding: 16px 0 4px 16px;
+}
+
+.av-track {
+  position: relative;
+  display: flex;
+}
+
+.av-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.hf2-label-more {
+  margin-left: 14px;
+  color: var(--dim);
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.av-track.anim {
+  transition: transform 0.15s linear;
+}
+
+/* ----- Foco más visible en la TV -----
+   La tarjeta enfocada crece más, lleva un borde blanco grueso con halo dorado,
+   y las demás tarjetas de la misma fila se atenúan para que se vea de un vistazo dónde estás. */
+.hf2-card[data-focused="true"],
+.hf2-ep[data-focused="true"] {
+  transform: scale(1.1);
+  z-index: 3;
+}
+.hf2-card[data-focused="true"] .hf2-card-art,
+.hf2-ep[data-focused="true"] .hf2-ep-art {
+  box-shadow: 0 0 0 5px #fff, 0 0 0 11px rgba(230, 193, 147, 0.85), 0 20px 44px rgba(0, 0, 0, 0.75);
+}
+.hf2-card[data-focused="true"] .hf2-card-title {
+  color: #fff;
+}
+.hf2-row[data-area-on="true"] .hf2-card {
+  opacity: 0.5;
+}
+.hf2-row[data-area-on="true"] .hf2-card[data-focused="true"] {
+  opacity: 1;
+}
+.hf2-row[data-area-on="true"] .hf2-row-head h3 {
+  color: var(--gold-1);
+}
+.hf2-row[data-area-on="true"] .hf2-row-head h3::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 30px;
+  margin-right: 14px;
+  border-radius: 4px;
+  background: var(--gold-ring);
+  vertical-align: -3px;
+}
+/* espacio para que la tarjeta agrandada y su borde no se recorten arriba y abajo */
+.hf2-row-viewport {
+  padding: 24px 0 22px;
+  margin: -24px 0 -22px;
+}
+
+/* ----- Respaldo de las portadas: logo y nombre de HomeFlix mientras llega la imagen real ----- */
+.hf2-ph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 42%, #30333a 0%, #1b1d21 58%, #121316 100%);
+}
+.hf2-ph-logo {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: #f4f4f2 url(../images/panda-login.png) 50% 6% / 150% auto no-repeat;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  opacity: 0.9;
+}
+.hf2-ph-name {
+  margin-top: 10px;
+  color: #e9e9e6;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  opacity: 0.85;
+}
+.hf2-ph-name span {
+  color: var(--gold-text);
+}
+.hf2-img[data-loaded="true"] > .hf2-ph,
+.hf2-pl-poster[data-loaded="true"] .hf2-ph {
+  display: none;
+}
+.hf2-next-art .hf2-ph-logo {
+  width: 52px;
+  height: 52px;
+}
+.hf2-next-art .hf2-ph-name {
+  font-size: 20px;
+}
+/* fondos grandes (destacado, ficha, reproductor): el logo va a la derecha, lejos del texto */
+.hf2-bb-art .hf2-ph,
+.hf2-dt-art .hf2-ph {
+  padding-left: 360px;
+  background: radial-gradient(circle at 62% 45%, #30333a 0%, #1b1d21 50%, #111315 100%);
+}
+.hf2-bb-art .hf2-ph-logo,
+.hf2-dt-art .hf2-ph-logo,
+.hf2-pl-poster .hf2-ph-logo {
+  width: 170px;
+  height: 170px;
+  border-width: 5px;
+}
+.hf2-bb-art .hf2-ph-name,
+.hf2-dt-art .hf2-ph-name,
+.hf2-pl-poster .hf2-ph-name {
+  margin-top: 22px;
+  font-size: 68px;
+}
+
+/* ----- PIN de acceso ----- */
+.hf2-field-pair {
+  display: flex;
+  width: 640px;
+}
+.hf2-field-pair > .hf2-field {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+.hf2-field-pair > .hf2-field + .hf2-field {
+  margin-left: 28px;
+}
+.hf2-pin-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  margin-right: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+.hf2-pin-chip svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--muted);
+}
+.hf2-pin-chip.on {
+  background: var(--gold-ring);
+}
+.hf2-pin-chip.on svg {
+  stroke: #1b1b1b;
+}
+.hf2-field[data-action="pin"][data-focused="true"] .hf2-pin-chip {
+  box-shadow: 0 0 0 3px #fff;
+}
+.hf2-pname-lock svg {
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  stroke: var(--gold-text);
+}
+
+.hf2-pin {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 3;
+}
+.hf2-pin .hf2-avatar {
+  width: 130px;
+  height: 130px;
+}
+.hf2-pin-name {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 26px;
+  font-weight: 700;
+}
+.hf2-pin-title {
+  margin: 18px 0 0;
+  font-size: 46px;
+  font-weight: 900;
+}
+.hf2-pin-note {
+  margin-top: 10px;
+  height: 30px;
+  color: var(--dim);
+  font-size: 23px;
+}
+.hf2-pin-note.error {
+  color: #ff8a80;
+  font-weight: 700;
+}
+.hf2-pin-dots {
+  display: flex;
+  margin: 22px 0 30px;
+}
+.hf2-pin-dots i {
+  width: 26px;
+  height: 26px;
+  margin: 0 14px;
+  border-radius: 50%;
+  border: 3px solid var(--gold-ring);
+}
+.hf2-pin-dots i.on {
+  background: var(--gold-ring);
+}
+.hf2-pin-pad {
+  display: flex;
+  flex-wrap: wrap;
+  width: 516px;
+}
+.hf2-pin-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 156px;
+  height: 84px;
+  margin: 0 8px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 40px;
+  font-weight: 800;
+}
+.hf2-pin-key.small {
+  font-size: 24px;
+  color: var(--muted);
+}
+.hf2-pin-key[data-focused="true"] {
+  background: var(--gold-ring);
+  color: #1b1b1b;
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px #fff;
+}
+.hf2-pin .hf2-actions {
+  margin-top: 10px;
+}
+.hf2 .hf2-pin-title {
+  color: var(--text);
+}
+
+/* ----- Varias cuentas de Telegram ----- */
+.hf2-pacc {
+  margin-top: 6px;
+  color: var(--dim);
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.hf2-pacc svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  stroke: var(--dim);
+  fill: none;
+}
+.hf2-preview-acc {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--dim);
+  font-size: 18px;
+}
+.hf2-preview-acc svg {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 6px;
+  stroke: var(--gold-text);
+  fill: none;
+}
+.hf2-preview-acc b {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 24px;
+}
+.hf2-preview-acc small {
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.hf2-accpick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 190px;
+  width: 1100px;
+  margin: 0 auto;
+  z-index: 3;
+}
+.hf2-acc-list {
+  margin-top: 30px;
+}
+.hf2-acc-row {
+  display: flex;
+  align-items: center;
+  height: 104px;
+  margin-bottom: 16px;
+  padding: 0 30px;
+  border-radius: 18px;
+  background: rgba(36, 38, 42, 0.88);
+  border: 2px solid var(--line);
+}
+.hf2-acc-row[data-focused="true"] {
+  border-color: #fff;
+  box-shadow: 0 0 0 4px var(--gold-ring);
+  transform: scale(1.02);
+}
+.hf2-acc-row.full {
+  opacity: 0.55;
+}
+.hf2-acc-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 62px;
+  height: 62px;
+  margin-right: 24px;
+  border-radius: 50%;
+  background: #2aa3e0;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+}
+.hf2-acc-row.add .hf2-acc-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--gold-text);
+  font-size: 40px;
+}
+.hf2-acc-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.hf2-acc-name b {
+  font-size: 28px;
+  font-weight: 800;
+}
+.hf2-acc-name small {
+  margin-top: 4px;
+  color: var(--dim);
+  font-size: 20px;
+}
+.hf2-acc-tag {
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(230, 193, 147, 0.18);
+  color: var(--gold-text);
+  font-size: 18px;
+  font-weight: 700;
+}
+.hf2-accpick .hf2-actions {
+  margin-top: 14px;
+}
+
+/* ----- Calidad en el panel de audio y subtítulos ----- */
+.hf2-tracks .tr-audio .hf2-tracks-h.small {
+  margin-top: 26px;
+}
+.hf2-tracks-h.small svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ----- Destacado: el texto crece hacia arriba desde una base fija, así los botones nunca pisan las filas ----- */
+.hf2-bb-copy,
+.hf2-billboard.compact .hf2-bb-copy {
+  top: auto;
+  bottom: 34px;
+  width: 860px;
+}
+.hf2-bb-copy h1 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  padding-bottom: 6px;
+}
+.hf2-bb-copy h1.long,
+.hf2-billboard.compact .hf2-bb-copy h1.long {
+  font-size: 74px;
+}
+.hf2-bb-copy p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-height: 113px;
+  margin-top: 18px;
+  font-size: 24px;
+}
+.hf2-bb-actions {
+  margin-top: 30px;
+}
+
+/* Fila de cambio de destacado, debajo de los botones */
+.hf2-bb-switch {
+  display: flex;
+  align-items: center;
+  margin-top: 22px;
+}
+.hf2-bb-switch small {
+  margin-left: 18px;
+  color: var(--dim);
+  font-size: 19px;
+}
+.hf2-billboard .hf2-bb-dots,
+.hf2-billboard.compact .hf2-bb-dots {
+  position: static;
+  display: flex;
+  align-items: center;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 23px;
+  border: 2px solid transparent;
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.hf2-bb-dots i {
+  margin: 0 5px;
+  transition: width 0.5s cubic-bezier(0.34, 1.3, 0.64, 1), background-color 0.3s ease;
+}
+.hf2-bb-dots .arr {
+  width: 20px;
+  color: transparent;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 40px;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+.hf2-bb-dots[data-focused="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--gold-1);
+  box-shadow: 0 0 0 4px rgba(230, 193, 147, 0.25);
+  transform: scale(1.06);
+}
+.hf2-bb-dots[data-focused="true"] .arr {
+  color: #fff;
+}
+
+/* Entrada del título nuevo al cambiar de destacado (como repartir una carta: llega con arco y un rebote corto) */
+@keyframes hfArtNext {
+  0% { opacity: 0; transform: translate3d(140px, -18px, 0) rotate(1.2deg) scale(1.04); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes hfArtPrev {
+  0% { opacity: 0; transform: translate3d(-140px, -18px, 0) rotate(-1.2deg) scale(1.04); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes hfCopyIn {
+  0% { opacity: 0; transform: translate3d(0, 26px, 0); }
+  100% { opacity: 1; transform: none; }
+}
+.hf2-billboard.enter-next .hf2-bb-art {
+  animation: hfArtNext 0.6s cubic-bezier(0.25, 1.18, 0.4, 1) both;
+}
+.hf2-billboard.enter-prev .hf2-bb-art {
+  animation: hfArtPrev 0.6s cubic-bezier(0.25, 1.18, 0.4, 1) both;
+}
+.hf2-billboard.enter-next .hf2-bb-copy > *,
+.hf2-billboard.enter-prev .hf2-bb-copy > * {
+  animation: hfCopyIn 0.5s cubic-bezier(0.25, 1.2, 0.4, 1) both;
+}
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(2) { animation-delay: 0.045s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(3) { animation-delay: 0.09s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(4) { animation-delay: 0.135s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(5) { animation-delay: 0.18s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(6) { animation-delay: 0.18s; }
+
+/* ----- Movimiento entre tarjetas: resorte suave con un rebote corto, en lugar del desplazamiento lineal ----- */
+.hf2-row-track.anim,
+.hf2-ep-track.anim,
+.av-track.anim {
+  transition: transform 0.5s cubic-bezier(0.22, 1.12, 0.36, 1);
+}
+.hf2-scroll > .hf2-scroll-inner {
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hf2-card,
+.hf2-ep {
+  transition: transform 0.45s cubic-bezier(0.34, 1.45, 0.64, 1), opacity 0.35s ease;
+}
+.hf2-card-art,
+.hf2-ep-art {
+  transition: box-shadow 0.35s ease;
+}
+/* la tarjeta enfocada se levanta además de crecer */
+.hf2-card[data-focused="true"],
+.hf2-ep[data-focused="true"] {
+  transform: translate3d(0, -8px, 0) scale(1.1);
+}
+/* las tarjetas que siguen se apartan un poco para dejarle sitio */
+.hf2-row[data-area-on="true"] .hf2-card[data-focused="true"] ~ .hf2-card {
+  transform: translate3d(14px, 0, 0);
+}
+
+/* ----- Ficha: el texto crece hacia arriba desde una base fija y la fila de abajo solo asoma ----- */
+.hf2-dt-copy {
+  top: auto;
+  bottom: 236px;
+  transition: opacity 0.35s ease;
+}
+.hf2-dt-copy h1 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  padding-bottom: 6px;
+}
+.hf2-dt-copy h1.long {
+  font-size: 74px;
+}
+.hf2-dt-copy p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  max-height: 144px;
+}
+/* Película: «También de…» asoma al pie; al bajar a ella sube con un resorte suave */
+.hf2-dt-more {
+  top: 876px;
+  transition: transform 0.55s cubic-bezier(0.22, 1.1, 0.36, 1);
+}
+.hf2.dt.scrolled .hf2-dt-more {
+  transform: translate3d(0, -420px, 0);
+}
+.hf2.dt.scrolled .hf2-dt-copy {
+  top: 150px;
+  bottom: auto;
+}
+.hf2.dt.scrolled .hf2-dt-copy h1,
+.hf2.dt.scrolled .hf2-dt-copy h1.long {
+  font-size: 64px;
+}
+.hf2.dt.scrolled .hf2-dt-copy > p,
+.hf2.dt.scrolled .hf2-dt-copy > .hf2-dt-progress,
+.hf2.dt.scrolled .hf2-dt-copy > .hf2-bb-actions {
+  display: none;
+}
+/* Serie: los capítulos empiezan más abajo para que la cabecera respire */
+.hf2-dt-episodes {
+  top: 868px;
+}
+
+/* Selector de destacados: un solo elemento con dos filas (flechas y puntos arriba, contador abajo), todo centrado */
+.hf2-billboard .hf2-bb-dots,
+.hf2-billboard.compact .hf2-bb-dots {
+  flex-direction: column;
+  justify-content: center;
+  height: auto;
+  padding: 8px 18px 7px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: rgba(19, 21, 24, 0.45);
+}
+.hf2-bb-dots .sel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+}
+.hf2-bb-dots .pts {
+  display: flex;
+  align-items: center;
+  height: 12px;
+  margin: 0 6px;
+}
+.hf2-bb-dots .arr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  line-height: 0;
+  font-size: 0;
+  color: rgba(255, 255, 255, 0.45);
+}
+.hf2-bb-dots .arr svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+}
+.hf2-bb-dots .arr.next svg {
+  transform: scaleX(-1);
+}
+.hf2-bb-dots small {
+  margin: 4px 0 0;
+  color: var(--dim);
+  font-size: 17px;
+  line-height: 1.2;
+  text-align: center;
+}
+.hf2-bb-dots[data-focused="true"] small {
+  color: #fff;
+}
+.hf2-bb-switch {
+  margin-top: 20px;
+}
+
+/* Selector centrado en la pantalla, con contorno en forma de pestaña (lo dibuja shapeHeroSwitch) */
+.hf2-bb-switch {
+  justify-content: center;
+  width: 1744px; /* 1920 − 2 × 88: el centro cae en el centro de la pantalla */
+}
+.hf2-billboard .hf2-bb-dots,
+.hf2-billboard.compact .hf2-bb-dots {
+  position: relative;
+  top: auto;
+  right: auto;
+  z-index: 0;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.hf2-billboard .hf2-bb-dots[data-focused="true"] {
+  background: none;
+  box-shadow: none;
+}
+.hf2-bb-dots .sel {
+  height: 44px;
+  padding: 0 20px;
+}
+.hf2-bb-dots small {
+  margin: 0;
+  padding: 1px 18px 7px;
+}
+.hf2-bb-dots .shape {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  overflow: visible;
+}
+.hf2-bb-dots .shape path {
+  fill: rgba(19, 21, 24, 0.6);
+  stroke: rgba(255, 255, 255, 0.24);
+  stroke-width: 2;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+.hf2-bb-dots[data-focused="true"] .shape path {
+  fill: rgba(40, 42, 46, 0.85);
+  stroke: var(--gold-1);
+  filter: drop-shadow(0 0 6px rgba(230, 193, 147, 0.45));
+}
+
+/* ----- Destacado integrado con la página: la imagen se desvanece sola (hacia la izquierda y hacia abajo) en vez de
+ * taparse con un gris sólido, que no coincidía con el fondo degradado de la pantalla y dejaba una línea marcada.
+ * Termina transparente justo en el borde del destacado, así no queda ningún corte. ----- */
+.hf2-billboard .hf2-bb-art,
+.hf2-billboard.compact .hf2-bb-art {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 16%, #000 42%),
+    linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.6) 68%, rgba(0, 0, 0, 0.2) 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 16%, #000 42%),
+    linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.6) 68%, rgba(0, 0, 0, 0.2) 86%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* Solo una sombra suave y translúcida para que el texto se lea; sin colores sólidos que corten el fondo. */
+.hf2-billboard .hf2-bb-shade {
+  background:
+    linear-gradient(90deg, rgba(11, 12, 14, 0.7) 0%, rgba(11, 12, 14, 0.45) 32%, rgba(11, 12, 14, 0) 60%),
+    linear-gradient(0deg, rgba(11, 12, 14, 0.35) 0%, rgba(11, 12, 14, 0) 40%);
+  pointer-events: none;
 }

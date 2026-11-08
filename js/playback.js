@@ -8,6 +8,12 @@
  *   HFPlayback.tracks()          → {audio: [{key, label, current, ok}], subs: [{key, label, current}]}
  *   HFPlayback.setAudio(key)     cambia de pista de audio (reabre en el mismo punto)
  *   HFPlayback.setSub(key|null)  muestra una pista de subtítulos o ninguna
+ *   HFPlayback.qualities()       → {auto, current: {q}, list: [{key, q}]} o null si el video tiene una sola versión
+ *
+ * Partes: una versión puede venir en varios archivos («parte 1 de 7»…, tools/preparador). Se reproducen seguidos como una
+ * sola película: el tiempo, la duración y los saltos son los de la película entera; al terminar una parte se abre la
+ * siguiente en el segundo 0, y saltar a otro punto abre la parte que corresponde.
+ *   HFPlayback.setQuality(key|"auto")  elige una calidad a mano (se recuerda) o vuelve a la automática
  *   HFPlayback.simulated         true si este video usa el simulador (datos de demostración o sin motor)
  *
  * Motor real: js/engine/player.js de titlog/telegram-tizen (MIT): MediaSource + MP4/MKV propios, bytes desde Telegram.
@@ -19,11 +25,13 @@ var HFPlayback = (function () {
   var ev = null;
   var item = null;
   var videoKey = "";
+  var prefKey = "";
 
   /* ===================== Preferencias por video (audio y subtítulos elegidos) ===================== */
 
   function pref(name, value) {
-    var k = "hf." + name + "." + videoKey;
+    /* prefKey: el video «de identidad» del título (igual en todas sus calidades) */
+    var k = "hf." + name + "." + (prefKey || videoKey);
     try {
       if (value === undefined) {
         return window.localStorage.getItem(k);
@@ -103,6 +111,278 @@ var HFPlayback = (function () {
     });
   }
 
+  /* ===================== Calidad automática (como YouTube) =====================
+   * Un título puede tener varias versiones en Telegram (tools/preparar-video.mjs: 4K, 1080p, 720p, 360p).
+   * Se mide la velocidad real a la que llegan los bytes de Telegram (sin contar el tiempo en que el motor frena la
+   * descarga porque ya tiene suficiente) y se elige la mejor versión que la red aguanta con margen.
+   * Si el video se queda esperando datos, baja de calidad; si sobra velocidad un buen rato, sube. Cambiar de versión
+   * = reabrir en el mismo segundo (igual que al cambiar de audio). La última velocidad medida se recuerda para el
+   * próximo video. Se puede fijar una calidad a mano desde el reproductor. */
+
+  var NET_KEY = "hf.net.bps";
+  var QUALITY_KEY = "hf.quality";
+  var NOMINAL = { "4K": 16e6, "1080p": 5e6, "720p": 2.6e6 };
+  var meter = { bytes: 0, idle: 0, from: 0 };
+  var abr = { versions: null, cur: null, auto: true, est: 0, openedAt: 0, lastSwitch: 0, stall: 0, stallFrom: 0, lastUp: 0, timer: null };
+
+  function storedBps() {
+    try {
+      return Number(window.localStorage.getItem(NET_KEY)) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function storeBps(b) {
+    try {
+      window.localStorage.setItem(NET_KEY, String(Math.round(b)));
+    } catch (e) {
+      /* nada */
+    }
+  }
+
+  function manualQuality() {
+    try {
+      return window.localStorage.getItem(QUALITY_KEY) || "auto";
+    } catch (e) {
+      return "auto";
+    }
+  }
+
+  function vbps(v) {
+    return v.bps || NOMINAL[v.q] || Math.max(4e5, v.h * v.h * 2);
+  }
+
+  /* 4K en H.265: solo si la TV lo reproduce (y en las TVs viejas, H.264 de más de 1088 líneas no va). */
+  function playable(v) {
+    if (v.h <= 1088) {
+      return true;
+    }
+    try {
+      return window.MediaSource.isTypeSupported('video/mp4; codecs="hvc1.1.6.L153.B0"');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* La mejor versión que cabe en bps con margen (o la más baja si ninguna cabe). */
+  function pickFor(bps, margin) {
+    var list = abr.versions;
+    var i;
+    for (i = 0; i < list.length; i += 1) {
+      if (vbps(list[i]) * (margin || 1.4) <= bps) {
+        return list[i];
+      }
+    }
+    return list[list.length - 1];
+  }
+
+  function firstVersion() {
+    var m = manualQuality();
+    var est = storedBps();
+    var i;
+    abr.auto = m === "auto";
+    if (!abr.auto) {
+      for (i = 0; i < abr.versions.length; i += 1) {
+        if (abr.versions[i].q === m || abr.versions[i].h <= Number(String(m).replace(/\D/g, "") || 0)) {
+          return abr.versions[i];
+        }
+      }
+      return abr.versions[abr.versions.length - 1];
+    }
+    if (est) {
+      return pickFor(est, 1.4);
+    }
+    /* sin medidas todavía: empezar en 720p (o la más cercana por debajo) y subir si sobra */
+    for (i = 0; i < abr.versions.length; i += 1) {
+      if (abr.versions[i].h <= 720) {
+        return abr.versions[i];
+      }
+    }
+    return abr.versions[abr.versions.length - 1];
+  }
+
+  function meterReset() {
+    meter.bytes = 0;
+    meter.idle = 0;
+    meter.from = performance.now();
+  }
+
+  /* Envuelve la fuente de Telegram para contar bytes y el tiempo que el motor la tiene frenada. */
+  function metered(src) {
+    async function* count(it) {
+      for await (var c of it) {
+        meter.bytes += c.length;
+        yield c;
+      }
+    }
+    return {
+      size: src.size,
+      stream: function (offset, signal, throttle) {
+        var st = src.stream(offset, signal, function () {
+          var t0 = performance.now();
+          return Promise.resolve(throttle()).then(function () {
+            var w = performance.now() - t0;
+            if (w > 30) {
+              meter.idle += w;
+            }
+          });
+        });
+        return { start: st.start, iter: count(st.iter) };
+      }
+    };
+  }
+
+  /* Cada 2 s: una muestra de velocidad (si hubo descarga de verdad) y la decisión de subir o bajar. */
+  function abrTick(mySession) {
+    var now = performance.now();
+    var span = now - meter.from;
+    var active = span - Math.min(span, meter.idle);
+    var sample;
+    var t;
+    var ahead;
+    var cur = abr.cur;
+    var target = null;
+    var lower;
+    var higher;
+    var i;
+    if (mySession !== session || !video) {
+      return;
+    }
+    if (span >= 2000) {
+      /* solo cuenta si descargó la mayor parte del rato: con el búfer lleno la descarga va a tirones y mide de menos */
+      if (active > 400 && meter.bytes > 262144 && meter.idle < span * 0.5) {
+        sample = meter.bytes * 8 / (active / 1000);
+        abr.est = abr.est ? abr.est * 0.7 + sample * 0.3 : sample;
+        abr.last = sample;
+        storeBps(abr.est);
+      }
+      meterReset();
+    }
+    if (lastState === "buffering" && abr.stallFrom === 0 && now - abr.openedAt > 6000) {
+      abr.stallFrom = now;
+    } else if (lastState !== "buffering" && abr.stallFrom) {
+      abr.stall += now - abr.stallFrom;
+      abr.stallFrom = 0;
+      abr.stallEnd = now;
+    }
+    /* las trabas viejas se olvidan: solo cuentan las de los últimos 20 s */
+    if (!abr.stallFrom && abr.stall && now - (abr.stallEnd || 0) > 20000) {
+      abr.stall = 0;
+    }
+    if (!abr.versions || !abr.auto || lastState === "loading" || now - abr.openedAt < 6000) {
+      return;
+    }
+    t = video.currentTime || 0;
+    ahead = bufferedEnd(t) - t;
+    for (i = 0; i < abr.versions.length; i += 1) {
+      if (abr.versions[i] === cur) {
+        higher = abr.versions[i - 1] || null;
+        lower = abr.versions[i + 1] || null;
+      }
+    }
+    var stalled = abr.stall + (abr.stallFrom ? now - abr.stallFrom : 0);
+    /* bajar: se trabó más de 2,5 s, o se está quedando sin colchón */
+    if (lower && now - abr.lastSwitch > 8000 && (stalled > 2500 || (ahead < 4 && lastState === "playing" && now - abr.openedAt > 20000))) {
+      /* con la red cayendo vale más la última medida que el promedio: así baja de una vez a la calidad que aguanta */
+      target = abr.est ? pickFor(Math.min(abr.est, abr.last || abr.est), 1.2) : lower;
+      if (target.h >= cur.h) {
+        target = lower;
+      }
+      switchVersion(target, "Tu internet va más lento: bajando a " + target.q);
+      return;
+    }
+    /* subir: colchón lleno y la velocidad medida sobra para la siguiente, con espera entre subidas */
+    if (higher && ahead > 40 && now - abr.lastSwitch > 30000 && now - abr.lastUp > 120000 && abr.est >= vbps(higher) * 1.6) {
+      target = pickFor(abr.est, 1.6);
+      if (target.h > cur.h) {
+        abr.lastUp = now;
+        switchVersion(target, "Tu internet va bien: subiendo a " + target.q);
+      }
+    }
+  }
+
+  function switchVersion(v, note) {
+    var t;
+    if (!v || v === abr.cur) {
+      return;
+    }
+    t = globalTime();
+    abr.cur = v;
+    abr.lastSwitch = performance.now();
+    abr.stall = 0;
+    abr.stallFrom = 0;
+    setParts(v);
+    if (note && ev && ev.onNote) {
+      ev.onNote(note);
+    }
+    openAt(t, { reopen: true, audio: currentAudio(), fileChanged: true });
+  }
+
+  /* ===================== Partes de la versión actual ===================== */
+
+  var vparts = [];      // [{key, dur, off}] de la versión que se está viendo (una sola si no viene en partes)
+  var partIdx = 0;
+  var pendingSub;       // subtítulo elegido, para volver a ponerlo al abrir otro archivo
+
+  function setParts(v) {
+    var off = 0;
+    vparts = (v && v.parts && v.parts.length ? v.parts : [{ key: videoKey, dur: (item && item.video && item.video.duration) || 0 }]).map(function (x) {
+      var o = { key: x.key, dur: x.dur || 0, off: off };
+      off += o.dur;
+      return o;
+    });
+  }
+
+  function reoffset() {
+    var off = 0;
+    vparts.forEach(function (x) { x.off = off; off += x.dur; });
+  }
+
+  function partAt(t) {
+    var i;
+    for (i = vparts.length - 1; i > 0; i -= 1) {
+      if (t >= vparts[i].off - 0.05) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  function partOff() {
+    return vparts[partIdx] ? vparts[partIdx].off : 0;
+  }
+
+  /* tiempo de la película entera (no del archivo abierto) */
+  function globalTime() {
+    return partOff() + ((video && video.currentTime) || 0);
+  }
+
+  function totalDuration() {
+    if (vparts.length > 1) {
+      return vparts.reduce(function (n, x) { return n + x.dur; }, 0);
+    }
+    return (engine && engine.duration()) || (item && item.video && item.video.duration) || 0;
+  }
+
+  function currentAudio() {
+    var a = null;
+    trackInfo.audio.forEach(function (x) { if (x.current) { a = x.key; } });
+    return a || undefined;
+  }
+
+  /* Abre el punto t (de la película entera): la parte que corresponde, en su segundo local. */
+  function openAt(t, opts) {
+    var i = partAt(t);
+    opts = opts || {};
+    if (i !== partIdx || opts.fileChanged) {
+      opts.fileChanged = true;
+    }
+    partIdx = i;
+    videoKey = vparts[i].key;
+    openReal(Math.max(0, t - vparts[i].off), opts);
+  }
+
   /* ===================== Motor real ===================== */
 
   var video = null;
@@ -150,7 +430,12 @@ var HFPlayback = (function () {
       } else if (phase === "playing") {
         emitState(video.paused ? "paused" : "playing");
       } else if (phase === "ended") {
-        if (ev.onEnded) { ev.onEnded(); }
+        if (partIdx < vparts.length - 1) {
+          /* terminó una parte: sigue la siguiente desde su comienzo */
+          openAt(vparts[partIdx + 1].off + 0.01, { reopen: true, audio: currentAudio(), fileChanged: true });
+        } else if (ev.onEnded) {
+          ev.onEnded();
+        }
       } else if (phase === "note") {
         if (ev.onNote) { ev.onNote(msg); }
       } else if (phase === "error") {
@@ -227,6 +512,16 @@ var HFPlayback = (function () {
     if (mySession !== session) {
       return;
     }
+    if (pendingSub !== undefined) {
+      tr.subs.forEach(function (t) {
+        if (!emb[t.key]) {
+          emb[t.key] = { info: t, track: Subs.track(t.codec, t.codecPrivate) };
+          embOrder.push(t.key);
+        }
+      });
+      setSubInternal(pendingSub);
+      pendingSub = undefined;
+    }
     tr.subs.forEach(function (t) {
       if (!emb[t.key]) {
         emb[t.key] = { info: t, track: Subs.track(t.codec, t.codecPrivate) };
@@ -249,6 +544,14 @@ var HFPlayback = (function () {
     ensureEngine();
     session += 1;
     mySession = session;
+    if (opts && opts.reopen && opts.fileChanged) {
+      /* otro archivo (otra parte u otra calidad): sus subtítulos tienen otros tiempos; se conserva cuál estaba elegido */
+      pendingSub = subOn;
+      emb = {};
+      embOrder = [];
+      subOn = null;
+      renderer.set(null);
+    }
     if (!opts || !opts.reopen) {
       emb = {};
       embOrder = [];
@@ -259,11 +562,15 @@ var HFPlayback = (function () {
     }
     lastState = "";
     emitState("loading");
+    abr.openedAt = performance.now();
+    meterReset();
+    clearInterval(abr.timer);
+    abr.timer = setInterval(function () { abrTick(mySession); }, 2000);
     Promise.all([HFTelegram.source(videoKey), getMoov(videoKey)]).then(function (r) {
       if (mySession !== session) {
         return null;
       }
-      return engine.open(r[0], {
+      return engine.open(metered(r[0]), {
         startAt: startAt || 0,
         exact: !!(opts && opts.reopen),
         moov: r[1] || undefined,
@@ -279,8 +586,15 @@ var HFPlayback = (function () {
         }
       });
     }).then(function () {
+      var d;
       if (mySession !== session) {
         return;
+      }
+      /* Telegram guarda la duración en segundos enteros: al abrir cada parte se corrige con la exacta */
+      d = engine.duration();
+      if (vparts.length > 1 && d && vparts[partIdx] && Math.abs(vparts[partIdx].dur - d) > 0.05) {
+        vparts[partIdx].dur = d;
+        reoffset();
       }
       emitState(video.paused ? "paused" : "playing");
     }, function (e) {
@@ -297,9 +611,9 @@ var HFPlayback = (function () {
         return;
       }
       t = video.currentTime || 0;
-      d = engine.duration() || (item && item.video && item.video.duration) || 0;
+      d = totalDuration();
       if (ev.onTime) {
-        ev.onTime(t, d, bufferedEnd(t));
+        ev.onTime(partOff() + t, d, partOff() + bufferedEnd(t));
       }
     }, 250);
     clearInterval(subTimer);
@@ -385,11 +699,35 @@ var HFPlayback = (function () {
     ev = events || {};
     item = it;
     videoKey = it.video ? it.video.key : it.key;
+    prefKey = videoKey;
+    abr.versions = null;
+    abr.cur = null;
+    abr.est = storedBps();
+    abr.stall = 0;
+    abr.stallFrom = 0;
+    abr.last = 0;
+    abr.lastSwitch = -1e9;
+    abr.lastUp = -1e9;
     api.simulated = !realAvailable() || /^demo:/.test(videoKey);
+    var single = null;
+    if (!api.simulated && it.versions && it.versions.length) {
+      abr.versions = it.versions.filter(playable);
+      if (abr.versions.length > 1) {
+        abr.cur = firstVersion();
+        videoKey = abr.cur.key;
+      } else {
+        single = abr.versions[0] || it.versions[it.versions.length - 1];
+        videoKey = single.key;
+        abr.versions = null;
+      }
+    }
+    partIdx = 0;
+    pendingSub = undefined;
+    setParts(abr.cur || single);
     if (api.simulated) {
       openSim(startAt);
     } else {
-      openReal(startAt);
+      openAt(startAt || 0);
     }
   };
 
@@ -408,6 +746,10 @@ var HFPlayback = (function () {
   };
 
   api.seek = function (to) {
+    /* cargar después de un salto no es que la red vaya lenta */
+    abr.stall = 0;
+    abr.stallFrom = 0;
+    abr.openedAt = performance.now();
     var dur = api.duration();
     var target = Math.max(0, dur ? Math.min(dur - 1, to) : to);
     if (api.simulated) {
@@ -416,19 +758,23 @@ var HFPlayback = (function () {
       return;
     }
     if (engine) {
-      engine.seek(target, target > video.currentTime ? 1 : -1);
+      if (partAt(target) !== partIdx) {
+        openAt(target, { reopen: true, audio: currentAudio(), fileChanged: true });
+      } else {
+        engine.seek(target - partOff(), target > globalTime() ? 1 : -1);
+      }
     }
   };
 
   api.time = function () {
-    return api.simulated ? sim.t : (video ? video.currentTime : 0);
+    return api.simulated ? sim.t : (video ? globalTime() : 0);
   };
 
   api.duration = function () {
     if (api.simulated) {
       return sim.dur;
     }
-    return (engine && engine.duration()) || (item && item.video && item.video.duration) || 0;
+    return totalDuration();
   };
 
   api.playing = function () {
@@ -451,7 +797,7 @@ var HFPlayback = (function () {
     pref("audio", key);
     t = video.currentTime;
     trackInfo.audio.forEach(function (a) { a.current = a.key === key; });
-    openReal(t, { reopen: true, audio: key });
+    openReal(t, { reopen: true, audio: key }); // mismo archivo: tiempo local
   };
 
   api.setSub = function (key) {
@@ -462,8 +808,42 @@ var HFPlayback = (function () {
     setSubInternal(key);
   };
 
+  api.qualities = function () {
+    if (!abr.versions) {
+      return null;
+    }
+    return {
+      auto: abr.auto,
+      current: { key: abr.cur.key, q: abr.cur.q },
+      speed: abr.est,
+      list: abr.versions.map(function (v) { return { key: v.key, q: v.q, mbps: vbps(v) / 1e6, parts: v.parts ? v.parts.length : 1 }; })
+    };
+  };
+
+  api.setQuality = function (key) {
+    var v = null;
+    if (!abr.versions) {
+      return;
+    }
+    if (key === "auto") {
+      abr.auto = true;
+      try { window.localStorage.setItem(QUALITY_KEY, "auto"); } catch (e) { /* nada */ }
+      v = abr.est ? pickFor(abr.est, 1.4) : abr.cur;
+    } else {
+      abr.versions.forEach(function (x) { if (x.key === key) { v = x; } });
+      if (!v) {
+        return;
+      }
+      abr.auto = false;
+      try { window.localStorage.setItem(QUALITY_KEY, v.q); } catch (e) { /* nada */ }
+    }
+    switchVersion(v, "Calidad: " + (abr.auto ? "automática (" + v.q + ")" : v.q));
+  };
+
   api.close = function () {
     session += 1;
+    clearInterval(abr.timer);
+    abr.timer = null;
     closeSim();
     clearInterval(timeTimer);
     clearInterval(subTimer);
