@@ -114,7 +114,7 @@ function renderDetail(focusName, focusIndex) {
     }
     inList = HFLibrary.inMyList(t.titleKey);
     buttons += dtButton("mylist", inList ? IC.check : IC.plus, inList ? "En mi lista" : "Mi lista", false, inList ? "Quitar de Mi lista" : "Guardar en Mi lista");
-    if (!kids) {
+    if (!kids && !WEB_PC) { /* en la web no se edita la ficha (solo en la TV) */
       buttons += dtButton("tag", IC.pencil, "Editar", false, "Cambiar nombre, año, descripción o si es infantil");
     }
     html += '<div class="hf2-dt-copy"><div class="hf2-bb-badges"><span class="hf2-chip gold">Película</span>' + (t.kids ? '<span class="hf2-chip kids">' + IC.star + "Infantil</span>" : "") + "</div>" +

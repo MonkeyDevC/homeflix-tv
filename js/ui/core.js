@@ -2,6 +2,9 @@
  * Reglas (.cursor/rules/homeflix-tizen-tv.mdc): un solo keydown, foco con data-focused, nada pesado en el camino de la tecla:
  * las medidas se toman al dibujar, y en cada tecla solo se cambia un atributo y un transform. */
 
+/* Versión web en computador (index.html?web=1, la pone index.html antes de cargar los scripts). En la TV es false. */
+var WEB_PC = document.documentElement.getAttribute("data-web") === "pc";
+
 /* ===================== Utilidades ===================== */
 
 function byId(id) {

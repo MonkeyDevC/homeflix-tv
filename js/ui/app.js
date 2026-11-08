@@ -309,6 +309,16 @@ function fitToWindow() {
   if (!appRootEl || !w || !h) {
     return;
   }
+  /* Versión web en computador (?web=1): llenar toda la ventana, sin franjas negras. Se mantiene la escala de la TV
+   * (1920 de ancho, o 1080 de alto en pantallas más anchas que 16:9) y el lienzo se estira a la forma de la ventana:
+   * más alto en una laptop 16:10, más ancho en una pantalla ultra ancha. css/app.css usa --app-w / --app-h. */
+  if (document.documentElement.getAttribute("data-web") === "pc") {
+    s = w / h > 16 / 9 ? h / 1080 : w / 1920;
+    document.documentElement.style.setProperty("--app-w", Math.round(w / s) + "px");
+    document.documentElement.style.setProperty("--app-h", Math.round(h / s) + "px");
+    appRootEl.style.transform = Math.abs(s - 1) < 0.01 ? "" : "scale(" + s + ")";
+    return;
+  }
   if (Math.abs(s - 1) < 0.01) {
     appRootEl.style.transform = "";
     return;

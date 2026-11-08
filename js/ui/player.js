@@ -32,11 +32,17 @@ function openPlayer(item, startAt, series) {
   poster.style.backgroundImage = "";
   poster.removeAttribute("data-loaded");
   poster.setAttribute("data-hidden", "false");
-  poster.setAttribute("data-img", item.type === "episode" || item.type === "video" ? item.key : (item.bannerKey || item.imageKey || entryVideoKey(item)));
-  poster.innerHTML = fallbackArt(poster.getAttribute("data-img"), "pp");
-  poster.setAttribute("data-img-w", "1280");
-  poster.removeAttribute("data-queued");
-  queueImage(poster);
+  if (WEB_PC) {
+    /* Web: fondo negro mientras abre (la portada ampliada se veía pixelada); el oso cargando va en el centro */
+    poster.removeAttribute("data-img");
+    poster.innerHTML = "";
+  } else {
+    poster.setAttribute("data-img", item.type === "episode" || item.type === "video" ? item.key : (item.bannerKey || item.imageKey || entryVideoKey(item)));
+    poster.innerHTML = fallbackArt(poster.getAttribute("data-img"), "pp");
+    poster.setAttribute("data-img-w", "1280");
+    poster.removeAttribute("data-queued");
+    queueImage(poster);
+  }
   renderPlayerChrome();
   showPlayerOverlay();
   HFPlayback.open(item, startAt || 0, {
@@ -83,8 +89,14 @@ function renderPlayerChrome() {
   if (nextEp) {
     pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="next" data-title="Siguiente" data-description="Siguiente: T' + nextEp.season + ":E" + nextEp.episode + " · " + esc(nextEp.title) + '" tabindex="0">' + IC.next + "Siguiente</span>";
   }
-  if (!currentProfileIsKids()) {
+  if (!currentProfileIsKids() && !WEB_PC) { /* en la web no se edita (solo en la TV) */
     pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="edit-tag" data-title="Editar" data-description="Cambiar nombre, temporada, capítulo o si es infantil" tabindex="0">' + IC.pencil + "Editar</span>";
+  }
+  if (WEB_PC) {
+    /* Computador: pantalla completa o ventana (abajo a la derecha). El ícono cambia según cómo esté (js/ui/web-pc.js). */
+    var fsOn = !!(window.hfIsFullscreen && hfIsFullscreen());
+    pills += '<span class="hf2-pl-btn hf-fs" id="plFs" data-focusable="true" data-action="fullscreen" data-title="' +
+      (fsOn ? "Salir de pantalla completa" : "Pantalla completa") + '" tabindex="0">' + (fsOn ? IC_FS_EXIT : IC_FS) + "</span>";
   }
   playerChrome().innerHTML =
     '<div class="hf2-pl-shade"></div>' +
@@ -166,7 +178,13 @@ function onPlayerState(s) {
   if (player.error) {
     return;
   }
-  if (s === "loading" || s === "buffering") {
+  if ((s === "loading" || s === "buffering") && WEB_PC) {
+    /* Web: igual que en el celular, el oso de HomeFlix en un anillo dorado que gira, sin texto */
+    setPlayerCenter("");
+    byId("playerCenter").innerHTML = '<div class="hf-plload" role="status" aria-label="Cargando"><i></i></div>';
+    byId("playerCenter").setAttribute("data-visible", "true");
+    byId("playerCenter").setAttribute("data-kind", "load");
+  } else if (s === "loading" || s === "buffering") {
     setPlayerCenter(s === "loading" ? "Abriendo…" : "Cargando…");
   } else if (s === "paused") {
     setPlayerCenter("");
@@ -510,8 +528,13 @@ function onPlayerSeasonFocus(el, index) {
 
 /* ----- Acciones y teclas ----- */
 
+/* Íconos de pantalla completa (solo en la versión web en computador) */
+var IC_FS = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+var IC_FS_EXIT = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
+
 function handlePlayerAction(el) {
   var action = el.getAttribute("data-action");
+  if (action === "fullscreen" && window.hfToggleFullscreen) { hfToggleFullscreen(); return; }
   var ref = el.getAttribute("data-ref");
   var size = el.getAttribute("data-subsize");
   var seasonIdx = el.getAttribute("data-ep-season");

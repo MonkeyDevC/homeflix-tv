@@ -469,13 +469,58 @@ var HFPlayback = (function () {
     return map.hasOwnProperty(c) ? map[c] : (c ? c.toUpperCase() : "");
   }
 
+  /* Etiqueta corta de una pista: el idioma y, si sirve para elegir, 5.1 / forzados / CC. Nunca el nombre del archivo
+   * («spider-man-lat.aac», «…RARBG_track2-1.aac»): de ese nombre solo se toma el idioma si la pista no lo trae. */
+  var NAME_LANG = [
+    [/(^|[^a-z])(lat|latino|latam|latinoamericano)([^a-z]|$)/, "Español latino"],
+    [/(^|[^a-z])(castellano|espana|spain|cast)([^a-z]|$)/, "Español (España)"],
+    [/(^|[^a-z])(spa|esp|espanol|spanish)([^a-z]|$)/, "Español"],
+    [/(^|[^a-z])(eng|english|ingles)([^a-z]|$)/, "Inglés"],
+    [/(^|[^a-z])(por|portugues|portuguese|ptbr|brasil)([^a-z]|$)/, "Portugués"],
+    [/(^|[^a-z])(fre|fra|francais|frances|french)([^a-z]|$)/, "Francés"],
+    [/(^|[^a-z])(ita|italian|italiano)([^a-z]|$)/, "Italiano"],
+    [/(^|[^a-z])(ger|deu|german|aleman|deutsch)([^a-z]|$)/, "Alemán"],
+    [/(^|[^a-z])(jpn|japanese|japones)([^a-z]|$)/, "Japonés"]
+  ];
+  function plain(s) {
+    s = String(s || "").toLowerCase();
+    return s.normalize ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : s;
+  }
   function trackLabel(t, i, kind) {
-    var parts = [];
-    if (t.name) { parts.push(t.name); }
-    if (langName(t.lang) && (!t.name || t.name.toLowerCase().indexOf(langName(t.lang).toLowerCase()) < 0)) { parts.push(langName(t.lang)); }
-    if (kind === "audio" && t.channels) { parts.push(t.channels >= 6 ? "5.1" : t.channels === 2 ? "Estéreo" : t.channels + " canales"); }
-    if (kind === "subs" && t.isForced) { parts.push("forzados"); }
-    return parts.join(" · ") || (kind === "audio" ? "Audio " : "Subtítulos ") + (i + 1);
+    var name = plain(t.name);
+    var code = String(t.lang || "").toLowerCase();
+    var lang = code === "lat" ? "Español latino" : langName(code);
+    var k;
+    var extra = [];
+    if (code === "und") { lang = ""; }
+    /* El nombre puede precisar el idioma (español → latino / España) o darlo si la pista no lo trae */
+    for (k = 0; k < NAME_LANG.length; k += 1) {
+      if (NAME_LANG[k][0].test(name)) {
+        if (!lang || (lang === "Español" && NAME_LANG[k][1].indexOf("Español") === 0)) { lang = NAME_LANG[k][1]; }
+        break;
+      }
+    }
+    if (lang && lang.length <= 3) { lang = lang.toUpperCase(); } /* código raro sin nombre conocido */
+    if (kind === "audio") {
+      if (t.channels >= 6) { extra.push("5.1"); }
+      if (/(^|[^a-z])(ad|descripcion|audiodescripcion|described)([^a-z]|$)/.test(name)) { extra.push("descripción"); }
+      if (/comentario|commentary/.test(name)) { extra.push("comentarios"); }
+    } else {
+      if (t.isForced || /forz|forced/.test(name)) { extra.push("forzados"); }
+      if (/(^|[^a-z])(sdh|cc|hi)([^a-z]|$)|sordos|closed.?caption/.test(name)) { extra.push("CC"); }
+    }
+    if (!lang) { lang = (kind === "audio" ? "Audio " : "Subtítulos ") + (i + 1); }
+    if (!extra.length) { return lang; }
+    return kind === "audio" && extra[0] === "5.1" ? lang + " · " + extra.join(" · ") : lang + " (" + extra.join(", ") + ")";
+  }
+  /* Si dos pistas quedan con el mismo nombre («Inglés» e «Inglés»), se numeran: «Inglés», «Inglés 2». */
+  function numberRepeated(list) {
+    var seen = {};
+    list.forEach(function (x) {
+      seen[x.label] = (seen[x.label] || 0) + 1;
+      if (seen[x.label] > 1) { x.label += " " + seen[x.label]; }
+    });
+    return list;
   }
 
   function isSpanish(lang) {
@@ -529,9 +574,10 @@ var HFPlayback = (function () {
       }
     });
     trackInfo = {
-      audio: tr.audio.map(function (a, i) { return { key: a.key, label: trackLabel(a, i, "audio") + (a.ok ? "" : " (no compatible)"), current: a.current, ok: a.ok, lang: a.lang }; }),
-      subs: tr.subs.map(function (s, i) { return { key: s.key, label: trackLabel(s, i, "subs"), lang: s.lang, isForced: s.isForced }; })
+      audio: numberRepeated(tr.audio.map(function (a, i) { return { key: a.key, label: trackLabel(a, i, "audio"), current: a.current, ok: a.ok, lang: a.lang }; })),
+      subs: numberRepeated(tr.subs.map(function (s, i) { return { key: s.key, label: trackLabel(s, i, "subs"), lang: s.lang, isForced: s.isForced }; }))
     };
+    trackInfo.audio.forEach(function (a) { if (!a.ok) { a.label += " (no compatible)"; } });
     decideSubs({ audio: trackInfo.audio, subs: tr.subs });
     if (ev && ev.onTracks) {
       ev.onTracks();

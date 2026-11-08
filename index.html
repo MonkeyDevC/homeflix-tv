@@ -78,5 +78,9 @@
 <script src="js/ui/detail.js"></script>
 <script src="js/ui/player.js"></script>
 <script src="js/ui/app.js"></script>
+<script>
+  /* Versión web en computador: mouse y teclado (js/ui/web-pc.js). En la TV no se carga. */
+  if (document.documentElement.getAttribute("data-web") === "pc") { document.write('<script src="js/ui/web-pc.js"><\/script>'); }
+</script>
 </body>
 </html>

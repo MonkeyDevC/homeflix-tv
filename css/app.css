@@ -1358,3 +1358,64 @@ body {
 
 /* Versión web en computador (index.html?web=1): sin la barra de ayuda del control remoto */
 html[data-web="pc"] #status { display: none; }
+
+/* Versión web en computador: el lienzo toma la forma de la ventana (fitToWindow() en js/ui/app.js pone --app-w y
+   --app-h). En la TV no aplica: allá todo sigue en 1920×1080. */
+html[data-web="pc"] { --app-w: 1920px; --app-h: 1080px; }
+html[data-web="pc"] body { overflow: hidden; }
+html[data-web="pc"] #app,
+html[data-web="pc"] .hf2,
+html[data-web="pc"] #playerChrome,
+html[data-web="pc"] .hf2-pl-videoel,
+html[data-web="pc"] .hf2-pl-poster,
+html[data-web="pc"] .hf2-pl-subpic { width: var(--app-w); height: var(--app-h); }
+html[data-web="pc"] .hf2-dt-art { height: var(--app-h); }
+html[data-web="pc"] .hf2-bb-switch { width: calc(var(--app-w) - 176px); }
+
+/* Versión web en computador: mouse (js/ui/web-pc.js) */
+html[data-web="pc"] [data-focusable="true"] { cursor: pointer; }
+html[data-web="pc"] .hf-web-arrow {
+  position: absolute; top: 0; bottom: 0; z-index: 3;
+  width: 64px; border: 0; padding: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: rgba(11, 12, 14, 0.55);
+  opacity: 0; transition: opacity 0.2s, background 0.2s;
+}
+html[data-web="pc"] .hf-web-arrow svg { width: 44px; height: 44px; transition: transform 0.2s; }
+html[data-web="pc"] .hf-web-arrow.left { left: 0; }
+html[data-web="pc"] .hf-web-arrow.left svg { transform: rotate(180deg); }
+html[data-web="pc"] .hf-web-arrow.right { right: 0; }
+html[data-web="pc"] .hf-web-arrow:hover { background: rgba(11, 12, 14, 0.8); }
+html[data-web="pc"] .hf-web-arrow.right:hover svg { transform: scale(1.2); }
+html[data-web="pc"] .hf-web-arrow.left:hover svg { transform: rotate(180deg) scale(1.2); }
+html[data-web="pc"].hf-mouse .hf2-row:hover .hf-web-arrow { opacity: 1; }
+html[data-web="pc"] .hf-web-arrow[hidden] { display: none; }
+/* Reproductor en computador: sin cursor cuando los controles se ocultan; la flecha de arriba y la barra se tocan */
+html[data-web="pc"] #scrPlayer[data-overlay="false"] { cursor: none; }
+html[data-web="pc"] #scrPlayer .hf2-pl-back { cursor: pointer; }
+html[data-web="pc"] #scrPlayer #plBar { cursor: pointer; }
+/* Reproductor en computador: cargando = el oso de HomeFlix en un anillo dorado que gira (como en el celular) */
+html[data-web="pc"] .hf2-pl-center[data-kind="load"] { width: 160px; height: 160px; margin: -80px 0 0 -80px; text-shadow: none; }
+html[data-web="pc"] .hf-plload { position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; }
+html[data-web="pc"] .hf-plload::before {
+  content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%;
+  border: 5px solid rgba(255, 255, 255, 0.12); border-top-color: #e6c193; border-right-color: #e6c193;
+  animation: hf-web-spin 0.9s linear infinite;
+}
+html[data-web="pc"] .hf-plload i {
+  width: 112px; height: 112px; border-radius: 50%;
+  background: #f4f4f2 url(../images/panda-login.png) 50% 6% / 150% auto no-repeat;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  animation: hf-web-breathe 1.8s ease-in-out infinite;
+}
+@keyframes hf-web-spin { to { transform: rotate(360deg); } }
+@keyframes hf-web-breathe { 50% { transform: scale(0.94); } }
+@media (prefers-reduced-motion: reduce) { html[data-web="pc"] .hf-plload::before, html[data-web="pc"] .hf-plload i { animation: none; } }
+/* «Volver» de la ficha: en la TV es solo una ayuda; en el computador se puede tocar */
+html[data-web="pc"] .hf2-back { cursor: pointer; }
+html[data-web="pc"] .hf2-back:hover { color: #ffffff; }
+html[data-web="pc"] .hf2-back:hover svg { stroke: #ffffff; }
+/* Botón de pantalla completa: el último de la fila, abajo a la derecha */
+html[data-web="pc"] .hf2-pl-btn.hf-fs { margin: 0 0 0 18px; flex: none; }
+html[data-web="pc"] .hf2-pl-btn.hf-fs svg { stroke: currentColor; }
+

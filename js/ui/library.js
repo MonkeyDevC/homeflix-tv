@@ -547,6 +547,22 @@ function dotsHtml(count, index) {
   return s;
 }
 
+/* Películas o Series sin nada todavía (el resto de la biblioteca sí tiene): un aviso en vez de la pantalla en blanco. */
+function sectionEmptyHtml(section) {
+  var isSeries = section === "series";
+  var other = isSeries ? "movies" : "series";
+  var otherCount = isSeries ? library.movies.length : library.series.length;
+  return '<div class="hf2-glow"></div><div class="hf2-empty"><div class="hf2-empty-art"><div class="hf2-logo big"></div></div>' +
+    "<h2>" + (isSeries ? "Todavía no hay series" : "Todavía no hay películas") + "</h2>" +
+    "<p>Nada por aquí todavía. Cuando se publique " + (isSeries ? "una serie" : "una película") + " en tus chats, aparecerá en esta sección." +
+    (isSeries ? " Cada capítulo se publica con <b>serie(1/1)#Nombre#Título</b>." : " Se publica con <b>pelicula#Nombre (año)#descripción</b>.") + "</p>" +
+    '<div class="hf2-actions center">' +
+      (otherCount ? '<span class="hf2-btn primary small icon" data-focusable="true" data-menu="' + other + '" data-title="' + (isSeries ? "Ver películas" : "Ver series") + '" tabindex="0">' +
+        (isSeries ? IC.play : IC.list) + (isSeries ? "Ver películas" : "Ver series") + "</span>" : "") +
+      (currentProfileIsKids() ? "" : '<span class="hf2-btn ' + (otherCount ? "ghost" : "primary") + ' small icon" data-focusable="true" data-action="guide" data-title="Cómo publicar" tabindex="0">' + IC.tag + "Cómo publicar</span>") +
+    "</div></div>";
+}
+
 function emptyHtml() {
   if (currentProfileIsKids()) {
     return '<div class="hf2-glow"></div><div class="hf2-empty"><div class="hf2-empty-art"><div class="hf2-logo big"></div></div><h2>Todavía no hay contenido infantil</h2>' +
@@ -656,6 +672,8 @@ function renderBrowse(focusName, focusIndex) {
       (titles.length ? gridHtml(titles) : '<p class="hf2-text" style="margin-left:88px">En la ficha de una película o serie pulsa «+ Mi lista» para guardarla aquí.</p>') + "</div>";
   } else if (!library.recent.length && !library.unclassified.length) {
     html = emptyHtml();
+  } else if ((section === "series" && !library.series.length) || (section === "movies" && !library.movies.length)) {
+    html = sectionEmptyHtml(section);
   } else {
     content = sectionContent(section);
     if (content.heroList.length) {

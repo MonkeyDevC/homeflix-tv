@@ -72,7 +72,22 @@ Vistas: `login`, `login-code`, `login-password`, `login-qr`, `profiles`, `profil
 - **Safari no reproduce MKV:** las versiones tienen que ser MP4 (H.264/HEVC + AAC).
 - `navigator.vibrate` no existe en iOS.
 
+## Computador (pantallas de la TV con `?web=1`)
+
+Todo lo propio del computador va marcado como versión web, para que la TV no cambie:
+
+- `index.html` pone `data-web="pc"` en `<html>` si hay `?web=1`, y solo entonces carga `js/ui/web-pc.js`.
+- **Llenar la ventana:** `fitToWindow()` (`js/ui/app.js`) mantiene la escala de la TV y estira el lienzo a la forma de
+  la ventana (`--app-w` / `--app-h`, sin franjas negras). Reglas en `css/app.css` bajo `html[data-web="pc"]`.
+- **Mouse** (`js/ui/web-pc.js`): pasar el mouse enfoca sin mover filas ni la página · rueda = ▲ ▼ entre filas ·
+  rueda de lado o Shift + rueda desliza la fila · flechas ‹ › en cada fila avanzan una página · botón atrás del mouse = Esc.
+- **Reproductor:** mover el mouse muestra los controles (y el cursor) · clic en el video pausa · botón de pantalla
+  completa abajo a la derecha (o doble clic, o F; el ícono cambia al entrar o salir) · clic o arrastrar en la barra para saltar · ‹ de arriba sale · Espacio/K, J/L (±10 s), F, M.
+- **Igual que el celular:** al abrir un video, fondo negro y el oso de HomeFlix en un anillo que gira (sin la portada
+  ampliada). «Volver» de la ficha se puede tocar. **Sin «Editar»** (ficha y reproductor): editar queda solo en la TV.
+  En el código: `WEB_PC` (`js/ui/core.js`).
+- En la TV (sin `?web=1`) nada de esto se carga: el lienzo sigue en 1920×1080.
+
 ## Siguiente
 
-1. Computador: adaptar las pantallas de la TV al mouse (hover, scroll, ancho fluido) sin cambiar su diseño.
-2. Publicar la web (sitio estático con HTTPS) con la clave inyectada al armarla, como `tools/build-wgt.mjs`.
+1. Publicar la web (sitio estático con HTTPS) con la clave inyectada al armarla, como `tools/build-wgt.mjs`.
