@@ -24,7 +24,7 @@
     (function () {
       var q = location.search;
       var big = window.matchMedia && matchMedia('(min-width: 1024px) and (pointer: fine)').matches;
-      if (big && !/[?&](movil|design)=/.test(q)) { location.replace('../' + q); }
+      if (big && !/[?&](movil|design)=/.test(q)) { location.replace('../?web=1' + q.replace(/^\?/, '&')); }
     })();
   </script>
   <link rel="stylesheet" href="../mobile/m.css">

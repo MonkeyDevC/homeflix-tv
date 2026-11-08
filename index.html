@@ -5,6 +5,11 @@
 <title>HomeFlix TV</title>
 <link href="css/hf2.css" rel="stylesheet"/>
 <link href="css/app.css" rel="stylesheet"/>
+<script>
+  /* Abierta desde la versión web en un computador (web/index.html → ?web=1): se maneja con mouse y teclado,
+   * así que sobra la barra de ayuda del control remoto de abajo. En el televisor nunca lleva esta marca. */
+  if (/[?&]web=1/.test(location.search)) { document.documentElement.setAttribute("data-web", "pc"); }
+</script>
 </head>
 <body>
 <div id="app" data-route="splash">
