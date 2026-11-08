@@ -140,7 +140,7 @@ var HFMobile = (function () {
   var V = {};
 
   V.boot = function () {
-    return '<div class="m-center m-boot">' + logo(true) + '<div class="m-spin"></div><p>' + esc(S.bootNote || "Conectando con Telegram…") + "</p>" +
+    return '<div class="m-center m-boot">' + logo(true) + (S.bootError ? "" : '<div class="m-spin"></div><p>' + esc(S.bootNote || "Conectando con Telegram…") + "</p>") +
       (S.bootError ? errorBox(S.bootError) + '<button class="m-btn primary" data-act="boot">Reintentar</button>' : "") + "</div>";
   };
 

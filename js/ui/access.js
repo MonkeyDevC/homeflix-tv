@@ -189,6 +189,10 @@ function showLoginError(message) {
 
 function errorText(e) {
   var message = String((e && e.message) || e || "Error desconocido");
+  /* el navegador solo da WebCrypto (lo necesita Telegram) con https o en localhost: pasa al abrir la web por la IP */
+  if (/WebCrypto|crypto\.subtle/i.test(message)) {
+    return "Telegram necesita una conexión segura. Abre HomeFlix en este mismo equipo con http://localhost (no con la IP ni el nombre del equipo); desde otro dispositivo, ábrelo por https.";
+  }
   if (/network|fetch|websocket|sin respuesta/i.test(message)) {
     return "No hay conexión con Telegram. Revisa el internet de la TV y vuelve a intentarlo. (" + message + ")";
   }

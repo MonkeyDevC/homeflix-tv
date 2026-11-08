@@ -31,3 +31,6 @@ android/build/
 android/app/build/
 android/local.properties
 *.apk
+
+# Certificado propio del servidor de desarrollo (node tools/serve.mjs --https): nunca al repo
+.cert/

@@ -366,6 +366,7 @@ var HFTelegram = (function () {
     if (flood) {
       return "Telegram pide esperar " + (Number(flood[1]) > 90 ? Math.ceil(Number(flood[1]) / 60) + " minutos" : flood[1] + " segundos") + " antes de intentar de nuevo.";
     }
+    if (/WebCrypto|crypto\.subtle|isSecureContext/i.test(m)) { return "Telegram necesita una conexión segura. Abre HomeFlix en este mismo equipo con http://localhost (no con la IP ni el nombre del equipo); desde otro dispositivo, ábrelo por https."; }
     if (/PHONE_NUMBER_INVALID|PHONE_NUMBER_BANNED/.test(m)) { return "Ese número no es válido para Telegram. Revisa el indicativo y el número."; }
     if (/PHONE_NUMBER_UNOCCUPIED/.test(m)) { return "Ese número no tiene cuenta de Telegram."; }
     if (/PHONE_CODE_INVALID|PHONE_CODE_EMPTY/.test(m)) { return "El código no es correcto. Revísalo e inténtalo de nuevo."; }

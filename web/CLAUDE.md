@@ -34,8 +34,18 @@ node tools/serve.mjs     # http://localhost:5173/web/   (celular: ?movil=1 en el
 node tools/test-library.mjs
 ```
 
-En un iPhone de la misma red: `http://<ip-de-tu-compu>:5173/web/`. El service worker solo se activa con HTTPS o en
-localhost; para probar «Agregar a inicio» completo usa un túnel HTTPS.
+**Ábrelo siempre con `localhost`** en el mismo equipo. Telegram necesita WebCrypto y el navegador solo lo da con
+https o en `localhost` / `127.0.0.1`: por `http://<ip>:5173` sale «Telegram necesita una conexión segura»
+(antes: «WebCrypto is not available»).
+
+Desde **otro dispositivo** (iPhone, Android, otro computador de la misma red):
+
+```bash
+node tools/serve.mjs --https     # https://<ip-de-tu-compu>:5173/web/  (crea un certificado propio en .cert/)
+```
+
+El navegador avisa que el certificado no es de confianza: «Avanzado → continuar» (en iPhone: «Mostrar detalles →
+visitar este sitio web»). Con https también funciona «Agregar a inicio» y el service worker.
 
 ## Cómo cambiar el diseño
 
