@@ -38,6 +38,18 @@
   <div id="playerSubTop" class="m-subtop"></div>
 </div>
 
+<script>
+  /* iPhone: Safari no tiene MediaSource (el motor lo usa para armar el video con los bytes de Telegram); desde iOS 17.1
+   * tiene ManagedMediaSource, que funciona igual. Sin esto el reproductor caía en el simulador (avanza el tiempo sobre
+   * la portada, sin video). ManagedMediaSource exige apagar AirPlay en el <video> o no abre. No toca el motor compartido. */
+  (function () {
+    if (!window.MediaSource && window.ManagedMediaSource) {
+      window.MediaSource = window.ManagedMediaSource;
+      document.getElementById("playerVideo").disableRemotePlayback = true;
+    }
+  })();
+</script>
+
 <!-- Pantallas del celular (mobile/m.js): las mismas del APK, aprobadas en el tablero de diseño (design/) -->
 <div id="m" class="m" data-view="boot"></div>
 <noscript><p style="padding:24px;color:#f4f4f2">HomeFlix necesita JavaScript.</p></noscript>

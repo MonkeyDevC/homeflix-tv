@@ -18,6 +18,8 @@
   --gold-ring: #e6c193;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --nav-h: 64px;
 }
 
@@ -30,6 +32,9 @@ body {
   overscroll-behavior: none;
 }
 button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+/* «hidden» siempre oculta, aunque la clase diga display: flex (si no, la tarjeta vacía de «Siguiente capítulo»
+   se veía como una barra gris sobre la línea de tiempo) */
+[hidden] { display: none !important; }
 input { font: inherit; }
 /* Como app nativa: sin zoom con doble toque, sin seleccionar texto ni el menú de «mantener presionado» en la interfaz.
    Los campos de texto sí se pueden seleccionar. */
@@ -47,7 +52,7 @@ svg { display: block; }
     var(--bg);
   overflow-x: hidden;
 }
-.m-scroll { padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 24px); }
+.m-scroll { padding-bottom: calc(var(--nav-h) + max(var(--safe-bottom), 8px) + 24px); }
 
 /* ---------- Marca ---------- */
 .m-logo { display: flex; align-items: center; gap: 9px; }
@@ -65,7 +70,7 @@ svg { display: block; }
 .m-top {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; justify-content: space-between;
-  padding: calc(10px + var(--safe-top)) 16px 10px;
+  padding: calc(12px + var(--safe-top)) 16px 10px;
   background: linear-gradient(180deg, rgba(11, 12, 14, 0.92) 0%, rgba(11, 12, 14, 0.6) 70%, rgba(11, 12, 14, 0) 100%);
 }
 .m-top .right { display: flex; align-items: center; gap: 6px; }
@@ -97,8 +102,21 @@ svg { display: block; }
 .m-hero .tags span + span::before { content: "•"; margin-right: 10px; color: var(--dim); }
 .m-hero .btns { display: flex; gap: 10px; }
 .m-hero .btns .m-btn { flex: 1; }
+/* Carrusel del destacado: una tarjeta por gesto; se asoma un poco la siguiente */
+.m-hero-track {
+  /* A la derecha sobra el espacio de lo que se asoma (22 px), para que la última tarjeta también encaje */
+  display: flex; gap: 10px; padding: 4px 38px 6px 16px;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scroll-padding: 0 16px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.m-hero-track::-webkit-scrollbar { display: none; }
+.m-hero-slide { flex: 0 0 calc(100vw - 54px); scroll-snap-align: start; scroll-snap-stop: always; }
+.m-hero-track:has(> .m-hero-slide:only-child) { padding-right: 16px; }
+.m-hero-slide:only-child { flex-basis: calc(100vw - 32px); }
+.m-hero-slide .m-hero { margin: 0; }
 .m-dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0 2px; }
-.m-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.3); }
+.m-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.3); transition: width 0.3s cubic-bezier(0.22, 1.12, 0.36, 1), background 0.2s; cursor: pointer; }
 .m-dots i.on { width: 18px; background: var(--gold-ring); }
 
 /* ---------- Botones ---------- */
@@ -153,9 +171,12 @@ svg { display: block; }
 /* ---------- Menú inferior ---------- */
 .m-nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  height: calc(var(--nav-h) + var(--safe-bottom)); padding-bottom: var(--safe-bottom);
+  /* Siempre un poco de aire abajo, aunque el teléfono no tenga raya de inicio */
+  height: calc(var(--nav-h) + max(var(--safe-bottom), 8px)); padding-bottom: max(var(--safe-bottom), 8px);
   display: flex; background: rgba(11, 12, 14, 0.96); border-top: 1px solid var(--line);
 }
+/* Si el iPhone deja un hueco debajo del menú, el fondo del menú lo cubre (no se ve el contenido pasar por debajo) */
+.m-nav::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 120px; background: inherit; pointer-events: none; }
 .m-nav button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: var(--dim); }
 .m-nav button svg { width: 24px; height: 24px; stroke: currentColor; }
 .m-nav button.on { color: var(--text); }
@@ -166,6 +187,11 @@ svg { display: block; }
 .m-dt-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 12, 14, 0.5) 0%, rgba(17, 19, 21, 0) 28%, rgba(17, 19, 21, 0) 55%, var(--bg) 100%); }
 .m-dt-art .bar-top { position: absolute; z-index: 2; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; padding: calc(8px + var(--safe-top)) 8px 0; }
 .m-dt-art .m-iconbtn { background: rgba(11, 12, 14, 0.55); }
+/* Ficha: la imagen empieza debajo de la barra de estado (hora, Dynamic Island), no detrás de ella. La franja de la barra
+   de estado queda sólida y fija, así al bajar nada pasa por debajo de la hora. */
+.m[data-view="detail"] .m-dt-art { margin-top: var(--safe-top); }
+.m[data-view="detail"] .m-dt-art .bar-top { padding-top: 8px; }
+.m[data-view="detail"]::before { content: ""; position: fixed; left: 0; right: 0; top: 0; z-index: 25; height: var(--safe-top); background: var(--bg-2); pointer-events: none; }
 .m-dt { padding: 0 16px; margin-top: -18px; position: relative; z-index: 2; }
 .m-dt h1 { margin: 0; font-size: 27px; line-height: 1.1; font-weight: 800; letter-spacing: -0.4px; }
 .m-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 14px; font-size: 13.5px; color: var(--muted); }
@@ -235,7 +261,7 @@ svg { display: block; }
 .m-login .legal { margin-top: auto; font-size: 11.5px; line-height: 1.5; color: var(--dim); text-align: center; }
 
 /* ---------- Buscar ---------- */
-.m-search { position: sticky; top: 0; z-index: 20; padding: calc(10px + var(--safe-top)) 16px 12px; background: var(--bg); }
+.m-search { position: sticky; top: 0; z-index: 20; padding: calc(14px + var(--safe-top)) 16px 12px; background: var(--bg); }
 .m-search .m-input { height: 46px; }
 .m-search .m-input svg { width: 20px; height: 20px; margin-left: 14px; stroke: var(--dim); flex: none; }
 .m-search .m-input input { font-size: 16px; padding-left: 10px; }
@@ -247,7 +273,7 @@ svg { display: block; }
 .m-player { position: fixed; inset: 0; background: #000; overflow: hidden; }
 .m-player .frame { position: absolute; inset: 0; background: #000 center / cover no-repeat; }
 .m-player .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.15) 30%, rgba(0, 0, 0, 0.15) 62%, rgba(0, 0, 0, 0.8) 100%); }
-.m-player .ptop { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 6px; padding: 10px 18px 0 10px; }
+.m-player .ptop { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 6px; padding: calc(10px + var(--safe-top)) calc(18px + var(--safe-right)) 0 calc(10px + var(--safe-left)); }
 .m-player .ptop .ttl { flex: 1; min-width: 0; }
 .m-player .ptop .ttl b { display: block; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .m-player .ptop .ttl small { font-size: 12px; color: var(--muted); }
@@ -257,7 +283,7 @@ svg { display: block; }
 .m-player .mid .skip em { position: absolute; font-style: normal; font-size: 11px; font-weight: 800; top: 19px; }
 .m-player .mid .pp { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.14); border: 1.5px solid rgba(255, 255, 255, 0.55); }
 .m-player .mid .pp svg { width: 32px; height: 32px; }
-.m-player .pbot { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 22px 12px; }
+.m-player .pbot { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 calc(22px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(22px + var(--safe-left)); }
 .m-player .seek { display: flex; align-items: center; gap: 12px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: #e6e6e6; }
 .m-player .seek .track { position: relative; flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
 .m-player .seek .track .buf { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: rgba(255, 255, 255, 0.4); }
@@ -363,7 +389,7 @@ svg { display: block; }
 
 /* ---------- Hojas (calidad, audio y subtítulos) ---------- */
 .m-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.6); }
-.m-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-height: 82vh; overflow-y: auto; padding: 8px 16px calc(20px + var(--safe-bottom)); border-radius: 20px 20px 0 0; background: #1a1c20; }
+.m-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-height: 82vh; max-height: 82dvh; overflow-y: auto; padding: 8px calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left)); border-radius: 20px 20px 0 0; background: #1a1c20; }
 .m-sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.25); margin: 0 auto 6px; }
 .m-sheet .sh-head { display: flex; align-items: center; justify-content: space-between; margin: 0 -8px 6px 0; }
 .m-sheet .sh-head b { font-size: 18px; }
@@ -380,14 +406,18 @@ svg { display: block; }
 
 /* ---------- Siguiente capítulo ---------- */
 .m-player .frame.dark { background: radial-gradient(80% 90% at 60% 40%, #2a2340 0%, #0b0a14 70%); }
-.m-next { position: absolute; right: 22px; bottom: 64px; width: 380px; display: flex; gap: 12px; padding: 10px; border-radius: 14px; background: rgba(20, 22, 26, 0.92); border: 1px solid rgba(255, 255, 255, 0.12); }
+.m-next { position: absolute; right: calc(22px + var(--safe-right)); bottom: calc(96px + var(--safe-bottom)); width: min(380px, calc(100vw - 44px - var(--safe-left) - var(--safe-right))); display: flex; gap: 12px; padding: 10px; border-radius: 14px; background: rgba(20, 22, 26, 0.92); border: 1px solid rgba(255, 255, 255, 0.12); }
 .m-next .img { position: relative; flex: none; width: 128px; aspect-ratio: 16 / 9; border-radius: 8px; background: linear-gradient(135deg, #3a2f5c, #14101f) center / cover; display: grid; place-items: center; }
 .m-next .cd { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: 800; border: 2.5px solid var(--gold-ring); background: rgba(11, 12, 14, 0.5); }
 .m-next .tx { flex: 1; min-width: 0; }
 .m-next small { font-size: 11.5px; color: var(--gold-text); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .m-next b { display: block; margin: 2px 0 8px; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .m-next .bt { display: flex; gap: 8px; }
-.m-next .m-btn { height: 34px; font-size: 13px; padding: 0 12px; }
+.m-next .m-btn { height: 34px; font-size: 13px; padding: 0 12px; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Celular vertical: la imagen más chica para que entren los dos botones */
+@media (max-width: 480px) { .m-next .img { width: 96px; } .m-next .m-btn { padding: 0 10px; } }
+/* Horizontal (pantalla baja): arriba a la derecha, sin tapar el botón de pausa del centro */
+@media (orientation: landscape) and (max-height: 500px) { .m-next { top: calc(58px + var(--safe-top)); bottom: auto; } }
 .m-next .m-btn svg { width: 16px; height: 16px; }
 
 /* ---------- Cuenta ---------- */
@@ -449,8 +479,8 @@ label.m-code input { position: absolute; inset: 0; width: 100%; height: 100%; op
 .m-pinerr { margin: -20px 0 18px; color: #ffb4ab; font-size: 13.5px; }
 
 /* Avisos cortos */
-.m-toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + var(--safe-bottom) + 18px); transform: translateX(-50%); z-index: 60; padding: 10px 16px; border-radius: 22px; background: rgba(244, 244, 242, 0.95); color: #111; font-size: 13.5px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); }
-.m[data-view="player"] .m-toast { bottom: 90px; }
+.m-toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + max(var(--safe-bottom), 8px) + 18px); transform: translateX(-50%); z-index: 60; padding: 10px 16px; border-radius: 22px; background: rgba(244, 244, 242, 0.95); color: #111; font-size: 13.5px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); }
+.m[data-view="player"] .m-toast { bottom: calc(90px + var(--safe-bottom)); }
 
 /* Ficha: categorías tocables, detalles, botón de peligro */
 .m-cats button { padding: 5px 12px; border-radius: 14px; background: var(--card-2); font-size: 12.5px; color: var(--muted); }
@@ -465,6 +495,8 @@ body { background: #000; }
 .m-video { position: fixed; inset: 0; z-index: 0; background: #000; }
 .m-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 .m-video .m-subpic { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Último cuadro, quieto, mientras se recarga al cambiar audio, subtítulos o calidad */
+.m-video .m-freeze { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; pointer-events: none; }
 .m-sublines, .m-subtop { position: absolute; left: 6%; right: 6%; text-align: center; pointer-events: none; color: #fff; font-size: 18px; line-height: 1.35; font-weight: 600; text-shadow: 0 0 4px #000, 0 2px 3px #000; }
 .m-sublines { bottom: 9%; }
 .m-subtop { top: 6%; }
@@ -476,6 +508,16 @@ body { background: #000; }
 .m-plmsg { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 14px; color: #eee; pointer-events: none; }
 .m-plmsg .m-btn, .m-plmsg .m-error { pointer-events: auto; max-width: 70%; }
 .m-plmsg:empty { display: none; }
+/* Cargando el video: el oso de HomeFlix dentro de un anillo dorado que gira */
+.m-plload { position: relative; width: 84px; height: 84px; display: grid; place-items: center; }
+.m-plload::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: var(--gold-ring); border-right-color: var(--gold-ring);
+  animation: m-spin 0.9s linear infinite;
+}
+.m-plload i { width: 60px; height: 60px; border-radius: 50%; background: #f4f4f2 url(../images/panda-login.png) 50% 6% / 150% auto no-repeat; border: 2px solid rgba(255, 255, 255, 0.9); animation: m-breathe 1.8s ease-in-out infinite; }
+@keyframes m-breathe { 50% { transform: scale(0.94); } }
+@media (prefers-reduced-motion: reduce) { .m-plload::before, .m-plload i { animation: none; } }
 .m-player .mid:has(+ .m-plmsg:not(:empty)) .pp { visibility: hidden; }
 .m-player .seek .track { height: 28px; background: none; display: flex; align-items: center; }
 .m-player .seek .track::before { content: ""; position: absolute; left: 0; right: 0; top: 12px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
@@ -526,4 +568,20 @@ body { background: #000; }
 .m-ghost.fwd { box-shadow: 16px 0 32px rgba(0, 0, 0, 0.5); }
 .m-ghost > .m { min-height: 100%; }
 .m-sliding body, .m-sliding #m { overflow-x: hidden; }
+
+/* ---------- Reproductor girado (iPhone vertical): se dibuja en horizontal ----------
+   La caja se pone en la esquina superior derecha y gira 90° hacia la derecha: su borde de arriba queda a la derecha de
+   la pantalla. Se ve bien con el teléfono girado hacia la izquierda (la isla queda a la izquierda). Las zonas seguras se
+   reacomodan: la de arriba (isla) pasa a la izquierda y la de abajo (raya de inicio) a la derecha. */
+html { --pt: var(--safe-top); --pb: var(--safe-bottom); }
+html.m-rotated, html.m-rotated body { height: 100%; overflow: hidden; }
+.m-rotated #m, .m-rotated #mplayer {
+  position: fixed; top: 0; left: 100%;
+  width: 100vh; width: 100dvh; height: 100vw; min-height: 0;
+  transform-origin: top left; transform: rotate(90deg);
+  overflow: hidden;
+  --safe-top: 0px; --safe-bottom: 0px; --safe-left: var(--pt); --safe-right: var(--pb);
+}
+.m-rotated .m-sheet { max-height: 82vw; }
+.m-rotated .m-next { top: calc(58px + var(--safe-top)); bottom: auto; width: min(380px, calc(100dvh - 44px - var(--safe-left) - var(--safe-right))); }
 

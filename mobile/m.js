@@ -28,6 +28,7 @@ var HFMobile = (function () {
     chats: null, chatsError: "", chatFilter: "all", chatQ: "", firstTime: false,
     pin: null, edit: null,
     syncing: false, syncError: "",
+    heroIdx: 0,
     player: null
   };
 
@@ -286,8 +287,53 @@ var HFMobile = (function () {
       '<div class="copy"><h1' + (t.name.length > 18 ? ' class="long"' : "") + ">" + esc(t.name) + "</h1>" +
       '<div class="tags">' + tags.map(function (x) { return "<span>" + esc(x) + "</span>"; }).join("") + "</div>" +
       '<div class="btns"><button class="m-btn primary" data-play="' + esc(t.titleKey) + '">' + I.play + (p ? "Continuar" : "Reproducir") + "</button>" +
-      '<button class="m-btn ghost" data-open="' + esc(t.titleKey) + '">' + I.info + "Más info</button></div></div></div>" +
-      (n > 1 ? '<div class="m-dots">' + Array.apply(null, Array(Math.min(n, 6))).map(function (_, k) { return "<i" + (k === i ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : "");
+      '<button class="m-btn ghost" data-open="' + esc(t.titleKey) + '">' + I.info + "Más info</button></div></div></div>";
+  }
+
+  /* Destacado: carrusel que se desliza de lado (hasta 6), una tarjeta por gesto, con puntos que siguen al dedo.
+   * Empieza en uno distinto cada vez que se abre Inicio. */
+  var HERO_MAX = 6;
+  function heroCarousel(featured, start) {
+    var list = [];
+    for (var k = 0; k < Math.min(HERO_MAX, featured.length); k += 1) { list.push(featured[(start + k) % featured.length]); }
+    if (!list.length) { return ""; }
+    return '<div class="m-hero-track" id="heroTrack" role="region" aria-roledescription="carrusel" aria-label="Destacados">' +
+      list.map(function (t, i) { return '<div class="m-hero-slide" aria-label="' + (i + 1) + " de " + list.length + '">' + heroHtml(t, i, list.length) + "</div>"; }).join("") +
+      "</div>" +
+      (list.length > 1 ? '<div class="m-dots" id="heroDots">' + list.map(function (_, i) {
+        return '<i data-hero="' + i + '"' + (i === S.heroIdx ? ' class="on"' : "") + "></i>";
+      }).join("") + "</div>" : "");
+  }
+  function heroSlideWidth(track) {
+    var a = track.children[0];
+    var b = track.children[1];
+    return b ? b.offsetLeft - a.offsetLeft : track.clientWidth;
+  }
+  function mountHero() {
+    var track = byId("heroTrack");
+    var dots = byId("heroDots");
+    if (!track) { return; }
+    var n = track.children.length;
+    if (S.heroIdx >= n) { S.heroIdx = 0; }
+    /* Al volver a pintar (por ejemplo al actualizar la biblioteca) se queda en la misma tarjeta */
+    if (S.heroIdx) { track.scrollLeft = S.heroIdx * heroSlideWidth(track); }
+    var raf = 0;
+    track.addEventListener("scroll", function () {
+      if (raf) { return; }
+      raf = requestAnimationFrame(function () {
+        raf = 0;
+        var i = Math.max(0, Math.min(n - 1, Math.round(track.scrollLeft / heroSlideWidth(track))));
+        if (i === S.heroIdx) { return; }
+        S.heroIdx = i;
+        if (dots) { Array.prototype.forEach.call(dots.children, function (d, k) { d.className = k === i ? "on" : ""; }); }
+      });
+    }, { passive: true });
+    if (dots) {
+      dots.addEventListener("click", function (e) {
+        var d = e.target.closest("[data-hero]");
+        if (d) { track.scrollTo({ left: Number(d.getAttribute("data-hero")) * heroSlideWidth(track), behavior: reducedMotion() ? "auto" : "smooth" }); }
+      });
+    }
   }
 
   /* Categorías sin repetir aunque una venga con tilde y otra sin ella («Accion» = «Acción»), como en la TV.
@@ -336,7 +382,7 @@ var HFMobile = (function () {
       '<div class="m-chips"><button class="m-chip" data-tab="movies">Películas</button><button class="m-chip" data-tab="series">Series</button>' +
       '<button class="m-chip" data-act="categories">Categorías ' + I.down + "</button></div>" +
       (!all.length ? emptyLibrary() :
-        (featured.length ? heroHtml(featured[hi], hi, featured.length) : "") +
+        heroCarousel(featured, hi) +
         row("Continuar viendo", cont, { render: function (t) {
           var p = progressOf(t);
           return card(t, { wide: true, progress: p, sub: "Quedan " + dur(Math.max(0, p.d - p.t)) });
@@ -553,7 +599,8 @@ var HFMobile = (function () {
   /* ----- Reproductor ----- */
   V.player = function () {
     var P = S.player || {};
-    return '<div class="m-player" id="pl"><div class="frame" id="plPoster"' + img(P.poster) + '></div><div class="scrim"></div>' +
+    /* La portada solo en el tablero (hace de cuadro del video). Al ver de verdad: fondo negro y el oso cargando. */
+    return '<div class="m-player" id="pl"><div class="frame" id="plPoster"' + (S.view === "player-design" ? img(P.poster) : "") + '></div><div class="scrim"></div>' +
       '<div class="ptop"><button class="m-iconbtn" data-act="close-player">' + I.back + '</button><div class="ttl"><b>' + esc(P.name || "") + "</b><small>" + esc(P.sub || "") + "</small></div></div>" +
       '<div class="mid"><button class="skip" data-act="seek-rel" data-s="-10">' + I.rew + "<em>10</em></button>" +
       '<button class="pp" data-act="toggle-play" id="plPP">' + I.pause + '</button><button class="skip" data-act="seek-rel" data-s="10">' + I.fwd + "<em>10</em></button></div>" +
@@ -568,8 +615,19 @@ var HFMobile = (function () {
   /* ===================== Navegación ===================== */
   var TABS = { home: 1, movies: 1, series: 1, search: 1, mylist: 1 };
 
+  /* Reproductor siempre en horizontal. En el APK lo gira Android; en Chrome de Android, pantalla completa + bloqueo.
+   * En iPhone no se puede bloquear el giro: si el teléfono está vertical, el reproductor se dibuja girado 90° (como
+   * una app de video) y basta con voltear el teléfono. Si se gira el teléfono de verdad, vuelve a lo normal solo. */
+  function playerRotation() {
+    var on = S.view === "player" && !android && window.innerHeight > window.innerWidth;
+    document.documentElement.classList.toggle("m-rotated", on);
+  }
+  window.addEventListener("resize", playerRotation);
+  window.addEventListener("orientationchange", function () { setTimeout(playerRotation, 200); });
+
   function render(keepScroll) {
     var y = window.scrollY;
+    playerRotation();
     root.setAttribute("data-view", S.view);
     root.innerHTML = (V[S.view] || V.home)() + (S.sheet && SHEETS[S.sheet] ? SHEETS[S.sheet]() : "") + overlayHtml() + (S.toast ? '<div class="m-toast">' + esc(S.toast) + "</div>" : "");
     hydrate();
@@ -595,7 +653,7 @@ var HFMobile = (function () {
     S.arg = arg === undefined ? null : arg;
     S.sheet = null;
     S.overlay = null;
-    if (view === "home" && !opts.keep) { heroPick += 1; }
+    if (view === "home" && !opts.keep) { heroPick += 1; S.heroIdx = 0; }
     render();
   }
 
@@ -681,7 +739,8 @@ var HFMobile = (function () {
     "login-password": function () { var p = byId("pw"); if (p) { p.focus(); } },
     "login-qr": function () { if (!S.login.qrAbort) { startQr(); } },
     settings: function () { if (!S.chats && !S.chatsError) { loadChats(); } },
-    player: function () { startPlayback(); }
+    player: function () { startPlayback(); },
+    home: function () { mountHero(); }
   };
 
   /* ===================== Acciones ===================== */
@@ -1004,13 +1063,13 @@ var HFMobile = (function () {
     var q = el.getAttribute("data-q");
     try { if (q) { localStorage.setItem("hf.m.quality", q); } else { localStorage.removeItem("hf.m.quality"); } } catch (e) { /* nada */ }
     S.sheet = null;
+    toast(q ? "Calidad: " + q : "Calidad automática");
+    render(true);
     if (S.view === "player" && HFPlayback.qualities()) {
       var list = HFPlayback.qualities().list || [];
       var v = list.filter(function (x) { return x.q === q; })[0];
-      HFPlayback.setQuality(v ? v.key : "auto");
+      smoothReload(function () { HFPlayback.setQuality(v ? v.key : "auto"); });
     }
-    toast(q ? "Calidad: " + q : "Calidad automática");
-    render(true);
   };
 
   function play(t, opts) {
@@ -1084,6 +1143,11 @@ var HFMobile = (function () {
   function startPlayback() {
     var P = S.player;
     if (!P) { return; }
+    /* Abrir una hoja (Audio y subtítulos, Calidad) vuelve a pintar la pantalla y llama de nuevo aquí. Antes eso reabría
+     * el video desde cero (otro MediaSource y otra descarga); en iPhone se quedaba sin memoria y la app se cerraba.
+     * Ahora solo se ponen al día los controles. */
+    if (P.started) { syncPlayerUi(); return; }
+    P.started = true;
     playerMode(true);
     var host = byId("mplayer");
     host.hidden = false;
@@ -1109,7 +1173,29 @@ var HFMobile = (function () {
         var pp = byId("plPP");
         var msg = byId("plMsg");
         if (pp) { pp.innerHTML = s === "playing" || s === "buffering" ? I.pause : I.play; }
-        if (msg) { msg.innerHTML = s === "loading" ? '<div class="m-spin"></div>Abriendo…' : s === "buffering" ? '<div class="m-spin"></div>Cargando…' : ""; }
+        /* Cargando: solo el oso de HomeFlix con un anillo que gira (sin texto) */
+        if (msg) { msg.innerHTML = s === "loading" || s === "buffering" ? '<div class="m-plload" role="status" aria-label="Cargando"><i></i></div>' : ""; }
+        var RP = S.player;
+        if (RP && RP.reloading && s === "paused" && RP.resume) {
+          /* Terminó de recargar pero quedó en pausa: seguir solo, como estaba. Si el teléfono no deja (iOS a veces pide
+           * un toque), en 1,5 s se quita la foto y queda el botón de reproducir. */
+          var which = RP.reloadId;
+          RP.resume = false;
+          HFPlayback.play();
+          setTimeout(function () {
+            if (S.player !== RP || !RP.reloading || RP.reloadId !== which) { return; }
+            RP.reloading = false;
+            unfreeze();
+            var m = byId("plMsg");
+            var b = byId("plPP");
+            if (m) { m.innerHTML = ""; }
+            if (b) { b.innerHTML = I.play; }
+            showChrome();
+          }, 1500);
+        } else if (RP && RP.reloading && (s === "playing" || s === "paused")) {
+          RP.reloading = false;
+          unfreeze();
+        }
         if (s === "playing") { var po = byId("plPoster"); if (po) { po.style.opacity = HFPlayback.simulated ? "1" : "0"; } showChrome(); }
         if (s === "paused") { showChrome(); }
       },
@@ -1119,6 +1205,9 @@ var HFMobile = (function () {
         closePlayer();
       },
       onError: function (m) {
+        if (S.player) { S.player.reloading = false; }
+        var fz = byId("plFreeze");
+        if (fz) { fz.hidden = true; }
         var msg = byId("plMsg");
         if (msg) { msg.innerHTML = '<div class="m-error">' + esc(m) + '</div><button class="m-btn primary" data-act="close-player">Volver</button>'; }
       },
@@ -1142,10 +1231,75 @@ var HFMobile = (function () {
     hydrate();
   }
 
+  /* ===================== Recarga suave (cambiar audio, subtítulos o calidad) =====================
+   * Cambiar de pista vuelve a abrir el video en el mismo segundo. Mientras tanto se deja quieto el último cuadro (en un
+   * canvas encima del video) con el oso cargando, en vez de una pantalla negra; al llegar el primer cuadro nuevo se quita,
+   * y si se estaba viendo, sigue solo. */
+  var LOADER = '<div class="m-plload" role="status" aria-label="Cargando"><i></i></div>';
+  function freezeCanvas() {
+    var c = byId("plFreeze");
+    var host = byId("mplayer");
+    if (!c && host) {
+      c = document.createElement("canvas");
+      c.id = "plFreeze";
+      c.className = "m-freeze";
+      c.hidden = true;
+      host.insertBefore(c, byId("playerVideo").nextSibling);
+    }
+    return c;
+  }
+  function freezeFrame() {
+    var v = byId("playerVideo");
+    var c = freezeCanvas();
+    if (!v || !c || !v.videoWidth) { return; }
+    var w = Math.min(1280, v.videoWidth);
+    c.width = w;
+    c.height = Math.round(v.videoHeight * (w / v.videoWidth));
+    try { c.getContext("2d").drawImage(v, 0, 0, c.width, c.height); c.hidden = false; } catch (e) { c.hidden = true; }
+  }
+  function unfreeze() {
+    var c = byId("plFreeze");
+    if (c && !c.hidden) {
+      /* Un instante para que el video pinte su primer cuadro antes de quitar la foto */
+      setTimeout(function () { c.hidden = true; }, 180);
+    }
+  }
+  function smoothReload(change) {
+    var P = S.player;
+    if (!P || HFPlayback.simulated) { change(); return; }
+    P.resume = HFPlayback.playing();
+    P.reloading = true;
+    /* Cada recarga tiene su número: los relojes de una recarga anterior no tocan la nueva */
+    var mine = P.reloadId = (P.reloadId || 0) + 1;
+    freezeFrame();
+    var msg = byId("plMsg");
+    if (msg) { msg.innerHTML = LOADER; }
+    change();
+    /* Por si la recarga no avisa (error de red): no dejar la foto congelada para siempre */
+    clearTimeout(P.reloadT);
+    P.reloadT = setTimeout(function () { if (S.player === P && P.reloading && P.reloadId === mine) { P.reloading = false; unfreeze(); } }, 20000);
+  }
+  /* Recargar en el mismo punto con el mismo audio (para que los subtítulos en imagen aparezcan ya) */
+  function reloadSameAudio() {
+    var a = (HFPlayback.tracks().audio || []).filter(function (x) { return x.current; })[0];
+    if (a) { HFPlayback.setAudio(a.key); }
+  }
+
+  /* Después de volver a pintar el reproductor: botón de pausa y cargando según cómo va el video. */
+  function syncPlayerUi() {
+    var pp = byId("plPP");
+    var msg = byId("plMsg");
+    var playing = HFPlayback.playing();
+    if (pp) { pp.innerHTML = playing ? I.pause : I.play; }
+    if (msg && !playing && HFPlayback.time() === 0) { msg.innerHTML = '<div class="m-plload" role="status" aria-label="Cargando"><i></i></div>'; }
+  }
+
   function closePlayer() {
     var P = S.player;
     if (P && HFPlayback.time() > 5) { HFLibrary.setProgress(entryKey(P.entry), HFPlayback.time(), HFPlayback.duration()); }
     HFPlayback.close();
+    var fz = byId("plFreeze");
+    if (fz) { fz.hidden = true; }
     byId("mplayer").hidden = true;
     playerMode(false);
     S.player = null;
@@ -1168,16 +1322,31 @@ var HFMobile = (function () {
     S.stack.pop(); // el reproductor anterior no queda en la pila
   };
   ACT["hide-next"] = function () { S.player.nextEp = null; var el = byId("plNext"); if (el) { el.hidden = true; } };
-  ACT.audio = function (el) { HFPlayback.setAudio(el.getAttribute("data-k")); S.sheet = null; render(true); };
-  ACT.sub = function (el) { HFPlayback.setSub(el.getAttribute("data-k") || null); S.sheet = null; render(true); };
+  ACT.audio = function (el) {
+    var k = el.getAttribute("data-k");
+    S.sheet = null;
+    render(true);
+    smoothReload(function () { HFPlayback.setAudio(k); });
+  };
+  ACT.sub = function (el) {
+    var k = el.getAttribute("data-k") || null;
+    S.sheet = null;
+    render(true);
+    HFPlayback.setSub(k);
+    /* Al elegir una pista se recarga en el mismo punto: así aparecen ya, sin tener que salir y volver a entrar */
+    if (k) { smoothReload(reloadSameAudio); }
+  };
 
   /* Tocar la barra de progreso salta a ese punto. */
   function seekFromTouch(e) {
     var tr = byId("plTrack");
     if (!tr || !HFPlayback.duration()) { return; }
     var r = tr.getBoundingClientRect();
-    var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-    HFPlayback.seek(Math.max(0, Math.min(1, x / r.width)) * HFPlayback.duration());
+    var pt = e.touches ? e.touches[0] : e;
+    /* Girado 90°: lo que en el reproductor es «a la derecha» en la pantalla es «hacia abajo» */
+    var rot = document.documentElement.classList.contains("m-rotated");
+    var x = rot ? pt.clientY - r.top : pt.clientX - r.left;
+    HFPlayback.seek(Math.max(0, Math.min(1, x / (rot ? r.height : r.width))) * HFPlayback.duration());
     showChrome();
   }
 
@@ -1412,7 +1581,7 @@ var HFMobile = (function () {
     html.classList.remove("m-swiping", "m-swiping-fwd");
   }
   document.addEventListener("touchstart", function (e) {
-    if (!SWIPE_ON || e.touches.length !== 1) { return; }
+    if (!SWIPE_ON || e.touches.length !== 1 || document.documentElement.classList.contains("m-rotated")) { return; }
     var x = e.touches[0].clientX;
     var dir = x <= EDGE && canBack() ? 1 : x >= window.innerWidth - EDGE && canForward() ? -1 : 0;
     if (!dir) { return; }
@@ -1641,6 +1810,43 @@ var HFMobile = (function () {
     el.innerHTML = '<div class="img"' + img(nx.key) + '><span class="cd">8</span></div><div class="tx"><small>Siguiente capítulo</small><b>T1:E3 · ' + esc(nx.title) + "</b>" +
       '<div class="bt"><button class="m-btn primary">' + I.play + 'Ver ahora</button><button class="m-btn ghost">Ver créditos</button></div></div>';
   }
+
+  /* ===================== Zonas seguras del iPhone (app instalada) =====================
+   * La barra de estado y la raya de inicio del iPhone tapan el contenido si no se deja margen. Normalmente lo da el
+   * navegador (env(safe-area-inset-*) en m.css), pero en la app instalada iOS a veces lo entrega en 0. Si pasa,
+   * se usa la medida típica del modelo. En el APK lo hace la parte nativa (--safe-top / --safe-bottom). */
+  function safeAreas() {
+    var ios = /iP(hone|od)/.test(navigator.userAgent);
+    var de = document.documentElement;
+    if (android || !ios || !installed()) { return; }
+    var probe = document.createElement("div");
+    probe.style.cssText = "position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;" +
+      "padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+    document.body.appendChild(probe);
+    var cs = window.getComputedStyle(probe);
+    var got = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    probe.remove();
+    ["--safe-top", "--safe-bottom", "--safe-left", "--safe-right"].forEach(function (k) { de.style.removeProperty(k); });
+    if (got) { return; } /* iOS sí las entrega: se usan las suyas */
+    var tall = Math.max(window.screen.height, window.screen.width); /* lado largo de la pantalla en puntos */
+    var homeBar = tall >= 812; /* iPhone X en adelante (raya de inicio, muesca o Dynamic Island) */
+    var cut = tall >= 852 ? 59 : 47; /* Dynamic Island / muesca */
+    if (window.innerHeight >= window.innerWidth) {
+      /* Vertical: la isla arriba y la raya de inicio abajo */
+      de.style.setProperty("--safe-top", (homeBar ? cut : 20) + "px");
+      if (homeBar) { de.style.setProperty("--safe-bottom", "34px"); }
+    } else if (homeBar) {
+      /* Horizontal (el reproductor): la isla y las esquinas a los lados, la raya de inicio abajo */
+      de.style.setProperty("--safe-left", cut + "px");
+      de.style.setProperty("--safe-right", cut + "px");
+      de.style.setProperty("--safe-bottom", "21px");
+    }
+  }
+  safeAreas();
+  var safeT = 0;
+  function safeLater() { clearTimeout(safeT); safeT = setTimeout(safeAreas, 250); }
+  window.addEventListener("orientationchange", safeLater);
+  window.addEventListener("resize", safeLater);
 
   var dm = /[?&]design=([^&]*)/.exec(window.location.search);
   if (dm) {
