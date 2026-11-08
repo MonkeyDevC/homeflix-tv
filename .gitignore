@@ -10,3 +10,24 @@ dist/
 .env
 *.local.*
 secrets/
+
+# Motor de Telegram: dependencias y temporales de compilación
+engine/node_modules/
+engine/out/
+
+# Credenciales locales de la API de Telegram
+js/config.local.js
+
+# Originales de las portadas (pesados); en el repo y el .wgt van las versiones .jpg
+images/portadas/originales/
+images/avatares/originales/
+
+# Tablero de diseño: biblioteca e imágenes reales exportadas para revisar las vistas (solo local)
+design/media/
+
+# App de Android: compilación y rutas locales del SDK
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk

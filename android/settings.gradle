@@ -1,0 +1,17 @@
+// HomeFlix para Android: una app nativa mínima con un WebView que carga mobile/ (mismo motor que la TV).
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "HomeFlix"
+include ":app"

@@ -1,0 +1,10 @@
+Portadas del fondo animado (pantalla inicial y login de HomeFlix)
+
+- Pon aquí tus imágenes: .jpg, .jpeg, .png o .webp.
+- Formato vertical tipo póster (2:3), por ejemplo 600 x 900 px. Se recortan para llenar el recuadro.
+- Peso recomendado: menos de 150 KB cada una (todo va dentro del .wgt).
+- Con 12 a 20 imágenes se ve variado; si pones menos, se repiten.
+- Se muestran en orden de nombre: 01.jpg, 02.jpg, ...
+- No hay que tocar código: al empaquetar (node tools/build-wgt.mjs) o con el servidor local
+  (node tools/serve.mjs) la app las encuentra sola.
+- Si la carpeta queda sin imágenes, se usan los pósters de ejemplo.

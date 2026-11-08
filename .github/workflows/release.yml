@@ -27,8 +27,15 @@ jobs:
             exit 1
           fi
 
-      - name: Armar .wgt
-        run: node tools/build-wgt.mjs
+      - name: Armar .wgt (con la clave de Telegram de los secretos del repo, ofuscada)
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+        run: |
+          if [ -z "$TG_API_ID" ] || [ -z "$TG_API_HASH" ]; then
+            echo "::warning::Faltan los secretos TG_API_ID / TG_API_HASH: la TV pedirá api_id y api_hash en vez de ir directo al QR."
+          fi
+          node tools/build-wgt.mjs
 
       - name: Publicar release
         env:

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#0b0c0e"/>
+<title>HomeFlix</title>
+<link href="m.css" rel="stylesheet"/>
+</head>
+<body>
+<!-- Video del reproductor: fijo, debajo de la interfaz (el motor lo busca por id, igual que en la TV) -->
+<div id="mplayer" class="m-video" hidden>
+  <video id="playerVideo" playsinline></video>
+  <canvas id="playerSubPic" class="m-subpic" width="1920" height="1080"></canvas>
+  <div id="playerSub" class="m-sublines"></div>
+  <div id="playerSubTop" class="m-subtop"></div>
+</div>
+
+<!-- HomeFlix para el celular: el mismo motor que la TV (js/), con pantallas táctiles propias (m.js / m.css). -->
+<div id="m" class="m" data-view="boot"></div>
+
+<script src="../js/tg.bundle.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/config.local.js" onerror="void 0"></script>
+<script src="../js/imagenes.js" onerror="void 0"></script>
+<script src="../js/telegram.js"></script>
+<script src="../js/library.js"></script>
+<script src="../js/sync.js"></script>
+<script src="../js/engine/i18n-es.js"></script>
+<script src="../js/engine/mp4.js"></script>
+<script src="../js/engine/mkv.js"></script>
+<script src="../js/engine/subs.js"></script>
+<script src="../js/engine/player.js"></script>
+<script src="../js/playback.js"></script>
+<script src="icons.js"></script>
+<script src="m.js"></script>
+</body>
+</html>

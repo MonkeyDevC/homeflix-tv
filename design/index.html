@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>HomeFlix · Tablero de diseño</title>
+<style>
+/* Tablero de diseño: cada cuadro es la app REAL abierta en una vista (iframe), con la biblioteca exportada en
+ * design/media/. A la izquierda la TV (final, ya aprobada); a la derecha el celular (en diseño).
+ * Los cuadros se abren desde 127.0.0.1 para que sus datos de demostración no se mezclen con la app de localhost. */
+:root { --bg: #0b0c0e; --panel: #15171a; --line: #26292e; --text: #f4f4f2; --muted: #9a9ea4; --gold: #e6c193; --gold-2: #c99a66; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", Roboto, Arial, sans-serif; }
+header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 28px; padding: 18px 40px; background: rgba(11, 12, 14, 0.94); border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 24px; font-weight: 800; }
+header h1 span { color: var(--gold); }
+header p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; max-width: 760px; }
+header nav { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+header nav a { color: var(--muted); text-decoration: none; font-size: 13px; padding: 6px 10px; border-radius: 14px; border: 1px solid var(--line); }
+header nav a:hover { color: var(--text); border-color: var(--gold); }
+main { padding: 10px 40px 120px; }
+section { margin-top: 34px; }
+section > h2 { display: flex; align-items: baseline; gap: 14px; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 19px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); }
+section > h2 small { font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--muted); font-weight: 400; }
+.cols { display: grid; grid-template-columns: 768px 1fr; gap: 36px; align-items: start; }
+.col-title { font-size: 12px; font-weight: 800; letter-spacing: 1.4px; color: var(--muted); margin: 0 0 10px; text-transform: uppercase; }
+.col-title b { display: inline-block; padding: 2px 8px; border-radius: 4px; margin-right: 6px; font-size: 10.5px; }
+.col-title .tv { background: #2c3036; color: #d6d8db; }
+.col-title .mob { background: var(--gold); color: #2a1d0e; }
+.stack { display: flex; flex-direction: column; gap: 22px; }
+.phones { display: flex; flex-wrap: wrap; gap: 22px; }
+figure { margin: 0; }
+figcaption { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13.5px; color: #d6d8db; }
+figcaption a { margin-left: auto; color: var(--muted); font-size: 12px; text-decoration: none; }
+figcaption a:hover { color: var(--gold); }
+.state { font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; padding: 2px 7px; border-radius: 4px; }
+.state.final { background: #23362b; color: #9fd8b1; }
+.state.review { background: rgba(230, 193, 147, 0.18); color: var(--gold); }
+.state.todo { background: #2a2d32; color: var(--muted); }
+.screen { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid #2c3036; background: #000; }
+.screen iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
+.screen.interactive iframe { pointer-events: auto; }
+.tvs { width: 768px; height: 432px; }
+.tvs iframe { width: 1920px; height: 1080px; transform: scale(0.4); }
+.phone { width: 331px; height: 717px; border-radius: 30px; border: 6px solid #24272c; box-shadow: 0 0 0 1px #3a3e45; }
+.phone iframe { width: 390px; height: 844px; transform: scale(0.8333); }
+.phone.land { width: 717px; height: 331px; }
+.phone.land iframe { width: 844px; height: 390px; }
+.todo-card { width: 331px; height: 717px; border-radius: 30px; border: 2px dashed #3a3e45; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--muted); text-align: center; padding: 30px; font-size: 13.5px; line-height: 1.5; }
+.todo-card b { color: var(--text); font-size: 15px; }
+.hint { margin-top: 10px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Home<span>Flix</span> · Tablero</h1>
+  <p>Cada cuadro es la app real abierta en esa vista, con tu biblioteca (exportada a <code>design/media/</code>, sin conectarse a Telegram).
+    <b>Izquierda:</b> TV, versión final. <b>Derecha:</b> celular, en diseño. «Abrir» muestra la vista completa; en el celular se puede tocar.</p>
+  <nav id="toc"></nav>
+</header>
+<main id="board"></main>
+
+<script>
+var HOST = "http://127.0.0.1:" + (location.port || "5173");
+/* estado: final (aprobada) · review (para tu visto bueno) · todo (falta diseñar) */
+var SECTIONS = [
+  { id: "acceso", title: "Acceso", note: "En el celular se entra con número y código (el QR no se puede escanear desde el mismo teléfono).",
+    tv: [["splash", "Pantalla inicial"], ["login-qr", "Iniciar sesión con QR"], ["login-password", "Verificación en dos pasos"]],
+    mob: [["login", "Iniciar sesión con número", "review"], ["login-code", "Código de Telegram", "review"], ["login-password", "Contraseña de dos pasos", "review"], ["login-qr", "QR para otro dispositivo", "review"]] },
+  { id: "perfiles", title: "Perfiles",
+    tv: [["profiles", "¿Quién está viendo?"], ["profile-edit", "Editar perfil"]],
+    mob: [["profiles", "¿Quién está viendo?", "review"], ["profile-edit", "Editar perfil", "review"], ["pin", "PIN del perfil", "review"]] },
+  { id: "catalogo", title: "Catálogo",
+    tv: [["browse-home", "Inicio"], ["browse-rows", "Inicio · filas"], ["browse-movies", "Películas"], ["browse-series", "Series"], ["guide", "Guía para publicar"]],
+    mob: [["home", "Inicio", "review"], ["movies", "Películas", "review"], ["series", "Series", "review"], ["mylist", "Mi lista", "review"], ["categories", "Categorías", "review"]] },
+  { id: "buscar", title: "Buscar",
+    tv: [["search", "Buscar"]],
+    mob: [["search", "Buscar", "review"]] },
+  { id: "fichas", title: "Fichas",
+    tv: [["detail-movie", "Ficha de película"], ["detail-series", "Ficha de serie"]],
+    mob: [["detail-movie", "Ficha de película", "review"], ["detail-series", "Ficha de serie", "review"], ["sheet-quality", "Elegir calidad", "review"], ["sheet-tracks", "Audio y subtítulos", "review"]] },
+  { id: "reproductor", title: "Reproductor",
+    tv: [["player", "Reproductor"]],
+    mob: [["player", "Reproductor (horizontal)", "review", true], ["player-next", "Siguiente capítulo", "review", true]] },
+  { id: "ajustes", title: "Ajustes",
+    tv: [["settings", "Chats de la biblioteca"]],
+    mob: [["settings", "Chats de la biblioteca", "review"], ["account", "Ajustes y cuenta", "review"]] }
+];
+
+var STATE = { final: "FINAL", review: "PARA REVISAR", todo: "POR DISEÑAR" };
+
+function tvFrame(v) {
+  var url = HOST + "/index.html?design=" + v[0];
+  return '<figure><div class="screen tvs"><iframe loading="lazy" src="' + url + '" tabindex="-1"></iframe></div>' +
+    '<figcaption><span class="state final">' + STATE.final + "</span>" + v[1] + '<a href="' + url + '" target="_blank">Abrir ↗</a></figcaption></figure>';
+}
+function mobFrame(v) {
+  if (!v[0]) {
+    return '<figure><div class="todo-card"><b>' + v[1] + "</b>Por diseñar</div>" +
+      '<figcaption><span class="state todo">' + STATE.todo + "</span>" + v[1] + "</figcaption></figure>";
+  }
+  var url = HOST + "/mobile/?design=" + v[0];
+  return '<figure><div class="screen phone interactive' + (v[3] ? " land" : "") + '"><iframe loading="lazy" src="' + url + '"></iframe></div>' +
+    '<figcaption><span class="state ' + (v[2] || "review") + '">' + STATE[v[2] || "review"] + "</span>" + v[1] + '<a href="' + url + '" target="_blank">Abrir ↗</a></figcaption></figure>';
+}
+
+document.getElementById("board").innerHTML = SECTIONS.map(function (s) {
+  return '<section id="' + s.id + '"><h2>' + s.title + (s.note ? "<small>" + s.note + "</small>" : "") + "</h2>" +
+    '<div class="cols"><div><div class="col-title"><b class="tv">TV</b>Final</div><div class="stack">' + s.tv.map(tvFrame).join("") + "</div></div>" +
+    '<div><div class="col-title"><b class="mob">CELULAR</b>Diseño propio</div><div class="phones">' + s.mob.map(mobFrame).join("") + "</div></div></div></section>";
+}).join("");
+document.getElementById("toc").innerHTML = SECTIONS.map(function (s) { return '<a href="#' + s.id + '">' + s.title + "</a>"; }).join("");
+</script>
+</body>
+</html>

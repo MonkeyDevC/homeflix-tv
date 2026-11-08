@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HomeFlix · Preparador de videos</title>
+<link rel="icon" href="/logo.png">
+<style>
+  :root {
+    --bg: #111315; --panel: #1b1d21; --panel2: #23262b; --line: rgba(255,255,255,.12); --text: #f4f4f2;
+    --muted: #b9bcc0; --dim: #8a8e94; --gold: #e6c193; --gold-t: #d9b28a; --ok: #7fd18b; --warn: #f2c14e; --bad: #ff8a80;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 18px 28px; border-bottom: 1px solid var(--line); background: #0d0e10; position: sticky; top: 0; z-index: 5; }
+  header img { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #fff; background: #f4f4f2; object-fit: cover; object-position: 50% 6%; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 800; }
+  header h1 span { color: var(--gold-t); }
+  header .sub { color: var(--dim); font-size: 13px; }
+  header .badge { margin-left: auto; }
+  main { max-width: 1180px; margin: 0 auto; padding: 22px 28px 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  section.full { grid-column: 1 / -1; }
+  h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold-t); display: flex; align-items: center; gap: 8px; }
+  h2 .n { width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: #1b1b1b; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; letter-spacing: 0; }
+  label { display: block; color: var(--muted); font-size: 13px; margin: 10px 0 4px; }
+  input[type=text], input[type=number], textarea {
+    width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font: inherit;
+  }
+  textarea { min-height: 64px; resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row > .grow { flex: 1; }
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 9px 14px; white-space: nowrap; }
+  button:hover { border-color: var(--gold); }
+  button:disabled { opacity: .45; cursor: default; border-color: var(--line); }
+  button.primary { background: linear-gradient(180deg, #f0d2a8, #c99a66); color: #1b1b1b; font-weight: 800; border: none; padding: 13px 26px; font-size: 16px; }
+  button.danger { color: var(--bad); }
+  .seg { display: inline-flex; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 3px; flex-wrap: wrap; }
+  .seg button { border: none; background: transparent; padding: 6px 12px; color: var(--muted); }
+  .seg button.on { background: var(--gold); color: #1b1b1b; font-weight: 700; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 6px 0; color: var(--text); font-size: 14px; }
+  .check input { width: 17px; height: 17px; accent-color: #d9b28a; }
+  .check small { color: var(--dim); }
+  .info { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  .info div { background: var(--panel2); border-radius: 8px; padding: 8px 10px; }
+  .info b { display: block; font-size: 15px; }
+  .info span { color: var(--dim); font-size: 12px; }
+  .tracks { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .tracks h3 { margin: 6px 0 2px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .empty { color: var(--dim); font-size: 13px; }
+  .caption { margin-top: 12px; background: #0d0e10; border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; font-family: Consolas, monospace; font-size: 14px; word-break: break-all; }
+  .caption.none { border-color: var(--line); color: var(--dim); font-family: inherit; }
+  .q { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .qc { background: var(--panel2); border: 2px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; position: relative; }
+  .qc.on { border-color: var(--gold); }
+  .qc.off { opacity: .4; cursor: default; }
+  .qc .t { font-size: 22px; font-weight: 900; }
+  .qc .c { color: var(--dim); font-size: 12px; }
+  .qc .m { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .qc .parts { color: var(--gold-t); }
+  .qc input { position: absolute; right: 12px; top: 14px; width: 18px; height: 18px; accent-color: #d9b28a; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .pill.buena { background: rgba(127,209,139,.16); color: var(--ok); }
+  .pill.original { background: rgba(127,209,139,.16); color: var(--ok); }
+  .pill.aceptable { background: rgba(242,193,78,.16); color: var(--warn); }
+  .pill.baja { background: rgba(255,138,128,.16); color: var(--bad); }
+  .pill.gpu { background: rgba(127,209,139,.16); color: var(--ok); }
+  .pill.cpu { background: rgba(242,193,78,.16); color: var(--warn); }
+  .opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 22px; margin-top: 14px; }
+  .note { margin-top: 12px; border-radius: 10px; padding: 10px 14px; font-size: 13.5px; }
+  .note.warn { background: rgba(242,193,78,.1); border: 1px solid rgba(242,193,78,.4); }
+  .note.bad { background: rgba(255,138,128,.1); border: 1px solid rgba(255,138,128,.4); }
+  .note.ok { background: rgba(127,209,139,.08); border: 1px solid rgba(127,209,139,.35); }
+  .go { display: flex; align-items: center; gap: 16px; }
+  .go .sum { color: var(--muted); }
+  .prog .it { display: grid; grid-template-columns: 70px 1fr 260px; gap: 12px; align-items: center; margin: 10px 0; }
+  .prog .it b { font-size: 16px; }
+  .bar { height: 12px; background: var(--panel2); border-radius: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #c99a66, #f0d2a8); transition: width .4s; }
+  .it.done .bar i { background: var(--ok); }
+  .it.err .bar i { background: var(--bad); width: 100%; }
+  .prog .st { font-size: 13px; color: var(--muted); }
+  .log { margin-top: 10px; color: var(--dim); font-size: 13px; white-space: pre-wrap; }
+  .hidden { display: none !important; }
+  .steps { margin: 8px 0 0; padding-left: 20px; color: var(--muted); }
+  .steps li { margin: 4px 0; }
+  /* ----- 7. Publicar ----- */
+  .tg-acc { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .tg-acc .who { font-weight: 700; }
+  .tg-acc select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font: inherit; min-width: 260px; }
+  .qrbox { display: flex; gap: 22px; align-items: center; margin-top: 14px; background: var(--panel2); border-radius: 12px; padding: 16px; }
+  .qrbox .qr { width: 220px; height: 220px; background: #fff; border-radius: 10px; padding: 8px; flex: none; }
+  .qrbox .qr svg { width: 100%; height: 100%; display: block; }
+  .qrbox ol { margin: 0; padding-left: 20px; color: var(--muted); }
+  .qrbox ol li { margin: 5px 0; }
+  .pub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .imgc { background: var(--panel2); border-radius: 12px; padding: 12px; }
+  .imgc .hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .imgc .hd b { font-size: 15px; }
+  .imgc .hd small { color: var(--dim); }
+  .imgc .pic { margin-top: 10px; aspect-ratio: 16 / 9; border-radius: 8px; background: #0d0e10 center / cover no-repeat; border: 1px dashed var(--line); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 13px; text-align: center; padding: 10px; }
+  .imgc .pic.has { border-style: solid; color: transparent; }
+  .imgc .meta { margin-top: 6px; color: var(--dim); font-size: 12px; min-height: 16px; }
+  .imgc .meta.warn { color: var(--warn); }
+  /* vista previa de la TV (mismas proporciones que la app a 1920×1080) */
+  .tvprev { margin-top: 14px; display: grid; grid-template-columns: 3fr 1fr; gap: 14px; align-items: start; }
+  .tv { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #131518; container-type: inline-size; border: 1px solid var(--line); }
+  .tv .art { position: absolute; top: 0; right: 0; width: 70%; height: 72%; background: #22252a center / cover no-repeat; }
+  .tv .shade { position: absolute; inset: 0; background: linear-gradient(90deg, #131518 0%, #131518 30%, rgba(19,21,24,.85) 45%, rgba(19,21,24,.2) 70%, rgba(19,21,24,0) 100%), linear-gradient(0deg, #121417 28%, rgba(18,20,23,.7) 40%, rgba(18,20,23,0) 60%); }
+  .tv .top { position: absolute; left: 4.6cqw; top: 2.6cqw; display: flex; align-items: center; gap: 1cqw; font-weight: 800; font-size: 1.6cqw; }
+  .tv .top img { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; background: #f4f4f2; object-fit: cover; object-position: 50% 6%; }
+  .tv .top span { color: var(--gold-t); }
+  .tv .copy { position: absolute; left: 4.6cqw; bottom: 30%; width: 45cqw; }
+  .tv .chips { display: flex; gap: .6cqw; }
+  .tv .chip { background: linear-gradient(180deg,#f0d2a8,#c99a66); color: #2a1d0e; border-radius: 2cqw; padding: .25cqw .9cqw; font-size: .85cqw; font-weight: 800; letter-spacing: .08cqw; text-transform: uppercase; }
+  .tv .chip.dark { background: rgba(255,255,255,.14); color: #fff; }
+  .tv h3 { margin: 1cqw 0 0; font-size: 4.4cqw; line-height: 1; font-weight: 900; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; padding-bottom: .3cqw; }
+  .tv h3.long { font-size: 3.85cqw; }
+  .tv .m { margin-top: 1cqw; color: #b9bcc0; font-size: 1.2cqw; display: flex; gap: 1cqw; align-items: center; }
+  .tv .m b { color: var(--gold-t); }
+  .tv .m i { font-style: normal; border: .08cqw solid rgba(255,255,255,.4); border-radius: .3cqw; padding: 0 .5cqw; font-size: .95cqw; font-weight: 700; }
+  .tv p { margin: .9cqw 0 0; color: #d6d8db; font-size: 1.25cqw; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+  .tv .btns { display: flex; gap: .9cqw; margin-top: 1.6cqw; }
+  .tv .btns span { border-radius: 3cqw; padding: .9cqw 1.8cqw; font-size: 1.05cqw; font-weight: 800; border: .1cqw solid rgba(255,255,255,.6); }
+  .tv .btns span.p { background: linear-gradient(180deg,#f0d2a8,#c99a66); color: #2a1d0e; border-color: transparent; }
+  .tv .rowt { position: absolute; left: 4.6cqw; top: 76%; font-weight: 800; font-size: 1.5cqw; }
+  .tv .rowt small { color: var(--dim); font-weight: 400; font-size: 1cqw; margin-left: .6cqw; }
+  .tv .cards { position: absolute; left: 4.6cqw; top: 81%; display: flex; gap: 1.25cqw; }
+  .tv .cards div { width: 17.5cqw; aspect-ratio: 16 / 9; border-radius: .6cqw; background: #22252a center / cover no-repeat; }
+  .tv .cards div.ghost { opacity: .35; }
+  .cardprev .lbl { color: var(--dim); font-size: 12px; margin-bottom: 6px; }
+  .cardprev .art { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; background: #22252a center / cover no-repeat; box-shadow: 0 0 0 3px #fff, 0 0 0 6px rgba(230,193,147,.85); }
+  .cardprev .art span { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.6); border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .5px; }
+  .cardprev .t { margin-top: 12px; font-weight: 800; }
+  .cardprev .s { color: var(--dim); font-size: 12px; }
+  .cardprev .cats { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .cardprev .cats span { background: rgba(230,193,147,.14); color: var(--gold-t); border-radius: 12px; padding: 2px 9px; font-size: 12px; }
+  .files { margin-top: 10px; }
+  .fr { display: grid; grid-template-columns: 24px 96px 1fr 240px; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .fr:first-child { border-top: 0; }
+  .fr input { width: 17px; height: 17px; accent-color: #d9b28a; }
+  .fr .th { width: 96px; aspect-ratio: 16 / 9; border-radius: 6px; background: #0d0e10 center / cover no-repeat; }
+  .fr .nm { font-weight: 700; word-break: break-all; }
+  .fr .sub { color: var(--dim); font-size: 12px; }
+  .fr .cap { color: var(--muted); font-size: 12px; font-family: Consolas, monospace; margin-top: 3px; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .fr .cap:hover { -webkit-line-clamp: unset; }
+  .fr .stt { font-size: 13px; color: var(--muted); }
+  .fr .stt .bar { margin-top: 5px; height: 8px; }
+  .fr.done .stt { color: var(--ok); }
+  .fr.err .stt { color: var(--bad); }
+  .fr.dup { opacity: .65; }
+  .pwd { display: flex; gap: 8px; margin-top: 10px; }
+  .pwd input { width: 260px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } .q { grid-template-columns: 1fr 1fr; } .info { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="">
+  <div><h1>Home<span>Flix</span> · Preparador de videos</h1><div class="sub">Crea las versiones 4K, 1080p, 720p y 360p y publícalas en tu grupo de Telegram</div></div>
+  <span class="badge pill" id="encBadge"></span>
+</header>
+
+<main>
+  <!-- 1. Original -->
+  <section class="full">
+    <h2><span class="n">1</span>Video original</h2>
+    <div class="row">
+      <input type="text" id="file" class="grow" placeholder="Elige la película o el capítulo en la mejor calidad que tengas (por ejemplo, el 4K)">
+      <button id="pickFile">Elegir video…</button>
+    </div>
+    <div id="srcBox" class="hidden">
+      <div class="info" id="srcInfo"></div>
+      <div class="tracks">
+        <div><h3>Pistas de audio que se incluyen</h3><div id="audios"></div></div>
+        <div><h3>Subtítulos que se incluyen</h3><div id="subs"></div></div>
+      </div>
+    </div>
+    <div id="srcErr" class="note bad hidden"></div>
+  </section>
+
+  <!-- 2. Qué es -->
+  <section>
+    <h2><span class="n">2</span>¿Qué es?</h2>
+    <div class="seg" id="type"><button data-v="movie" class="on">Película</button><button data-v="series">Capítulo de serie</button></div>
+    <div class="grid2">
+      <div><label for="name" id="nameLabel">Nombre de la película</label><input type="text" id="name" placeholder="Toy Story 5"></div>
+      <div id="yearBox"><label for="year">Año</label><input type="number" id="year" min="1900" max="2100" placeholder="2026"></div>
+    </div>
+    <div class="grid3 hidden" id="seriesBox">
+      <div><label for="season">Temporada</label><input type="number" id="season" min="1" value="1"></div>
+      <div><label for="episode">Capítulo</label><input type="number" id="episode" min="1" value="1"></div>
+      <div><label for="episodeTitle">Nombre del capítulo (opcional)</label><input type="text" id="episodeTitle"></div>
+    </div>
+    <label for="description">Descripción (opcional, sale en la ficha)</label>
+    <textarea id="description" placeholder="De qué trata…"></textarea>
+    <label for="categories">Categorías (opcional, separadas por coma: cada una tiene su fila en la app)</label>
+    <input type="text" id="categories" placeholder="Marvel, Acción">
+    <label class="check"><input type="checkbox" id="kids"> Infantil <small>— la verá el perfil infantil</small></label>
+    <label>Comentario para Telegram (el mismo en todas las versiones)</label>
+    <div class="row"><div class="caption none grow" id="caption">Escribe el nombre para armarlo</div><button id="copyCaption" disabled>Copiar</button></div>
+  </section>
+
+  <!-- 4. Dónde -->
+  <section>
+    <h2><span class="n">3</span>Dónde guardar</h2>
+    <label for="outDir">Carpeta de salida</label>
+    <div class="row">
+      <input type="text" id="outDir" class="grow" placeholder="Por defecto, junto al original">
+      <button id="pickOut">Elegir carpeta…</button>
+    </div>
+    <div class="row" style="margin-top:8px"><button id="openOut">Abrir carpeta</button></div>
+    <h2 style="margin-top:22px"><span class="n">4</span>Opciones</h2>
+    <label>Tope por archivo (límite de Telegram)</label>
+    <div class="seg" id="limit"><button data-v="2" class="on">2 GB · normal</button><button data-v="4">4 GB · Telegram Premium</button></div>
+    <label>Si una calidad no cabe en un archivo</label>
+    <div class="seg" id="split"><button data-v="yes" class="on">Dividir en partes (recomendado)</button><button data-v="no">Bajar la calidad para que quepa</button></div>
+    <label>Calidad del 4K</label>
+    <div class="seg" id="k4"><button data-v="8">8 Mbps</button><button data-v="14" class="on">14 Mbps · recomendado</button><button data-v="20">20 Mbps · máxima</button></div>
+    <label>Audio</label>
+    <div class="seg" id="audioMode"><button data-v="auto" class="on">Original (copiar si se puede)</button><button data-v="aac">AAC estéreo (ocupa menos)</button></div>
+    <label>Formato</label>
+    <div class="seg" id="format"><button data-v="mp4" class="on">MP4 · recomendado</button><button data-v="mkv">MKV · con subtítulos en imagen</button></div>
+    <label>Codificar con</label>
+    <div class="seg" id="encoder"><button data-v="gpu" class="on">Tarjeta gráfica (rápido)</button><button data-v="cpu">Procesador (lento)</button></div>
+    <label class="check" style="margin-top:12px"><input type="checkbox" id="test"> Solo una prueba: los primeros <input type="number" id="testSec" value="60" min="5" style="width:80px;padding:4px 6px"> segundos</label>
+  </section>
+
+  <!-- 5. Calidades -->
+  <section class="full">
+    <h2><span class="n">5</span>Calidades de salida</h2>
+    <div class="q" id="quals"></div>
+    <div id="planNote"></div>
+  </section>
+
+  <!-- 6. Crear -->
+  <section class="full">
+    <div class="go">
+      <button class="primary" id="start" disabled>Crear versiones</button>
+      <button class="danger hidden" id="cancel">Cancelar</button>
+      <span class="sum" id="sum">Elige el video original para empezar.</span>
+    </div>
+    <div class="prog hidden" id="prog"></div>
+    <div class="log" id="log"></div>
+    <div id="doneBox" class="hidden"></div>
+  </section>
+
+  <!-- 7. Publicar -->
+  <section class="full" id="pubSec">
+    <h2><span class="n">7</span>Publicar en Telegram</h2>
+    <div class="tg-acc">
+      <span id="tgStatus" class="empty">Conectando con Telegram…</span>
+      <button id="tgLogin" class="hidden">Conectar mi Telegram</button>
+      <select id="tgChat" class="hidden"></select>
+      <button id="tgReload" class="hidden" title="Volver a leer tus chats">↻</button>
+      <button id="tgLogout" class="hidden">Cerrar sesión</button>
+    </div>
+    <div id="qrBox" class="qrbox hidden">
+      <div class="qr" id="qr"></div>
+      <div>
+        <b>Escanea este código con tu teléfono</b>
+        <ol><li>Abre Telegram en el teléfono.</li><li>Ajustes → Dispositivos → <b>Vincular un dispositivo</b>.</li><li>Apunta la cámara a este código.</li></ol>
+        <div id="qrMsg" class="log"></div>
+        <div id="pwdBox" class="pwd hidden"><input type="password" id="pwd" placeholder="Contraseña de verificación en dos pasos"><button id="pwdOk">Entrar</button></div>
+        <div class="row" style="margin-top:10px"><button id="qrCancel">Cancelar</button></div>
+      </div>
+    </div>
+
+    <label for="pubDir">Carpeta con las versiones a publicar</label>
+    <div class="row">
+      <input type="text" id="pubDir" class="grow" placeholder="La carpeta donde quedaron las versiones (se llena sola al terminar de crearlas)">
+      <button id="pickPub">Elegir carpeta…</button>
+      <button id="loadPub">Leer carpeta</button>
+    </div>
+    <div class="empty" style="margin-top:6px">El nombre, la descripción y las categorías salen de la sección 2 (¿Qué es?).</div>
+
+    <div class="pub-grid">
+      <div class="imgc">
+        <div class="hd"><div><b>Portada</b> <small>· tarjetas de las filas · 1280×720</small></div><div class="row"><button data-img="portada" class="pickImg">Elegir imagen…</button><button data-clear="portada" class="clearImg hidden">Quitar</button></div></div>
+        <div class="pic" id="pic-portada">Sin portada: la app usa una imagen del video</div>
+        <div class="meta" id="meta-portada">Horizontal 16:9. Deja lo importante en el centro; se recorta sola a la medida.</div>
+      </div>
+      <div class="imgc">
+        <div class="hd"><div><b>Banner</b> <small>· fondo del destacado y de la ficha · 1920×1080</small></div><div class="row"><button data-img="banner" class="pickImg">Elegir imagen…</button><button data-clear="banner" class="clearImg hidden">Quitar</button></div></div>
+        <div class="pic" id="pic-banner">Sin banner: la app usa la portada</div>
+        <div class="meta" id="meta-banner">Deja la mitad izquierda despejada u oscura: ahí va el texto.</div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:22px">Así se verá en la TV</h2>
+    <div class="tvprev">
+      <div class="tv" id="tv"></div>
+      <div class="cardprev" id="cardprev"></div>
+    </div>
+
+    <h2 style="margin-top:22px">Qué se va a publicar</h2>
+    <div class="files" id="pubFiles"><div class="empty">Lee la carpeta de las versiones para ver los archivos.</div></div>
+    <div class="go" style="margin-top:14px">
+      <button class="primary" id="pubStart" disabled>Publicar</button>
+      <button class="danger hidden" id="pubCancel">Detener</button>
+      <span class="sum" id="pubSum"></span>
+    </div>
+  </section>
+</main>
+
+<script src="/js/tg.bundle.js"></script>
+<script src="/js/config.js"></script>
+<script src="/js/telegram.js"></script>
+<script src="/js/library.js"></script>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var S = { src: null, type: "movie", limit: "2", split: "yes", k4: "14", audioMode: "auto", format: "mp4", encoder: "gpu", quals: { "2160": true, "1080": true, "720": true, "360": true },
+    audioTracks: null, subTracks: null, plan: [], busy: false, gpu: false, outTouched: false };
+  var NAMES = { "2160": "4K", "1080": "1080p", "720": "720p", "360": "360p" };
+  var CODEC = { "2160": "H.265 (HEVC)", "1080": "H.264", "720": "H.264", "360": "H.264" };
+  var LS = "hf.preparador";
+
+  function api(path, body) {
+    return fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw new Error(j.error || "Error"); } return j; }); });
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : Math.round(b / 1048576) + " MB"; }
+  function clock(s) { s = Math.max(0, Math.round(s)); var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); }
+  function mbps(k) { return (k / 1000).toFixed(k < 10000 ? 1 : 0) + " Mbps"; }
+
+  /* recordar opciones entre usos */
+  function saveOpts() {
+    try { localStorage.setItem(LS, JSON.stringify({ limit: S.limit, split: S.split, k4: S.k4, audioMode: S.audioMode, format: S.format, encoder: S.encoder, quals: S.quals })); } catch (e) {}
+  }
+  function loadOpts() {
+    try { var o = JSON.parse(localStorage.getItem(LS) || "null"); if (o) { ["limit", "split", "k4", "audioMode", "format", "encoder"].forEach(function (k) { if (o[k]) { S[k] = o[k]; } }); if (o.quals) { S.quals = o.quals; } } } catch (e) {}
+  }
+
+  function seg(id, key, after) {
+    var el = $(id);
+    function paint() { Array.prototype.forEach.call(el.children, function (b) { b.classList.toggle("on", b.getAttribute("data-v") === S[key]); }); }
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b || S.busy) { return; }
+      S[key] = b.getAttribute("data-v");
+      paint();
+      saveOpts();
+      if (after) { after(); }
+    });
+    paint();
+  }
+
+  function opts() {
+    return {
+      file: S.src ? S.src.file : "",
+      type: S.type, name: $("name").value, year: $("year").value, season: $("season").value, episode: $("episode").value,
+      episodeTitle: $("episodeTitle").value, description: $("description").value, kids: $("kids").checked, categories: $("categories").value,
+      qualities: Object.keys(S.quals).filter(function (k) { return S.quals[k]; }),
+      limitGb: Number(S.limit), split: S.split === "yes", k4Mbps: Number(S.k4), audioMode: S.audioMode, mkv: S.format === "mkv", encoder: S.encoder,
+      testSeconds: $("test").checked ? Math.max(5, Number($("testSec").value) || 60) : 0,
+      audioTracks: S.audioTracks, subTracks: S.subTracks,
+      outDir: $("outDir").value.trim()
+    };
+  }
+
+  /* ---------- 1. Original ---------- */
+  function loadSource(path) {
+    if (!path) { return; }
+    $("srcErr").classList.add("hidden");
+    $("sum").textContent = "Leyendo el video…";
+    api("/api/probe", { path: path }).then(function (r) {
+      var s = r.src;
+      S.src = s;
+      $("file").value = s.file;
+      if (!S.outTouched || !$("outDir").value) { $("outDir").value = r.outDir; }
+      S.audioTracks = s.audios.map(function (a) { return a.index; });
+      S.subTracks = s.subs.filter(function (x) { return x.text; }).map(function (x) { return x.index; });
+      if (!$("name").value && s.guess.name) { $("name").value = s.guess.name; }
+      if (!$("year").value && s.guess.year) { $("year").value = s.guess.year; }
+      var v = s.video;
+      $("srcInfo").innerHTML =
+        "<div><b>" + v.width + "×" + v.height + "</b><span>" + esc(v.codec.toUpperCase()) + (v.hdr ? " · HDR" : "") + "</span></div>" +
+        "<div><b>" + clock(s.duration) + "</b><span>duración</span></div>" +
+        "<div><b>" + mb(s.size) + "</b><span>" + esc(s.name) + "</span></div>" +
+        "<div><b>" + s.audios.length + " audio · " + s.subs.length + " subt.</b><span>" + (s.chapters ? s.chapters + " capítulos" : "sin capítulos") + "</span></div>";
+      renderTracks();
+      $("srcBox").classList.remove("hidden");
+      renderCaption();
+      refreshPlan();
+    }, function (e) {
+      S.src = null;
+      $("srcBox").classList.add("hidden");
+      $("srcErr").textContent = e.message;
+      $("srcErr").classList.remove("hidden");
+      $("sum").textContent = "Elige el video original para empezar.";
+      renderQuals();
+    });
+  }
+
+  function renderTracks() {
+    var s = S.src;
+    $("audios").innerHTML = s.audios.length ? s.audios.map(function (a) {
+      var desc = [a.lang ? a.lang.toUpperCase() : "", a.codec.toUpperCase(), a.channels >= 6 ? "5.1" : a.channels === 2 ? "estéreo" : a.channels + " canales", a.title].filter(Boolean).join(" · ");
+      var what = S.audioMode === "aac" || !a.copy ? "→ AAC estéreo" : "se copia";
+      return '<label class="check"><input type="checkbox" data-a="' + a.index + '"' + (S.audioTracks.indexOf(a.index) >= 0 ? " checked" : "") + "> " + esc(desc) + " <small>" + what + "</small></label>";
+    }).join("") : '<div class="empty">Sin audio</div>';
+    $("subs").innerHTML = s.subs.length ? s.subs.map(function (x) {
+      var usable = x.text || S.format === "mkv";
+      var desc = [x.lang ? x.lang.toUpperCase() : "", x.codec.toUpperCase(), x.title].filter(Boolean).join(" · ");
+      return '<label class="check"' + (usable ? "" : ' title="Los subtítulos en imagen solo caben en MKV"') + '><input type="checkbox" data-s="' + x.index + '"' +
+        (usable && S.subTracks.indexOf(x.index) >= 0 ? " checked" : "") + (usable ? "" : " disabled") + "> " + esc(desc) + (usable ? "" : " <small>solo en MKV</small>") + "</label>";
+    }).join("") : '<div class="empty">Sin subtítulos</div>';
+  }
+
+  $("audios").addEventListener("change", function (e) {
+    var i = Number(e.target.getAttribute("data-a"));
+    S.audioTracks = S.audioTracks.filter(function (x) { return x !== i; });
+    if (e.target.checked) { S.audioTracks.push(i); }
+    refreshPlan();
+  });
+  $("subs").addEventListener("change", function (e) {
+    var i = Number(e.target.getAttribute("data-s"));
+    S.subTracks = S.subTracks.filter(function (x) { return x !== i; });
+    if (e.target.checked) { S.subTracks.push(i); }
+  });
+
+  $("pickFile").addEventListener("click", function () {
+    var b = this;
+    b.disabled = true;
+    api("/api/pick-file", { start: $("file").value }).then(function (r) { b.disabled = false; if (r.path) { loadSource(r.path); } }, function () { b.disabled = false; });
+  });
+  $("file").addEventListener("change", function () { loadSource(this.value.trim().replace(/^"|"$/g, "")); });
+
+  /* ---------- 2. Qué es ---------- */
+  function renderCaption() {
+    var o = opts();
+    var name = o.name.replace(/#/g, "").trim();
+    var desc = o.description.replace(/#/g, "").trim();
+    var c = "";
+    if (name) {
+      if (o.type === "series") {
+        var ep = o.episodeTitle.replace(/#/g, "").trim();
+        c = "serie(" + (Number(o.season) || 1) + "/" + (Number(o.episode) || 1) + ")#" + name + (ep ? "#" + ep + "#" + desc : desc ? "#" + desc : "");
+      } else {
+        c = "pelicula#" + name + (Number(o.year) ? " (" + Number(o.year) + ")" : "") + (desc ? "#" + desc : "");
+      }
+      c += catTags(o.categories) + (o.kids ? " #infantil" : "");
+    }
+    $("caption").textContent = c || "Escribe el nombre para armarlo";
+    $("caption").classList.toggle("none", !c);
+    $("copyCaption").disabled = !c;
+    S.caption = c;
+    updateStart();
+    if (window.P) { P.refresh(); }
+  }
+  /* «Marvel, ciencia ficción» → « #Marvel #ciencia_ficción» (igual que prepare.mjs) */
+  function catTags(text) {
+    return String(text || "").split(",").map(function (c) { return c.replace(/#/g, "").trim().replace(/\s+/g, "_"); })
+      .filter(function (c) { return c && !/^(infantil|kids|ni[ñn]os|portada|poster|banner|fondo)$/i.test(c); })
+      .map(function (c) { return " #" + c; }).join("");
+  }
+  ["name", "year", "season", "episode", "episodeTitle", "description", "kids", "categories"].forEach(function (id) {
+    $(id).addEventListener("input", renderCaption);
+    $(id).addEventListener("change", renderCaption);
+  });
+  seg("type", "type", function () {
+    var series = S.type === "series";
+    $("seriesBox").classList.toggle("hidden", !series);
+    $("yearBox").classList.toggle("hidden", series);
+    $("nameLabel").textContent = series ? "Nombre de la serie" : "Nombre de la película";
+    renderCaption();
+  });
+  $("copyCaption").addEventListener("click", function () {
+    var b = this;
+    navigator.clipboard.writeText(S.caption).then(function () { b.textContent = "¡Copiado!"; setTimeout(function () { b.textContent = "Copiar"; }, 1500); });
+  });
+
+  /* ---------- 3/4. Dónde y opciones ---------- */
+  $("pickOut").addEventListener("click", function () {
+    var b = this;
+    b.disabled = true;
+    api("/api/pick-folder", { start: $("outDir").value }).then(function (r) { b.disabled = false; if (r.path) { $("outDir").value = r.path; S.outTouched = true; } }, function () { b.disabled = false; });
+  });
+  $("outDir").addEventListener("input", function () { S.outTouched = true; });
+  $("openOut").addEventListener("click", function () { api("/api/open", { path: $("outDir").value }); });
+  seg("limit", "limit", refreshPlan);
+  seg("split", "split", refreshPlan);
+  seg("k4", "k4", refreshPlan);
+  seg("audioMode", "audioMode", function () { if (S.src) { renderTracks(); } refreshPlan(); });
+  seg("format", "format", function () {
+    if (S.src) {
+      if (S.format === "mkv") { S.subTracks = S.src.subs.map(function (x) { return x.index; }); }
+      else { S.subTracks = S.subTracks.filter(function (i) { return S.src.subs.some(function (x) { return x.index === i && x.text; }); }); }
+      renderTracks();
+    }
+  });
+  seg("encoder", "encoder", updateEncBadge);
+  $("test").addEventListener("change", refreshPlan);
+  $("testSec").addEventListener("change", refreshPlan);
+
+  function updateEncBadge() {
+    var gpu = S.encoder === "gpu" && S.gpu;
+    $("encBadge").className = "badge pill " + (gpu ? "gpu" : "cpu");
+    $("encBadge").textContent = gpu ? "Tarjeta NVIDIA lista" : S.encoder === "gpu" ? "Sin tarjeta NVIDIA: usará el procesador" : "Procesador";
+  }
+
+  /* ---------- 5. Calidades ---------- */
+  var planTimer = null;
+  function refreshPlan() {
+    clearTimeout(planTimer);
+    planTimer = setTimeout(function () {
+      if (!S.src) { renderQuals(); return; }
+      var o = opts();
+      o.qualities = ["2160", "1080", "720", "360"]; // planear todas para mostrar cifras aunque estén desmarcadas
+      api("/api/plan", o).then(function (r) { S.plan = r.plan; renderQuals(); }, function () {});
+    }, 150);
+  }
+
+  function renderQuals() {
+    var ids = ["2160", "1080", "720", "360"];
+    $("quals").innerHTML = ids.map(function (id) {
+      var possible = S.src ? S.src.rungs.some(function (r) { return r.id === id && r.possible; }) : true;
+      var p = S.plan.filter(function (x) { return x.id === id; })[0];
+      var on = possible && S.quals[id];
+      var meta = !S.src ? "Elige el video" : !possible ? "El original es de menos resolución" :
+        p ? mbps(p.kbps) + " · ~" + mb(p.bytes) + (p.parts > 1 ? '<br><b class="parts">' + p.parts + " partes</b> de ~" + mb(p.partBytes) + " (" + clock(p.partSeconds) + ")" : "") + '<br><span class="pill ' + p.rating + '">' + (p.rating === "original" ? "Igual que el original" : p.rating === "buena" ? "Se verá bien" : p.rating === "aceptable" ? "Aceptable" : "Calidad baja") + "</span>" : "";
+      return '<div class="qc' + (on ? " on" : "") + (possible ? "" : " off") + '" data-q="' + id + '"><input type="checkbox"' + (on ? " checked" : "") + (possible ? "" : " disabled") + ">" +
+        '<div class="t">' + NAMES[id] + '</div><div class="c">' + CODEC[id] + (id === "2160" ? " · " + (S.split === "yes" ? S.k4 + " Mbps" : "lo más cerca del tope") : "") + '</div><div class="m">' + meta + "</div></div>";
+    }).join("");
+    renderPlanNote();
+    updateStart();
+  }
+
+  $("quals").addEventListener("click", function (e) {
+    var c = e.target.closest(".qc");
+    if (!c || c.classList.contains("off") || S.busy) { return; }
+    var id = c.getAttribute("data-q");
+    S.quals[id] = !S.quals[id];
+    saveOpts();
+    renderQuals();
+  });
+
+  function renderPlanNote() {
+    var el = $("planNote");
+    var k4 = S.plan.filter(function (p) { return p.id === "2160"; })[0];
+    var chosen = S.plan.filter(function (p) { return S.quals[p.id]; });
+    var split = chosen.filter(function (p) { return p.parts > 1; });
+    var lim = Number(S.limit);
+    var html = "";
+    if (!S.src || !chosen.length) { el.innerHTML = ""; return; }
+    if (split.length) {
+      html += '<div class="note ok"><b>' + split.map(function (p) { return p.name + " en " + p.parts + " partes"; }).join(", ") + ".</b> " +
+        "Así no se baja la calidad para caber en " + lim + " GB. Sube todas las partes con el mismo comentario y sin cambiarles el nombre: " +
+        "la TV las reproduce seguidas como una sola película (al pasar de una parte a otra hay una pausa de un par de segundos).</div>";
+    }
+    if (k4 && S.quals["2160"] && k4.rating !== "buena") {
+      html += '<div class="note ' + (k4.rating === "baja" ? "bad" : "warn") + '"><b>El 4K quedará en ' + mbps(k4.kbps) + ".</b> Para que un 4K se vea bien hacen falta unos 12 Mbps; en " + clock(S.src.duration) +
+        " de video, un solo archivo de " + lim + " GB no da para más. " +
+        (S.split !== "yes" ? "Elige «Dividir en partes» para conservar la calidad. " : "") +
+        "En películas largas, el 1080p suele verse mejor que un 4K tan comprimido.</div>";
+    } else if (k4 && S.quals["2160"] && k4.parts === 1) {
+      html += '<div class="note ok">El 4K queda en ' + mbps(k4.kbps) + " (~" + mb(k4.bytes) + "): se verá bien.</div>";
+    }
+    el.innerHTML = html;
+  }
+
+  function updateStart() {
+    var chosen = Object.keys(S.quals).filter(function (k) { return S.quals[k] && S.src && S.src.rungs.some(function (r) { return r.id === k && r.possible; }); });
+    var ready = !!S.src && chosen.length > 0 && !S.busy;
+    $("start").disabled = !ready;
+    if (S.busy) { return; }
+    if (!S.src) { $("sum").textContent = "Elige el video original para empezar."; return; }
+    if (!chosen.length) { $("sum").textContent = "Marca al menos una calidad."; return; }
+    var total = S.plan.filter(function (p) { return S.quals[p.id]; }).reduce(function (n, p) { return n + p.bytes; }, 0);
+    var nfiles = S.plan.filter(function (p) { return S.quals[p.id]; }).reduce(function (n, p) { return n + p.parts; }, 0);
+    $("sum").textContent = chosen.length + (chosen.length === 1 ? " versión" : " versiones") + (nfiles > chosen.length ? " (" + nfiles + " archivos)" : "") + " · unos " + mb(total) + " en total" +
+      ($("test").checked ? " · PRUEBA de " + (Number($("testSec").value) || 60) + " s" : "") + (S.caption ? "" : " · falta el nombre (el comentario lo puedes poner luego)");
+  }
+
+  /* ---------- 6. Crear ---------- */
+  $("start").addEventListener("click", function () {
+    var o = opts();
+    o.qualities = o.qualities.filter(function (k) { return S.src.rungs.some(function (r) { return r.id === k && r.possible; }); });
+    if (o.encoder === "gpu" && !S.gpu) { o.encoder = "cpu"; }
+    $("log").textContent = "";
+    $("doneBox").classList.add("hidden");
+    api("/api/start", o).then(function () { setBusy(true); }, function (e) { $("log").textContent = e.message; });
+  });
+  $("cancel").addEventListener("click", function () {
+    if (confirm("¿Detener y borrar la versión que se está creando? Las que ya terminaron se quedan.")) { api("/api/cancel", {}); }
+  });
+
+  function setBusy(b) {
+    S.busy = b;
+    $("start").classList.toggle("hidden", b);
+    $("cancel").classList.toggle("hidden", !b);
+    document.querySelectorAll("main input, main textarea, #pickFile, #pickOut").forEach(function (el) { el.disabled = b; });
+    if (!b) {
+      document.querySelectorAll("main input, main textarea, #pickFile, #pickOut").forEach(function (el) { el.disabled = false; });
+      if (S.src) { renderTracks(); renderQuals(); }
+    }
+    updateStart();
+  }
+
+  var steps = [];
+  var t0 = 0;
+  function onEvent(ev) {
+    var row;
+    if (ev.type === "start") {
+      steps = ev.steps;
+      t0 = Date.now();
+      $("prog").innerHTML = steps.map(function (p, i) {
+        return '<div class="it" id="it' + i + '"><b>' + p.name + '</b><div class="bar"><i></i></div><div class="st">En espera · ' + mbps(p.kbps) + (p.parts > 1 ? " · " + p.parts + " partes" : "") + "</div></div>";
+      }).join("");
+      $("prog").classList.remove("hidden");
+      $("sum").textContent = "Creando " + steps.length + (steps.length === 1 ? " versión" : " versiones") + " con " + (ev.gpu ? "la tarjeta NVIDIA" : "el procesador") + "…";
+      $("log").textContent = "Carpeta: " + ev.outDir;
+      setBusy(true);
+    } else if (ev.type === "rung-start") {
+      row = $("it" + ev.index);
+      if (row) { row.querySelector(".st").textContent = "Empezando · " + mbps(ev.kbps); }
+    } else if (ev.type === "progress") {
+      row = $("it" + ev.index);
+      if (row) {
+        row.querySelector("i").style.width = ev.pct.toFixed(1) + "%";
+        row.querySelector(".st").textContent = (ev.parts > 1 ? "Parte " + (ev.part + 1) + " de " + ev.parts + " · " : "") + ev.pct.toFixed(1) + " % · faltan ~" + clock(ev.left) + (ev.speed ? " · " + ev.speed : "");
+      }
+    } else if (ev.type === "retry") {
+      row = $("it" + ev.index);
+      if (row) { row.querySelector(".st").textContent = (ev.part !== undefined ? "Parte " + (ev.part + 1) + ": " : "") + "salió de " + mb(ev.size) + ", rehaciendo a " + mbps(ev.kbps) + " para que quepa"; }
+    } else if (ev.type === "rung-done") {
+      row = $("it" + ev.index);
+      if (row) {
+        row.classList.add("done");
+        row.querySelector("i").style.width = "100%";
+        row.querySelector(".st").innerHTML = "✓ " + mb(ev.size) + (ev.parts > 1 ? " en " + ev.parts + " partes" : "") + (ev.over ? ' <span class="pill baja">pasa del tope</span>' : "");
+      }
+    } else if (ev.type === "rung-error") {
+      row = $("it" + ev.index);
+      if (row) { row.classList.add("err"); row.querySelector(".st").textContent = "✖ Falló"; }
+      $("log").textContent += "\n" + NAMES[ev.id] + ": " + ev.message;
+    } else if (ev.type === "done") {
+      setBusy(false);
+      $("sum").textContent = "Listo en " + clock((Date.now() - t0) / 1000) + ".";
+      $("doneBox").innerHTML = '<div class="note ok"><b>¡Versiones listas!</b> Están en <b>' + esc(ev.outDir) + "</b>. " +
+        "Para subirlas, baja a <b>7 · Publicar en Telegram</b>: ya quedaron cargadas ahí." +
+        '<div class="row" style="margin-top:12px"><button id="openDone">Abrir la carpeta</button><button id="goPub">Ir a publicar</button></div></div>';
+      $("doneBox").classList.remove("hidden");
+      $("openDone").addEventListener("click", function () { api("/api/open", { path: ev.outDir }); });
+      $("goPub").addEventListener("click", function () { $("pubSec").scrollIntoView({ behavior: "smooth" }); });
+      P.loadDir(ev.outDir);
+    } else if (ev.type === "cancelled") {
+      setBusy(false);
+      $("sum").textContent = "Cancelado.";
+    } else if (ev.type === "error") {
+      setBusy(false);
+      $("sum").textContent = "No se pudo terminar.";
+      $("log").textContent += "\n" + ev.message;
+    }
+  }
+
+  /* ---------- 7. Publicar en Telegram ----------
+   * La página sube los archivos directo a Telegram con el mismo motor que la app (js/tg.bundle.js).
+   * El servidor solo entrega las versiones de la carpeta y arma portada y banner a la medida. */
+  var VIDEO_F = { _: "inputMessagesFilterVideo" };
+  var DOCS_F = { _: "inputMessagesFilterDocument" };
+  var PHOTO_F = { _: "inputMessagesFilterPhotos" };
+  var CHAT_LS = "hf.preparador.chat";
+  var T = { client: null, me: null, chats: [], peer: null, qrAbort: null, pwdWait: null, existing: null, busy: false, abort: null };
+  var PUB = { dir: "", files: [], img: {}, state: {} };
+
+  function setTgStatus(html, cls) {
+    $("tgStatus").innerHTML = html;
+    $("tgStatus").className = cls || "";
+  }
+
+  function tgClient() {
+    if (T.client) { return Promise.resolve(T.client); }
+    var key = window.HFTelegram && HFTelegram.credentials();
+    if (!window.TGLib) { return Promise.reject(new Error("No se cargó el motor de Telegram.")); }
+    if (!key) { return Promise.reject(new Error("Falta la clave de la API de Telegram (archivo .env del proyecto).")); }
+    return TGLib.create(key.id, key.hash, "direct", "hf-preparador").then(function (r) {
+      T.client = r.client;
+      return T.client.connect().then(function () { return T.client; });
+    });
+  }
+
+  function tgCheck() {
+    setTgStatus("Conectando con Telegram…", "empty");
+    tgClient().then(function (c) {
+      return c.getMe().then(function (u) { T.me = u; }, function () { T.me = null; });
+    }).then(function () {
+      renderTg();
+      if (T.me) { loadChats(); }
+    }, function (e) {
+      setTgStatus("No pude conectar con Telegram: " + esc(e.message), "");
+    });
+  }
+
+  function renderTg() {
+    var on = !!T.me;
+    var qr = !$("qrBox").classList.contains("hidden");
+    $("tgLogin").classList.toggle("hidden", on || qr);
+    $("tgChat").classList.toggle("hidden", !on);
+    $("tgReload").classList.toggle("hidden", !on);
+    $("tgLogout").classList.toggle("hidden", !on);
+    if (on) {
+      setTgStatus('Cuenta <span class="who">' + esc(T.me.displayName || T.me.username || "Telegram") + "</span> · publicar en", "");
+    } else if (!qr) {
+      setTgStatus("Conecta tu cuenta de Telegram para publicar desde aquí (solo la primera vez).", "empty");
+    }
+    updatePub();
+  }
+
+  $("tgLogin").addEventListener("click", function () {
+    var c = T.client;
+    if (!c) { return; }
+    T.qrAbort = new AbortController();
+    $("qrBox").classList.remove("hidden");
+    $("tgLogin").classList.add("hidden");
+    $("qrMsg").textContent = "";
+    setTgStatus("Esperando que escanees el código…", "empty");
+    c.signInQr({
+      onUrlUpdated: function (url) { $("qr").innerHTML = TGLib.qrSvg(url, 6); },
+      onQrScanned: function () { $("qrMsg").textContent = "Código escaneado, entrando…"; },
+      password: function () {
+        $("pwdBox").classList.remove("hidden");
+        $("qrMsg").textContent = "Tu cuenta tiene verificación en dos pasos: escribe tu contraseña de Telegram.";
+        $("pwd").focus();
+        return new Promise(function (ok) { T.pwdWait = ok; });
+      },
+      invalidPasswordCallback: function () {
+        $("qrMsg").textContent = "Esa contraseña no es correcta. Inténtalo otra vez.";
+        $("pwd").value = "";
+      },
+      abortSignal: T.qrAbort.signal
+    }).then(function (u) {
+      T.me = u;
+      closeQr();
+      loadChats();
+    }, function (e) {
+      if (!T.qrAbort || !T.qrAbort.signal.aborted) { $("qrMsg").textContent = "No se pudo entrar: " + (e.message || e); }
+    });
+  });
+  function sendPwd() {
+    if (T.pwdWait) {
+      var f = T.pwdWait;
+      T.pwdWait = null;
+      f($("pwd").value);
+      $("pwd").value = "";
+      $("pwdBox").classList.add("hidden");
+      $("qrMsg").textContent = "Comprobando…";
+    }
+  }
+  $("pwdOk").addEventListener("click", sendPwd);
+  $("pwd").addEventListener("keydown", function (e) { if (e.key === "Enter") { sendPwd(); } });
+  function closeQr() {
+    $("qrBox").classList.add("hidden");
+    $("pwdBox").classList.add("hidden");
+    $("qr").innerHTML = "";
+    renderTg();
+  }
+  $("qrCancel").addEventListener("click", function () { if (T.qrAbort) { T.qrAbort.abort(); } closeQr(); });
+  $("tgLogout").addEventListener("click", function () {
+    if (T.busy || !confirm("¿Cerrar la sesión de Telegram en este preparador? La TV no se ve afectada.")) { return; }
+    T.client.logOut().then(function () {}, function () {}).then(function () {
+      T.me = null; T.peer = null; T.chats = []; T.client = null; T.existing = null;
+      renderTg();
+      tgCheck();
+    });
+  });
+  $("tgReload").addEventListener("click", function () { loadChats(); });
+
+  function chatKind(p) {
+    if (p.isSelf) { return "tus mensajes"; }
+    return p.chatType === "channel" ? "canal" : "grupo";
+  }
+
+  function loadChats() {
+    var c = T.client;
+    var list = [];
+    $("tgChat").innerHTML = "<option>Leyendo tus chats…</option>";
+    (async function () {
+      for await (var d of c.iterDialogs({ limit: 300, archived: "exclude" })) {
+        var p = d.peer;
+        if (p.isSelf || p.type === "chat") { list.push(p); }
+      }
+    })().then(function () {
+      var saved = "";
+      try { saved = localStorage.getItem(CHAT_LS) || ""; } catch (e) {}
+      T.chats = list;
+      $("tgChat").innerHTML = '<option value="">— Elige el grupo de tu biblioteca —</option>' + list.map(function (p) {
+        return '<option value="' + esc(String(p.id)) + '"' + (String(p.id) === saved ? " selected" : "") + ">" +
+          esc(p.isSelf ? "Mensajes guardados" : (p.title || p.displayName)) + " · " + chatKind(p) + "</option>";
+      }).join("");
+      pickChat();
+    }, function (e) {
+      $("tgChat").innerHTML = "<option>No pude leer tus chats: " + esc(e.message) + "</option>";
+    });
+  }
+
+  $("tgChat").addEventListener("change", function () {
+    try { localStorage.setItem(CHAT_LS, this.value); } catch (e) {}
+    pickChat();
+  });
+
+  function pickChat() {
+    var id = $("tgChat").value;
+    var p = T.chats.filter(function (x) { return String(x.id) === id; })[0] || null;
+    /* Un grupo que Telegram pasó a supergrupo queda congelado (publicar ahí da PEER_ID_INVALID): se publica en el
+     * supergrupo nuevo y lo del grupo viejo cuenta para no subir dos veces. */
+    var to = p && p.raw && p.raw.migratedTo;
+    var moved = to && to.channelId ? T.chats.filter(function (x) { return String(x.id) === String(-(1000000000000 + Number(to.channelId))); })[0] : null;
+    T.oldPeer = moved ? p : null;
+    if (moved) {
+      p = moved;
+      $("tgChat").value = String(p.id);
+      try { localStorage.setItem(CHAT_LS, String(p.id)); } catch (e) {}
+    }
+    T.peer = p;
+    T.existing = null;
+    Object.keys(PUB.state).forEach(function (k) { if (PUB.state[k].dup) { delete PUB.state[k]; } });
+    renderFiles();
+    if (T.peer) { checkExisting(); }
+  }
+
+  /* Lo que ya está en el grupo: videos por nombre y tamaño, fotos por comentario. Así no se sube dos veces
+   * (por ejemplo, si se cortó la luz a mitad: al volver a publicar solo sube lo que falta). */
+  function checkExisting() {
+    var c = T.client;
+    var peer = T.peer;
+    var ex = { videos: {}, photos: {} };
+    $("pubSum").textContent = "Revisando lo que ya está en el grupo…";
+    var peers = [peer].concat(T.oldPeer ? [T.oldPeer] : []);
+    Promise.all([VIDEO_F, DOCS_F, PHOTO_F].map(function (f) {
+      return Promise.all(peers.map(function (pp) { return c.searchMessages({ chatId: pp, filter: f, limit: 100 }); }))
+        .then(function (lists) { return [].concat.apply([], lists); });
+    })).then(function (res) {
+      if (peer !== T.peer) { return; }
+      res[0].concat(res[1]).forEach(function (m) {
+        var d = m.media;
+        if (d && d.fileName) { ex.videos[d.fileName + "|" + d.fileSize] = m.id; }
+      });
+      res[2].forEach(function (m) { ex.photos[String(m.text || "").trim()] = m.id; });
+      T.existing = ex;
+      PUB.files.forEach(function (f) {
+        var st = PUB.state[f.key];
+        if (ex.videos[f.name + "|" + f.size] && (!st || st.state !== "listo")) { PUB.state[f.key] = { on: false, dup: true }; }
+      });
+      renderFiles();
+    }, function (e) {
+      $("pubSum").textContent = "No pude revisar el grupo: " + e.message;
+    });
+  }
+
+  /* ----- carpeta e imágenes ----- */
+  function fillFromCaption(c) {
+    var series = c.type === "series";
+    var typeBtn = document.querySelector('#type [data-v="' + (series ? "series" : "movie") + '"]');
+    if (typeBtn) { typeBtn.click(); }
+    $("name").value = c.name || "";
+    $("year").value = c.year || "";
+    $("season").value = c.season || 1;
+    $("episode").value = c.episode || 1;
+    $("episodeTitle").value = c.episodeTitle || "";
+    $("description").value = c.description || "";
+    $("categories").value = (c.categories || []).join(", ");
+    $("kids").checked = !!c.kids;
+    renderCaption();
+  }
+
+  function loadDir(dir) {
+    dir = String(dir || "").trim().replace(/^"|"$/g, "");
+    if (!dir) { return; }
+    $("pubDir").value = dir;
+    $("pubFiles").innerHTML = '<div class="empty">Leyendo la carpeta…</div>';
+    api("/api/versions", { dir: dir }).then(function (r) {
+      PUB.dir = r.dir;
+      PUB.files = r.files.map(function (f) { f.key = "v" + f.id; return f; });
+      PUB.state = {};
+      ["portada", "banner"].forEach(function (k) { if (r.images[k] && !PUB.img[k]) { PUB.img[k] = r.images[k]; } });
+      /* sin datos en la sección 2: se toman del comentario que dejó el preparador, o del nombre de los archivos («Nombre (2021) [1080p].mp4») */
+      var saved = !$("name").value && r.caption && window.HFLibrary ? HFLibrary.parseCaption(r.caption) : null;
+      if (saved) { fillFromCaption(saved); }
+      else if (!$("name").value && PUB.files.length) {
+        var base = PUB.files[0].name.replace(/\s*\[.*$/, "").replace(/\.[^.]+$/, "");
+        var y = /\((\d{4})\)\s*$/.exec(base);
+        $("name").value = base.replace(/\s*\(\d{4}\)\s*$/, "").trim();
+        if (y && !$("year").value) { $("year").value = y[1]; }
+        renderCaption();
+      }
+      renderImages();
+      if (T.peer) { checkExisting(); } else { renderFiles(); }
+    }, function (e) {
+      PUB.files = [];
+      $("pubFiles").innerHTML = '<div class="note bad">' + esc(e.message) + "</div>";
+      updatePub();
+    });
+  }
+  $("loadPub").addEventListener("click", function () { loadDir($("pubDir").value); });
+  $("pubDir").addEventListener("change", function () { loadDir(this.value); });
+  $("pickPub").addEventListener("click", function () {
+    var b = this;
+    b.disabled = true;
+    api("/api/pick-folder", { start: $("pubDir").value || $("outDir").value }).then(function (r) { b.disabled = false; if (r.path) { loadDir(r.path); } }, function () { b.disabled = false; });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".pickImg"), function (b) {
+    b.addEventListener("click", function () {
+      var kind = b.getAttribute("data-img");
+      if (T.busy) { return; }
+      b.disabled = true;
+      api("/api/pick-image", { start: PUB.dir || $("outDir").value }).then(function (r) {
+        if (!r.path) { b.disabled = false; return null; }
+        $("meta-" + kind).textContent = "Ajustando la imagen…";
+        return api("/api/image", { path: r.path, kind: kind, outDir: PUB.dir || $("outDir").value }).then(function (info) {
+          b.disabled = false;
+          PUB.img[kind] = info;
+          PUB.state["img-" + kind] = { on: true };
+          renderImages();
+          renderFiles();
+        });
+      }).catch(function (e) {
+        b.disabled = false;
+        $("meta-" + kind).textContent = e.message;
+        $("meta-" + kind).className = "meta warn";
+      });
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".clearImg"), function (b) {
+    b.addEventListener("click", function () {
+      var k = b.getAttribute("data-clear");
+      if (T.busy) { return; }
+      delete PUB.img[k];
+      delete PUB.state["img-" + k];
+      renderImages();
+      renderFiles();
+    });
+  });
+
+  function imgUrl(i) { return i ? "/api/media/" + i.id + "?t=" + Math.round(i.at || 0) : ""; }
+
+  function renderImages() {
+    ["portada", "banner"].forEach(function (k) {
+      var i = PUB.img[k];
+      var pic = $("pic-" + k);
+      var meta = $("meta-" + k);
+      var need = k === "portada" ? [1280, 720] : [1920, 1080];
+      pic.classList.toggle("has", !!i);
+      pic.style.backgroundImage = i ? "url('" + imgUrl(i) + "')" : "";
+      document.querySelector('[data-clear="' + k + '"]').classList.toggle("hidden", !i);
+      if (i) {
+        var small = i.srcWidth && (i.srcWidth < need[0] * 0.75 || i.srcHeight < need[1] * 0.75);
+        var vertical = i.srcWidth && i.srcHeight > i.srcWidth;
+        meta.className = "meta" + (small || vertical ? " warn" : "");
+        meta.textContent = (i.srcWidth ? "Original " + i.srcWidth + "×" + i.srcHeight + " → " : "") + i.width + "×" + i.height + " JPG · " + Math.round(i.size / 1024) + " KB" +
+          (vertical ? " · era vertical: se recortó arriba y abajo" : small ? " · es pequeña, puede verse borrosa" : "");
+      } else {
+        meta.className = "meta";
+        meta.textContent = k === "portada" ? "Horizontal 16:9. Deja lo importante en el centro; se recorta sola a la medida." : "Deja la mitad izquierda despejada u oscura: ahí va el texto.";
+      }
+    });
+    renderPreview();
+  }
+
+  /* ----- vista previa como en la TV ----- */
+  function titleInfo() {
+    var parsed = S.caption && window.HFLibrary ? HFLibrary.parseCaption(S.caption) : null;
+    var vids = PUB.files;
+    var single = vids.filter(function (f) { return !f.parts; });
+    var parted = vids.filter(function (f) { return f.parts; });
+    var dur = single.reduce(function (n, f) { return Math.max(n, f.duration); }, 0);
+    if (!dur && parted.length) {
+      var q = parted[0].rung;
+      dur = parted.filter(function (f) { return f.rung === q; }).reduce(function (n, f) { return n + f.duration; }, 0);
+    }
+    var top = vids.reduce(function (n, f) { return Math.max(n, f.rung); }, 0);
+    return { p: parsed, dur: dur, q: top >= 2000 ? "4K" : top ? top + "p" : "" };
+  }
+  function fmtDur(s) { s = Math.round(s / 60); return s >= 60 ? Math.floor(s / 60) + " h " + (s % 60) + " min" : s + " min"; }
+
+  function renderPreview() {
+    var ti = titleInfo();
+    var p = ti.p;
+    var name = p ? p.name : ($("name").value || "Nombre de la película");
+    var desc = p ? p.description : $("description").value;
+    var series = S.type === "series";
+    var thumb = PUB.files.filter(function (f) { return f.thumb; })[0];
+    var poster = PUB.img.portada ? imgUrl(PUB.img.portada) : thumb ? "/api/media/" + thumb.thumb : "";
+    var banner = PUB.img.banner ? imgUrl(PUB.img.banner) : poster;
+    var cats = p ? p.categories.concat(p.kids ? ["Infantil"] : []) : [];
+    var meta = series ? "<b>T" + (Number($("season").value) || 1) + ":E" + (Number($("episode").value) || 1) + "</b>" + (ti.dur ? "<span>" + fmtDur(ti.dur) + "</span>" : "") :
+      (p && p.year ? "<b>" + p.year + "</b>" : "") + (ti.dur ? "<span>" + fmtDur(ti.dur) + "</span>" : "") + (ti.q ? "<i>" + ti.q + "</i>" : "");
+    $("tv").innerHTML = '<div class="art" style="background-image:' + (banner ? "url('" + banner + "')" : "none") + '"></div><div class="shade"></div>' +
+      '<div class="top"><img src="/logo.png" alt=""><b>Home<span>Flix</span></b></div>' +
+      '<div class="copy"><div class="chips"><span class="chip">' + (series ? "Serie" : "Película") + '</span><span class="chip dark">Nuevo</span>' + (p && p.kids ? '<span class="chip dark">Infantil</span>' : "") + "</div>" +
+      "<h3" + (name.length > 20 ? ' class="long"' : "") + ">" + esc(name) + '</h3><div class="m">' + meta + "</div>" + (desc ? "<p>" + esc(desc) + "</p>" : "") +
+      '<div class="btns"><span class="p">▶ Reproducir</span><span>ⓘ Más info</span></div></div>' +
+      '<div class="rowt">' + esc(cats[0] || "Agregados recientemente") + "<small>" + (cats.length ? "categoría" : "") + "</small></div>" +
+      '<div class="cards"><div style="background-image:' + (poster ? "url('" + poster + "')" : "none") + '"></div><div class="ghost"></div><div class="ghost"></div><div class="ghost"></div></div>';
+    $("cardprev").innerHTML = '<div class="lbl">Tarjeta con el foco</div><div class="art" style="background-image:' + (poster ? "url('" + poster + "')" : "none") + '"><span>' + (series ? "SERIE" : "PELÍCULA") + "</span></div>" +
+      '<div class="t">' + esc(name) + '</div><div class="s">' + [p && p.year, ti.dur ? fmtDur(ti.dur) : "", ti.q].filter(Boolean).join(" · ") + "</div>" +
+      (cats.length ? '<div class="cats">' + cats.map(function (c) { return "<span>" + esc(c) + "</span>"; }).join("") + "</div>" : "") +
+      (!S.caption ? '<div class="note warn">Escribe el nombre en la sección 2.</div>' : !p ? '<div class="note bad">La app no entendería este comentario.</div>' : "");
+  }
+
+  /* ----- lista de lo que se publica ----- */
+  function photoCaption(kind) {
+    var name = $("name").value.replace(/#/g, "").trim();
+    if (!name) { return ""; }
+    return (S.type === "series" ? "serie#" + name : "pelicula#" + name + (Number($("year").value) ? " (" + Number($("year").value) + ")" : "")) + " #" + kind;
+  }
+
+  function items() {
+    var out = [];
+    ["portada", "banner"].forEach(function (k) {
+      if (!PUB.img[k]) { return; }
+      var cap = photoCaption(k);
+      var dup = !!(T.existing && T.existing.photos[cap]);
+      var st = PUB.state["img-" + k];
+      if (!st || (st.dup !== undefined && st.dup !== dup && !st.state)) { st = PUB.state["img-" + k] = { on: !dup, dup: dup }; }
+      out.push({ key: "img-" + k, kind: "photo", img: PUB.img[k], label: k === "portada" ? "Portada" : "Banner", sub: "Foto · " + PUB.img[k].width + "×" + PUB.img[k].height, caption: cap, st: st, thumb: imgUrl(PUB.img[k]) });
+    });
+    var maxBytes = (T.me && T.me.isPremium ? 4000 : 2000) * 1048576; // lo más que Telegram acepta por archivo
+    PUB.files.forEach(function (f) {
+      var st = PUB.state[f.key] || (PUB.state[f.key] = { on: true });
+      st.big = f.size > maxBytes ? maxBytes : 0;
+      if (st.big && st.state !== "listo") { st.on = false; }
+      out.push({
+        key: f.key, kind: "video", f: f, label: f.name, caption: S.caption, st: st, thumb: f.thumb ? "/api/media/" + f.thumb : "",
+        sub: (f.rung >= 2000 ? "4K" : f.rung + "p") + (f.parts ? " · parte " + f.part + " de " + f.parts : "") + " · " + clock(f.duration) + " · " + mb(f.size) +
+          (f.mime === "video/mp4" ? " · video con streaming" : " · se envía como archivo")
+      });
+    });
+    return out;
+  }
+
+  function stateText(it) {
+    var st = it.st;
+    if (st.state === "subiendo") {
+      var pct = it.f ? Math.min(100, (st.sent || 0) / it.f.size * 100) : 0;
+      return (it.f ? pct.toFixed(1) + " % · " + mb(st.sent || 0) + (st.speed ? " · " + st.speed : "") : "Subiendo…") + '<div class="bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>';
+    }
+    if (st.state === "enviando") { return "Publicando…"; }
+    if (st.state === "listo") { return "✓ Publicado"; }
+    if (st.state === "error") { return "✖ " + esc(st.error); }
+    if (st.big) { return "✖ Pesa más de " + mb(st.big) + ", lo máximo que Telegram acepta: vuelve a crear esta versión"; }
+    if (st.dup) { return st.on ? (it.kind === "photo" ? "Ya hay una; la nueva la reemplazará" : "Ya está en el grupo; se subirá otra vez") : (it.kind === "photo" ? "Ya hay una en el grupo · márcala para reemplazarla" : "Ya está en el grupo"); }
+    return st.on ? "Pendiente" : "No se publica";
+  }
+
+  function renderFiles() {
+    var list = items();
+    if (!list.length) {
+      $("pubFiles").innerHTML = '<div class="empty">' + (PUB.dir ? "No hay versiones en esa carpeta." : "Lee la carpeta de las versiones para ver los archivos.") + "</div>";
+      updatePub();
+      return;
+    }
+    $("pubFiles").innerHTML = list.map(function (it) {
+      var st = it.st;
+      return '<div class="fr' + (st.state === "listo" ? " done" : st.state === "error" || st.big ? " err" : st.dup && !st.on ? " dup" : "") + '" id="fr-' + it.key + '">' +
+        '<input type="checkbox" data-k="' + it.key + '"' + (st.on ? " checked" : "") + (T.busy || st.state === "listo" || st.big ? " disabled" : "") + ">" +
+        '<div class="th" style="background-image:' + (it.thumb ? "url('" + it.thumb + "')" : "none") + '"></div>' +
+        '<div><div class="nm">' + esc(it.label) + '</div><div class="sub">' + esc(it.sub) + '</div><div class="cap">' + esc(it.caption || "(falta el nombre en la sección 2)") + "</div></div>" +
+        '<div class="stt">' + stateText(it) + "</div></div>";
+    }).join("");
+    updatePub();
+  }
+
+  $("pubFiles").addEventListener("change", function (e) {
+    var k = e.target.getAttribute("data-k");
+    if (!k || !PUB.state[k]) { return; }
+    PUB.state[k].on = e.target.checked;
+    renderFiles();
+  });
+
+  function paintRow(it) {
+    var row = $("fr-" + it.key);
+    if (row) { row.querySelector(".stt").innerHTML = stateText(it); }
+  }
+
+  function updatePub() {
+    var list = items().filter(function (it) { return it.st.on && it.st.state !== "listo"; });
+    var bytes = list.reduce(function (n, it) { return n + (it.f ? it.f.size : it.img.size); }, 0);
+    var parsed = S.caption && window.HFLibrary ? HFLibrary.parseCaption(S.caption) : null;
+    var why = !T.me ? "Conecta tu Telegram." : !T.peer ? "Elige el grupo donde publicar." : !PUB.files.length && !Object.keys(PUB.img).length ? "Lee la carpeta de las versiones." :
+      !S.caption ? "Escribe el nombre en la sección 2." : !parsed ? "La app no entendería el comentario: revisa la sección 2." : !list.length ? "No hay nada marcado para publicar." : "";
+    $("pubStart").disabled = !!why || T.busy || S.busy;
+    $("pubStart").textContent = T.peer ? "Publicar en " + (T.peer.isSelf ? "Mensajes guardados" : (T.peer.title || T.peer.displayName)) : "Publicar";
+    if (!T.busy) {
+      $("pubSum").textContent = why || list.length + (list.length === 1 ? " mensaje" : " mensajes") + " · " + mb(bytes) + " para subir";
+    }
+  }
+
+  /* ----- subida ----- */
+  function readBytes(url) { return fetch(url).then(function (r) { return r.arrayBuffer(); }).then(function (b) { return new Uint8Array(b); }); }
+
+  $("pubStart").addEventListener("click", function () {
+    var list = items().filter(function (it) { return it.st.on && it.st.state !== "listo"; });
+    var c = T.client;
+    var peer = T.peer;
+    var total = list.reduce(function (n, it) { return n + (it.f ? it.f.size : 0); }, 0);
+    var doneBytes = 0;
+    var t0 = Date.now();
+    var ok = 0;
+    if (!list.length) { return; }
+    T.busy = true;
+    T.abort = new AbortController();
+    $("pubCancel").classList.remove("hidden");
+    $("pubStart").classList.add("hidden");
+    renderFiles();
+    (async function () {
+      for (var i = 0; i < list.length; i += 1) {
+        var it = list[i];
+        var st = it.st;
+        if (T.abort.signal.aborted) { break; }
+        st.state = "subiendo";
+        st.sent = 0;
+        st.error = "";
+        renderFiles();
+        try {
+          if (it.kind === "photo") {
+            var bytes = await readBytes("/api/media/" + it.img.id);
+            st.state = "enviando";
+            paintRow(it);
+            st.msg = await c.sendMedia(peer, { type: "photo", file: bytes, fileName: it.key.slice(4) + ".jpg", caption: it.caption });
+          } else {
+            var f = it.f;
+            var res = await fetch("/api/media/" + f.id);
+            var tStart = Date.now();
+            var up = await c.uploadFile({
+              file: res.body, fileSize: f.size, fileName: f.name, fileMime: f.mime, abortSignal: T.abort.signal,
+              progressCallback: function (u) {
+                var secs = (Date.now() - tStart) / 1000;
+                var rate = secs > 1 ? u / secs : 0;
+                var all = doneBytes + u;
+                var allRate = all / Math.max(1, (Date.now() - t0) / 1000);
+                st.sent = u;
+                st.speed = rate ? (rate / 1048576).toFixed(1) + " MB/s · faltan ~" + clock((f.size - u) / rate) : "";
+                paintRow(it);
+                $("pubSum").textContent = "Subiendo " + (i + 1) + " de " + list.length + " · " + mb(all) + " de " + mb(total) + (allRate ? " · faltan ~" + clock((total - all) / allRate) : "");
+              }
+            });
+            doneBytes += f.size;
+            st.state = "enviando";
+            paintRow(it);
+            var thumb = f.thumb ? await readBytes("/api/media/" + f.thumb) : undefined;
+            st.msg = await c.sendMedia(peer, f.mime === "video/mp4" ?
+              { type: "video", file: up, thumb: thumb, fileName: f.name, fileMime: f.mime, duration: f.duration, width: f.width, height: f.height, supportsStreaming: true, caption: it.caption } :
+              { type: "document", file: up, thumb: thumb, fileName: f.name, fileMime: f.mime, caption: it.caption });
+          }
+          st.state = "listo";
+          st.on = false;
+          ok += 1;
+        } catch (e) {
+          if (T.abort.signal.aborted) {
+            st.state = "";
+          } else {
+            st.state = "error";
+            st.error = (e && (e.message || e.text)) || String(e);
+          }
+        }
+        renderFiles();
+      }
+    })().then(function () {
+      var stopped = T.abort.signal.aborted;
+      var failed = list.filter(function (it) { return it.st.state === "error"; }).length;
+      T.busy = false;
+      $("pubCancel").classList.add("hidden");
+      $("pubStart").classList.remove("hidden");
+      renderFiles();
+      $("pubSum").textContent = (stopped ? "Detenido. " : "") + ok + " de " + list.length + " publicados en " + clock((Date.now() - t0) / 1000) +
+        (failed ? " · " + failed + " con error: vuelve a pulsar Publicar para reintentarlos" : ok === list.length ? " · ¡Listo! La TV lo mostrará al volver a revisar el grupo." : "");
+    });
+  });
+  $("pubCancel").addEventListener("click", function () {
+    if (confirm("¿Detener la publicación? Lo que ya se publicó se queda en el grupo.")) { T.abort.abort(); }
+  });
+  window.addEventListener("beforeunload", function (e) { if (T.busy) { e.preventDefault(); e.returnValue = ""; } });
+
+  window.P = {
+    loadDir: loadDir,
+    debug: function () { return { T: T, PUB: PUB }; },
+    refresh: function () { renderPreview(); renderFiles(); },
+    setImage: function (kind, info) { PUB.img[kind] = info; delete PUB.state["img-" + kind]; renderImages(); renderFiles(); }
+  };
+
+  /* ---------- arranque ---------- */
+  loadOpts();
+  ["limit", "split", "k4", "audioMode", "format", "encoder"].forEach(function (k) {
+    var el = $(k);
+    Array.prototype.forEach.call(el.children, function (b) { b.classList.toggle("on", b.getAttribute("data-v") === S[k]); });
+  });
+  renderQuals();
+  renderCaption();
+  api("/api/state").then(function (st) {
+    S.gpu = st.gpu;
+    updateEncBadge();
+    if (st.busy) { st.events.forEach(onEvent); setBusy(true); }
+  });
+  P.refresh();
+  tgCheck();
+  var es = new EventSource("/api/events");
+  es.onmessage = function (m) { onEvent(JSON.parse(m.data)); };
+})();
+</script>
+</body>
+</html>

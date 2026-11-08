@@ -24,6 +24,45 @@ App de películas y series para televisores Samsung (Tizen), hecha con HTML, CSS
 
 Para probar el paquete localmente: `node tools/build-wgt.mjs` → `dist/homeflix-<versión>.wgt`.
 
+## Trabajar en local
+
+```bash
+node tools/serve.mjs
+```
+
+Abre http://localhost:5173 a 1920×1080. Flechas = mando, Enter = OK, Esc = Back.
+
+### Clave de Telegram (una sola vez)
+
+Quien usa HomeFlix solo escanea el QR. Para eso la app lleva la clave de API del publicador (tú), como Telegram pide a las apps publicadas:
+
+1. En my.telegram.org → **API development tools**, crea una app y copia `api_id` y `api_hash`.
+2. **Para los releases**: guárdalos como secretos del repo (el comando pide el valor):
+
+   ```bash
+   gh secret set TG_API_ID -R MonkeyDevC/homeflix-tv
+   gh secret set TG_API_HASH -R MonkeyDevC/homeflix-tv
+   ```
+
+3. **Para trabajar en local**: crea `.env` en la raíz (está en `.gitignore`):
+
+   ```
+   TG_API_ID=1234567
+   TG_API_HASH=tu_api_hash
+   ```
+
+La clave va ofuscada dentro de `js/config.js` del `.wgt`; el repo nunca la contiene. Si Telegram la rechazara, la app muestra un formulario de respaldo para escribir otra.
+
+### Motor de Telegram
+
+`js/tg.bundle.js` ya viene compilado. Solo hay que recompilarlo si cambias algo en `engine/`:
+
+```bash
+cd engine && npm ci && node build.mjs
+```
+
+Necesita Tizen 5.5 o más nuevo (BigInt). Basado en [titlog/telegram-tizen](https://github.com/titlog/telegram-tizen), ver `THIRD_PARTY_NOTICES.md`.
+
 ## Estructura
 
 - `index.html`, `css/style.css`, `js/main.js`: la app.
