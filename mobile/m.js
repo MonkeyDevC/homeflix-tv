@@ -40,7 +40,22 @@ var HFMobile = (function () {
   function clock(sec) { return HFLibrary.formatClock(Math.max(0, sec || 0)); }
   function values(o) { return Object.keys(o || {}).map(function (k) { return o[k]; }); }
   function img(key) { return key ? ' data-img="' + esc(key) + '"' : ""; }
-  function avatarUrl(id) { return "../images/avatares/" + encodeURIComponent(id || "01-Spider-Man") + ".jpg"; }
+  /* Avatares: igual que la TV (avatarSrc en js/ui/core.js). Si el id no tiene imagen en images/avatares/
+   * (perfiles viejos: «panda», «zorro»…), se le da una imagen fija según ese id, así nunca queda sin foto. */
+  var FACE_IDS = ["panda", "zorro", "buho", "dino", "robot", "astro", "gato", "conejo", "oso", "pinguino", "rana", "leon"]; /* orden de js/art.js */
+  function avatarIdOf(src) { return String(src).replace(/^.*\//, "").replace(/\.[a-z0-9]+$/i, ""); }
+  function hashOf(x) { var h = 0; x = String(x || ""); for (var i = 0; i < x.length; i += 1) { h = (h * 31 + x.charCodeAt(i)) | 0; } return Math.abs(h); }
+  function avatarSrc(id) {
+    var own = window.HF_AVATARES || [];
+    var k;
+    id = String(id || "");
+    if (!own.length) { return "images/avatares/" + (id || "01-Spider-Man") + ".jpg"; }
+    for (k = 0; k < own.length; k += 1) { if (avatarIdOf(own[k]) === id) { return own[k]; } }
+    k = FACE_IDS.indexOf(id);
+    return own[(k >= 0 ? k : hashOf(id)) % own.length];
+  }
+  function avatarUrl(id) { return "../" + encodeURI(avatarSrc(id)); }
+  function avatarEffectiveId(id) { return avatarIdOf(avatarSrc(id)); }
   function norm(x) { return String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
   function tick() { try { if (android) { android.tick(); } } catch (e) { /* nada */ } }
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
@@ -253,7 +268,7 @@ var HFMobile = (function () {
     if (!avs.length) { avs = ["01-Spider-Man", "02-Captain_Carter", "03-Iron_Man", "04-Spider-Man_comic", "05-Capitan_America", "07-Thor", "08-Doctor_Strange", "12-Groot", "16-Hulk"]; }
     return topTitle(E.id ? "Editar perfil" : "Nuevo perfil", { right: '<button class="m-textbtn" data-act="save-profile">Guardar</button>' }) + '<div class="m-scroll m-form">' +
       '<div class="m-pe-av"><span class="av" style="background-image:url(' + avatarUrl(E.avatar) + ')"></span></div>' +
-      '<div class="m-avpick">' + avs.map(function (a) { return '<i data-act="avatar" data-id="' + esc(a) + '" class="' + (a === E.avatar ? "on" : "") + '" style="background-image:url(' + avatarUrl(a) + ')"></i>'; }).join("") + "</div>" +
+      '<div class="m-avpick">' + avs.map(function (a) { return '<i data-act="avatar" data-id="' + esc(a) + '" class="' + (a === avatarEffectiveId(E.avatar) ? "on" : "") + '" style="background-image:url(' + avatarUrl(a) + ')"></i>'; }).join("") + "</div>" +
       '<div class="m-field"><label for="pname">Nombre</label><div class="m-input"><input id="pname" data-model="edit.name" maxlength="20" value="' + esc(E.name) + '"/></div></div>' +
       errorBox(E.error) +
       '<div class="m-group">' +
@@ -303,7 +318,8 @@ var HFMobile = (function () {
 
   function emptyLibrary() {
     if (S.syncing) {
-      return '<div class="m-empty"><div class="m-spin"></div><b>Cargando tu biblioteca…</b>Leyendo los videos de ' + esc(chatTitles().join(", ") || "tus chats") + ".</div>";
+      /* Pantalla de carga centrada en la pantalla (no en la columna), como la de arranque */
+      return '<div class="m-loading" role="status"><div class="m-spin"></div><b>Cargando tu biblioteca…</b><p>Leyendo los videos de ' + esc(chatTitles().join(", ") || "tus chats") + ".</p></div>";
     }
     return '<div class="m-empty">' + I.film + "<b>Todavía no hay nada aquí</b>" + (S.syncError ? esc(S.syncError) + "<br>" : "") +
       'Revisa qué chats usa este perfil.<br><button class="m-btn ghost" style="margin-top:14px" data-go="settings">Elegir chats</button></div>';
@@ -1197,6 +1213,166 @@ var HFMobile = (function () {
 
   root.addEventListener("touchstart", function (e) { if (e.target.closest && e.target.closest("#plTrack")) { seekFromTouch(e); } }, { passive: true });
   root.addEventListener("touchmove", function (e) { if (e.target.closest && e.target.closest("#plTrack")) { seekFromTouch(e); } }, { passive: true });
+
+  /* ===================== Deslizar hacia abajo para actualizar =====================
+   * En Inicio, Películas, Series y Mi lista: arriba del todo, deslizar hacia abajo vuelve a leer los chats
+   * (trae lo último publicado). El indicador aparece arriba al centro y gira mientras actualiza. */
+  var PULL_VIEWS = { home: 1, movies: 1, series: 1, mylist: 1 };
+  var PULL_MAX = 120;
+  var PULL_GO = 72;
+  var ptr = document.createElement("div");
+  ptr.className = "m-ptr";
+  ptr.setAttribute("aria-hidden", "true");
+  ptr.innerHTML = '<span class="ring"></span>';
+  document.body.appendChild(ptr);
+  var pull = null;
+
+  /* El contenido baja con el dedo (como en una app nativa) y el indicador aparece en el hueco, bajo la barra. */
+  var html = document.documentElement;
+  function ptrShow(d) {
+    html.style.setProperty("--pull", d + "px");
+    ptr.style.transform = "translate(-50%, " + Math.round(d / 2 - 20) + "px)";
+    ptr.style.opacity = String(Math.max(0, Math.min(1, (d - 16) / 36)));
+    ptr.style.setProperty("--p", String(Math.min(1, d / PULL_GO)));
+    ptr.classList.toggle("ready", d >= PULL_GO);
+  }
+  function ptrHide() {
+    html.classList.remove("m-dragging", "m-pulling");
+    html.style.removeProperty("--pull");
+    ptr.classList.remove("busy", "ready");
+    ptr.style.transform = "";
+    ptr.style.opacity = "";
+  }
+  function ptrRefresh() {
+    var t0 = Date.now();
+    html.classList.remove("m-dragging");
+    html.classList.add("m-pulling");
+    ptr.classList.remove("ready");
+    ptr.classList.add("busy");
+    ptr.style.transform = "";
+    ptr.style.opacity = "";
+    try { HFSync.now(); } catch (e) { /* sin sincronización: igual se leen los chats */ }
+    sync(true);
+    (function wait() {
+      /* Se queda al menos un momento para que se note que actualizó. Si tarda mucho (red lenta), el contenido
+       * vuelve a su lugar y sigue el ícono pequeño de la barra superior mientras termina. */
+      var t = Date.now() - t0;
+      if ((S.syncing && t < 12000) || t < 700) { setTimeout(wait, 250); return; }
+      ptrHide();
+    })();
+  }
+  document.addEventListener("touchstart", function (e) {
+    if (!PULL_VIEWS[S.view] || S.sheet || S.overlay || S.syncing || ptr.classList.contains("busy")) { return; }
+    if (window.scrollY > 0 || e.touches.length !== 1) { return; }
+    pull = { x: e.touches[0].clientX, y: e.touches[0].clientY, d: 0, on: false, off: false };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    if (!pull || pull.off) { return; }
+    var dx = e.touches[0].clientX - pull.x;
+    var dy = e.touches[0].clientY - pull.y;
+    if (!pull.on) {
+      /* Solo si el gesto es hacia abajo y vertical (las filas se deslizan de lado) */
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { pull.off = true; return; }
+      if (dy < 8 || window.scrollY > 0) { if (dy < -4) { pull.off = true; } return; }
+      pull.on = true;
+      html.classList.add("m-dragging");
+    }
+    if (e.cancelable) { e.preventDefault(); }
+    pull.d = Math.min(PULL_MAX, Math.max(0, dy - 8) * 0.55);
+    ptrShow(pull.d);
+  }, { passive: false });
+  function pullEnd() {
+    if (!pull) { return; }
+    var go = pull.on && pull.d >= PULL_GO;
+    var was = pull.on;
+    pull = null;
+    if (go) { ptrRefresh(); } else if (was) { ptrHide(); }
+  }
+  document.addEventListener("touchend", pullEnd);
+  document.addEventListener("touchcancel", pullEnd);
+
+  /* ===================== Deslizar desde el borde izquierdo para volver (iPhone) =====================
+   * La app instalada desde Safari no tiene botón ni gesto de atrás. Esto hace lo mismo que el atrás de Android
+   * (back(): cierra la hoja, el menú o el reproductor, o vuelve a la pantalla anterior).
+   * Solo en la app instalada: en Safari normal el navegador ya tiene su propio gesto. En el APK lo hace Android.
+   * Para probar en el navegador: ?swipe=1 */
+  function installed() {
+    return window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  }
+  var SWIPE_ON = !android && (installed() || /[?&]swipe=1/.test(window.location.search));
+  var EDGE = 24;
+  var swipe = null;
+  function canBack() {
+    if (S.sheet || S.overlay || S.view === "player") { return true; }
+    if (S.view === "settings" && S.firstTime) { return false; }
+    return S.stack.length > 0 || (!!TABS[S.view] && S.view !== "home");
+  }
+  /* Lo que se mueve con el dedo: la hoja o el menú abiertos, o la pantalla (el menú de abajo se queda, como en iOS). */
+  function swipeTargets() {
+    var top = root.querySelector(".m-sheet, .m-overlay");
+    if (top) { return [top]; }
+    return Array.prototype.filter.call(root.children, function (el) { return !el.matches(".m-nav, .m-toast, .m-backdrop"); });
+  }
+  function swipeMove(els, x, animate) {
+    els.forEach(function (el) {
+      el.style.transition = animate ? "transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1)" : "none";
+      el.style.transform = x ? "translateX(" + x + "px)" : "";
+    });
+  }
+  function swipeClear(els) {
+    els.forEach(function (el) { el.style.transition = ""; el.style.transform = ""; });
+    html.classList.remove("m-swiping");
+  }
+  document.addEventListener("touchstart", function (e) {
+    if (!SWIPE_ON || e.touches.length !== 1 || e.touches[0].clientX > EDGE || !canBack()) { return; }
+    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dx: 0, on: false, els: null };
+  }, { passive: true });
+  document.addEventListener("touchmove", function (e) {
+    if (!swipe) { return; }
+    var dx = e.touches[0].clientX - swipe.x;
+    var dy = e.touches[0].clientY - swipe.y;
+    if (!swipe.on) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > dx) { swipe = null; return; }
+      if (dx < 10) { return; }
+      swipe.on = true;
+      swipe.els = swipeTargets();
+      html.classList.add("m-swiping");
+      pull = null; /* no confundir con deslizar para actualizar */
+    }
+    if (e.cancelable) { e.preventDefault(); }
+    swipe.dx = Math.max(0, dx);
+    swipeMove(swipe.els, swipe.dx, false);
+  }, { passive: false });
+  function swipeEnd() {
+    var sw = swipe;
+    var w = window.innerWidth;
+    swipe = null;
+    if (!sw || !sw.on) { return; }
+    var fast = sw.dx / Math.max(1, Date.now() - sw.t) > 0.5;
+    if (sw.dx > w * 0.33 || (fast && sw.dx > 40)) {
+      swipeMove(sw.els, w, true);
+      setTimeout(function () {
+        swipeClear(sw.els);
+        back();
+        /* La pantalla anterior entra suave desde la izquierda */
+        var now = swipeTargets();
+        swipeMove(now, -Math.round(w * 0.25), false);
+        now.forEach(function (el) { el.style.opacity = "0.6"; });
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            swipeMove(now, 0, true);
+            now.forEach(function (el) { el.style.opacity = ""; });
+            setTimeout(function () { swipeClear(now); }, 280);
+          });
+        });
+      }, 240);
+    } else {
+      swipeMove(sw.els, 0, true);
+      setTimeout(function () { swipeClear(sw.els); }, 280);
+    }
+  }
+  document.addEventListener("touchend", swipeEnd);
+  document.addEventListener("touchcancel", swipeEnd);
 
   /* ===================== Biblioteca ===================== */
   function rebuild() {

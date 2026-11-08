@@ -1,6 +1,6 @@
 // Service worker: guarda el cascarón de la app para abrir sin conexión y poder instalarla.
 // Al cambiar archivos del cascarón, sube VERSION para que los teléfonos tomen lo nuevo.
-const VERSION = 'hf-web-3'; // la web usa las pantallas de mobile/ (las mismas del APK)
+const VERSION = 'hf-web-4'; // la web usa las pantallas de mobile/ (las mismas del APK)
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',

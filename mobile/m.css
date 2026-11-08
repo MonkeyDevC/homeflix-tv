@@ -31,6 +31,12 @@ body {
 }
 button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
 input { font: inherit; }
+/* Como app nativa: sin zoom con doble toque, sin seleccionar texto ni el menú de «mantener presionado» en la interfaz.
+   Los campos de texto sí se pueden seleccionar. */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+img { -webkit-user-drag: none; }
 svg { display: block; }
 
 .m {
@@ -195,7 +201,7 @@ svg { display: block; }
 .m-ep.now .n { color: var(--gold-text); }
 
 /* ---------- Perfiles ---------- */
-.m-center { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: calc(36px + var(--safe-top)) 24px calc(28px + var(--safe-bottom)); }
+.m-center { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: calc(36px + var(--safe-top)) 24px calc(28px + var(--safe-bottom)); }
 .m-profiles h1 { margin: 44px 0 30px; font-size: 26px; font-weight: 700; }
 .m-pgrid { display: grid; grid-template-columns: repeat(2, 128px); gap: 26px 30px; }
 .m-pgrid button { display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
@@ -406,7 +412,20 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display
 .m-spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.15); border-top-color: var(--gold-ring); animation: m-spin 0.8s linear infinite; margin: 0 auto 10px; }
 .m-spin.sm { width: 18px; height: 18px; border-width: 2.5px; margin: 0; display: inline-block; }
 @keyframes m-spin { to { transform: rotate(360deg); } }
-.m-boot { justify-content: center; gap: 18px; text-align: center; color: var(--muted); font-size: 14.5px; }
+/* Arranque: centrado en la pantalla completa (mismo margen arriba y abajo, contando las zonas seguras del iPhone) */
+.m-boot { justify-content: center; gap: 18px; text-align: center; color: var(--muted); font-size: 14.5px; padding-top: calc(24px + var(--safe-top)); padding-bottom: calc(24px + var(--safe-bottom)); }
+.m-boot .m-spin { margin: 0 auto; }
+/* Cargando la biblioteca: fijo al centro de la pantalla, debajo de la barra superior y del menú */
+.m-loading {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: calc(24px + var(--safe-top)) 32px calc(24px + var(--safe-bottom));
+  text-align: center; color: var(--muted); font-size: 14px; line-height: 1.45;
+  pointer-events: none;
+}
+.m-loading .m-spin { margin: 0 0 12px; }
+.m-loading b { color: var(--text); font-size: 17px; }
+.m-loading p { margin: 0; max-width: 280px; }
 .m-boot .m-logo { margin-bottom: 10px; }
 .m-boot p { margin: 0; }
 .m-sync { width: 40px; height: 40px; display: grid; place-items: center; }
@@ -461,3 +480,37 @@ body { background: #000; }
 .m-player .seek .track { height: 28px; background: none; display: flex; align-items: center; }
 .m-player .seek .track::before { content: ""; position: absolute; left: 0; right: 0; top: 12px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
 .m-player .seek .track .buf, .m-player .seek .track .now { top: 12px; bottom: auto; height: 4px; }
+
+/* ---------- Deslizar hacia abajo para actualizar ----------
+   El contenido (.m-scroll) baja con el dedo; la barra superior se queda. El indicador gira en el hueco, arriba al centro. */
+.m-scroll { transition: transform 0.4s cubic-bezier(0.22, 1.12, 0.36, 1); }
+.m-dragging .m-scroll { transform: translateY(var(--pull, 0px)); transition: none; }
+.m-pulling .m-scroll { transform: translateY(64px); }
+.m-ptr {
+  --p: 0;
+  position: fixed; left: 50%; top: calc(var(--safe-top) + 56px); z-index: 25;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #23262b; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transform: translate(-50%, -20px); opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.22, 1.12, 0.36, 1), opacity 0.25s;
+  pointer-events: none;
+}
+.m-dragging .m-ptr { transition: none; }
+.m-ptr .ring {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.15); border-top-color: var(--gold-ring);
+  transform: rotate(calc(var(--p) * 300deg));
+}
+.m-ptr.ready .ring { border-right-color: var(--gold-ring); }
+.m-ptr.busy { transform: translate(-50%, 12px); opacity: 1; }
+.m-ptr.busy .ring { animation: m-spin 0.8s linear infinite; border-right-color: transparent; }
+/* Mientras actualiza por el gesto, el ícono pequeño de la barra sobra */
+.m-pulling .m-sync { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .m-ptr, .m-scroll { transition: none; } }
+
+/* ---------- Deslizar desde el borde para volver (app instalada en iPhone) ---------- */
+.m-swiping #m > * { will-change: transform; }
+.m-swiping #m > .m-scroll, .m-swiping #m > .m-sheet, .m-swiping #m > .m-overlay { box-shadow: -18px 0 36px rgba(0, 0, 0, 0.45); }
+@media (prefers-reduced-motion: reduce) { .m-swiping #m > * { transition: none !important; } }
+
