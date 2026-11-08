@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HomeFlix</title>
+  <meta name="description" content="Películas y series de tu grupo, en tu iPhone.">
+  <meta name="theme-color" content="#111315">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <!-- iOS: app instalada desde Safari («Agregar a inicio») -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="HomeFlix">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="w.css">
+  <link rel="modulepreload" href="js/app.js">
+</head>
+<body>
+  <div id="splash" aria-hidden="true">
+    <span class="logo logo-lg"><img src="icons/panda.png" alt="" width="34" height="34"><b>Home<em>Flix</em></b></span>
+  </div>
+  <div id="ptr" class="ptr" aria-hidden="true">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>
+  </div>
+  <main id="view" class="view" tabindex="-1"></main>
+  <nav id="tabbar" class="tabbar" aria-label="Secciones" hidden></nav>
+  <div id="sheets"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript><p style="padding:24px;color:#f4f4f2">HomeFlix necesita JavaScript.</p></noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

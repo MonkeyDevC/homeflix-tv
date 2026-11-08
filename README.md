@@ -2,6 +2,8 @@
 
 App de películas y series para televisores Samsung (Tizen), hecha con HTML, CSS y JavaScript sin frameworks.
 
+**Versión web (iPhone, instalable desde Safari):** está en [`web/`](web/CLAUDE.md). Para verla: `node tools/serve.mjs` → `http://localhost:5173/web/`.
+
 ## Instalar en la TV con Apps2Samsung
 
 1. En Apps2Samsung, agrega esta fuente: `github.com/MonkeyDevC/homeflix-tv`
