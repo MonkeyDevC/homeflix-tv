@@ -2,7 +2,7 @@
 
 App de películas y series para televisores Samsung (Tizen), hecha con HTML, CSS y JavaScript sin frameworks.
 
-**Versión web (iPhone, instalable desde Safari):** está en [`web/`](web/CLAUDE.md). Para verla: `node tools/serve.mjs` → `http://localhost:5173/web/`.
+**Versión web (instalable como app en iPhone y Android):** [`web/`](web/CLAUDE.md) usa las mismas pantallas del celular (`mobile/`) y, en el computador, las de la TV. Para verla: `node tools/serve.mjs` → `http://localhost:5173/web/`.
 
 ## Instalar en la TV con Apps2Samsung
 

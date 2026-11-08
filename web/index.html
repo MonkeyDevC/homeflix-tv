@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>HomeFlix</title>
-  <meta name="description" content="Películas y series de tu grupo, en tu iPhone.">
-  <meta name="theme-color" content="#111315">
+  <meta name="description" content="Películas y series de tu grupo de Telegram.">
+  <meta name="theme-color" content="#0b0c0e">
   <meta name="color-scheme" content="dark">
   <meta name="format-detection" content="telephone=no">
-  <!-- iOS: app instalada desde Safari («Agregar a inicio») -->
+  <!-- Instalable como app desde el navegador («Agregar a inicio» en iPhone, «Instalar app» en Android) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,36 +16,56 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="w.css">
-  <link rel="modulepreload" href="js/app.js">
+  <script>
+    /* HomeFlix web = las mismas pantallas que el resto de la app:
+     *   celular y tablet → las de mobile/ (las mismas del APK de Android)
+     *   computador (pantalla grande y mouse) → las de la TV, que se manejan con mouse y teclado.
+     * ?movil=1 fuerza las del celular (para probar en el computador). */
+    (function () {
+      var q = location.search;
+      var big = window.matchMedia && matchMedia('(min-width: 1024px) and (pointer: fine)').matches;
+      if (big && !/[?&](movil|design)=/.test(q)) { location.replace('../' + q); }
+    })();
+  </script>
+  <link rel="stylesheet" href="../mobile/m.css">
 </head>
 <body>
-  <div id="splash" aria-hidden="true">
-    <span class="logo logo-lg"><img src="icons/panda.png" alt="" width="34" height="34"><b>Home<em>Flix</em></b></span>
-  </div>
-  <div id="ptr" class="ptr" aria-hidden="true">
-    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>
-  </div>
-  <main id="view" class="view" tabindex="-1"></main>
-  <nav id="tabbar" class="tabbar" aria-label="Secciones" hidden></nav>
-  <div id="sheets"></div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <noscript><p style="padding:24px;color:#f4f4f2">HomeFlix necesita JavaScript.</p></noscript>
-  <!-- Motor compartido con la TV y el celular (scripts clásicos, globales HFTelegram / HFLibrary / HFSync / HFPlayback).
-       Va antes de los módulos de la web, que lo usan a través de js/data/. -->
-  <script src="../js/tg.bundle.js"></script>
-  <script src="../js/config.js"></script>
-  <script src="../js/config.local.js" onerror="void 0"></script>
-  <script src="../js/imagenes.js" onerror="void 0"></script>
-  <script src="../js/telegram.js"></script>
-  <script src="../js/library.js"></script>
-  <script src="../js/sync.js"></script>
-  <script src="../js/engine/i18n-es.js"></script>
-  <script src="../js/engine/mp4.js"></script>
-  <script src="../js/engine/mkv.js"></script>
-  <script src="../js/engine/subs.js"></script>
-  <script src="../js/engine/player.js"></script>
-  <script src="../js/playback.js"></script>
-  <script type="module" src="js/app.js"></script>
+<!-- Video del reproductor: fijo, debajo de la interfaz (el motor lo busca por id) -->
+<div id="mplayer" class="m-video" hidden>
+  <video id="playerVideo" playsinline webkit-playsinline></video>
+  <canvas id="playerSubPic" class="m-subpic" width="1920" height="1080"></canvas>
+  <div id="playerSub" class="m-sublines"></div>
+  <div id="playerSubTop" class="m-subtop"></div>
+</div>
+
+<!-- Pantallas del celular (mobile/m.js): las mismas del APK, aprobadas en el tablero de diseño (design/) -->
+<div id="m" class="m" data-view="boot"></div>
+<noscript><p style="padding:24px;color:#f4f4f2">HomeFlix necesita JavaScript.</p></noscript>
+
+<!-- Motor compartido con la TV y el celular -->
+<script src="../js/tg.bundle.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/config.local.js" onerror="void 0"></script>
+<script src="../js/imagenes.js" onerror="void 0"></script>
+<script src="../js/telegram.js"></script>
+<script src="../js/library.js"></script>
+<script src="../js/sync.js"></script>
+<script src="../js/engine/i18n-es.js"></script>
+<script src="../js/engine/mp4.js"></script>
+<script src="../js/engine/mkv.js"></script>
+<script src="../js/engine/subs.js"></script>
+<script src="../js/engine/player.js"></script>
+<script src="../js/playback.js"></script>
+<script src="../mobile/icons.js"></script>
+<script src="../mobile/m.js"></script>
+<script>
+  /* Instalación como app: guarda lo necesario para abrir rápido (solo con https o en localhost). */
+  (function () {
+    var local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    if ('serviceWorker' in navigator && !/[?&]design=/.test(location.search) && (location.protocol === 'https:' || local)) {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* sin instalación: la app funciona igual */ });
+    }
+  })();
+</script>
 </body>
 </html>

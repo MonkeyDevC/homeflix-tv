@@ -1015,6 +1015,28 @@ var HFMobile = (function () {
   };
   ACT["play-start"] = function (el) { play(titleOf(el.getAttribute("data-key")), { fromStart: true }); };
 
+  /* Reproductor a pantalla completa y en horizontal. En el APK lo hace la parte nativa (HFAndroid); en el navegador
+   * (la web) se pide al navegador: pantalla completa siempre que se pueda y giro donde lo permite (Android Chrome).
+   * En iPhone el navegador no deja poner la página entera a pantalla completa: se ve igual, dentro de Safari. */
+  function playerMode(on) {
+    var d = document;
+    var el = d.documentElement;
+    try {
+      if (android) { android.setPlayerMode(on); return; }
+      if (on) {
+        var req = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (req && !(d.fullscreenElement || d.webkitFullscreenElement)) {
+          Promise.resolve(req.call(el)).then(function () {
+            if (screen.orientation && screen.orientation.lock) { screen.orientation.lock("landscape").catch(function () { /* no se puede girar aquí */ }); }
+          }, function () { /* sin pantalla completa */ });
+        }
+      } else {
+        if (screen.orientation && screen.orientation.unlock) { try { screen.orientation.unlock(); } catch (e) { /* nada */ } }
+        if (d.fullscreenElement || d.webkitFullscreenElement) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); }
+      }
+    } catch (e) { /* nada */ }
+  }
+
   var hideTimer = null;
   function showChrome() {
     var pl = byId("pl");
@@ -1027,7 +1049,7 @@ var HFMobile = (function () {
   function startPlayback() {
     var P = S.player;
     if (!P) { return; }
-    try { if (android) { android.setPlayerMode(true); } } catch (e) { /* nada */ }
+    playerMode(true);
     var host = byId("mplayer");
     host.hidden = false;
     var pref = qualityPref();
@@ -1090,7 +1112,7 @@ var HFMobile = (function () {
     if (P && HFPlayback.time() > 5) { HFLibrary.setProgress(entryKey(P.entry), HFPlayback.time(), HFPlayback.duration()); }
     HFPlayback.close();
     byId("mplayer").hidden = true;
-    try { if (android) { android.setPlayerMode(false); } } catch (e) { /* nada */ }
+    playerMode(false);
     S.player = null;
     S.sheet = null;
     var prev = S.stack.pop();

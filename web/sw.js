@@ -1,13 +1,13 @@
 // Service worker: guarda el cascarón de la app para abrir sin conexión y poder instalarla.
 // Al cambiar archivos del cascarón, sube VERSION para que los teléfonos tomen lo nuevo.
-const VERSION = 'hf-web-2'; // motor real de Telegram
+const VERSION = 'hf-web-3'; // la web usa las pantallas de mobile/ (las mismas del APK)
 const SHELL = [
-  './', './index.html', './w.css', './manifest.webmanifest',
-  './js/app.js', './js/router.js', './js/state.js', './js/icons.js', './js/gestures.js',
-  './js/ui/components.js', './js/ui/sheets.js', './js/ui/access.js', './js/ui/browse.js',
-  './js/ui/detail.js', './js/ui/player.js', './js/ui/settings.js',
-  './js/data/library.js', './js/data/demo-items.js', './js/data/art.js', './js/data/playback.js',
-  './icons/panda.png', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
+  './', './index.html', './manifest.webmanifest',
+  './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
+  '../mobile/m.css', '../mobile/m.js', '../mobile/icons.js', '../images/panda-login.png',
+  '../js/tg.bundle.js', '../js/config.js', '../js/imagenes.js', '../js/telegram.js', '../js/library.js', '../js/sync.js',
+  '../js/engine/i18n-es.js', '../js/engine/mp4.js', '../js/engine/mkv.js', '../js/engine/subs.js', '../js/engine/player.js',
+  '../js/playback.js',
 ];
 
 self.addEventListener('install', (e) => {
