@@ -509,8 +509,21 @@ body { background: #000; }
 .m-pulling .m-sync { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .m-ptr, .m-scroll { transition: none; } }
 
-/* ---------- Deslizar desde el borde para volver (app instalada en iPhone) ---------- */
-.m-swiping #m > * { will-change: transform; }
+/* ---------- Deslizar desde los bordes: atrás (izquierdo) y adelante (derecho), app instalada en iPhone ---------- */
+.m-swiping #m > *, .m-swiping-fwd #m > * { will-change: transform; }
 .m-swiping #m > .m-scroll, .m-swiping #m > .m-sheet, .m-swiping #m > .m-overlay { box-shadow: -18px 0 36px rgba(0, 0, 0, 0.45); }
-@media (prefers-reduced-motion: reduce) { .m-swiping #m > * { transition: none !important; } }
+.m-swiping-fwd #m > .m-scroll { box-shadow: 18px 0 36px rgba(0, 0, 0, 0.45); }
+@media (prefers-reduced-motion: reduce) { .m-swiping #m > *, .m-swiping-fwd #m > * { transition: none !important; } }
+
+/* ---------- Transición entre pantallas: la pantalla que se deja (copia) se desliza encima ---------- */
+.m-ghost {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 35;
+  overflow: hidden; pointer-events: none;
+  background: var(--bg);
+  box-shadow: -16px 0 32px rgba(0, 0, 0, 0.5);
+  will-change: transform;
+}
+.m-ghost.fwd { box-shadow: 16px 0 32px rgba(0, 0, 0, 0.5); }
+.m-ghost > .m { min-height: 100%; }
+.m-sliding body, .m-sliding #m { overflow-x: hidden; }
 

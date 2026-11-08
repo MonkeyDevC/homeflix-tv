@@ -577,9 +577,13 @@ var HFMobile = (function () {
     if (AFTER[S.view]) { AFTER[S.view](); }
   }
 
+  /* Pantallas a las que se puede volver «hacia adelante» después de ir atrás (deslizar desde el borde derecho). */
+  var ahead = [];
+
   function go(view, arg, opts) {
     opts = opts || {};
     leave(view);
+    ahead = []; /* ir a otra pantalla borra el «adelante», como en un navegador */
     if (opts.root) {
       S.stack = [];
     } else if (TABS[view] && TABS[S.view]) {
@@ -600,9 +604,11 @@ var HFMobile = (function () {
     if (S.overlay) { S.overlay = null; render(true); return true; }
     if (S.view === "player") { closePlayer(); return true; }
     if (S.view === "settings" && S.firstTime) { return false; }
+    var here = { view: S.view, arg: S.arg, y: window.scrollY };
     var prev = S.stack.pop();
     if (prev) {
       leave(prev.view);
+      ahead.push(here);
       S.view = prev.view;
       S.arg = prev.arg;
       render();
@@ -610,8 +616,21 @@ var HFMobile = (function () {
       if (prev.view === "settings" || S.view === "home") { /* nada */ }
       return true;
     }
-    if (TABS[S.view] && S.view !== "home") { go("home", null, { root: true }); return true; }
+    if (TABS[S.view] && S.view !== "home") { go("home", null, { root: true }); ahead = [here]; return true; }
     return false;
+  }
+
+  /* Lo contrario de back(): vuelve a la pantalla que se dejó al ir atrás. */
+  function forward() {
+    var next = ahead.pop();
+    if (!next || S.sheet || S.overlay || S.view === "player") { if (next) { ahead.push(next); } return false; }
+    leave(next.view);
+    S.stack.push({ view: S.view, arg: S.arg, y: window.scrollY });
+    S.view = next.view;
+    S.arg = next.arg;
+    render();
+    window.scrollTo(0, next.y || 0);
+    return true;
   }
 
   /* Al salir de una vista: cortar lo que esté corriendo (QR, contador del código). */
@@ -1172,7 +1191,7 @@ var HFMobile = (function () {
       if (!el) { return; }
     }
     if (!el) { return; }
-    if (el.hasAttribute("data-back")) { back(); return; }
+    if (el.hasAttribute("data-back")) { backAnimated(); return; }
     if (el.hasAttribute("data-tab")) { go(el.getAttribute("data-tab")); return; }
     if (el.hasAttribute("data-go")) { go(el.getAttribute("data-go")); return; }
     if (el.hasAttribute("data-open")) { S.season = 0; go("detail", el.getAttribute("data-open")); return; }
@@ -1291,10 +1310,78 @@ var HFMobile = (function () {
   document.addEventListener("touchend", pullEnd);
   document.addEventListener("touchcancel", pullEnd);
 
-  /* ===================== Deslizar desde el borde izquierdo para volver (iPhone) =====================
-   * La app instalada desde Safari no tiene botón ni gesto de atrás. Esto hace lo mismo que el atrás de Android
-   * (back(): cierra la hoja, el menú o el reproductor, o vuelve a la pantalla anterior).
-   * Solo en la app instalada: en Safari normal el navegador ya tiene su propio gesto. En el APK lo hace Android.
+  /* ===================== Transición entre pantallas (estilo iOS) =====================
+   * Al volver: la pantalla que se deja se desliza hacia la derecha y deja ver la anterior, que entra desde un poco a la
+   * izquierda y se aclara. Hacia adelante, al revés. Se usa con el botón Atrás, el atrás de Android y los gestos.
+   * Truco: antes de pintar la pantalla nueva se copia la vieja en una capa (m-ghost) que se anima encima. */
+  var SLIDE_MS = 340;
+  function reducedMotion() { return !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  /* ¿Este atrás cambia de pantalla? (cerrar una hoja, el menú o el reproductor no) */
+  function popsScreen() { return !S.sheet && !S.overlay && S.view !== "player" && canBack(); }
+  function slideScreens(dir, from, run) {
+    var w = window.innerWidth;
+    var nav = root.querySelector(".m-nav");
+    var ghost = document.createElement("div");
+    var copy = root.cloneNode(true);
+    var y = window.scrollY;
+    copy.removeAttribute("id");
+    Array.prototype.forEach.call(copy.querySelectorAll(".m-toast, .m-backdrop, .m-sheet"), function (e) { e.remove(); });
+    Array.prototype.forEach.call(copy.children, function (e) { e.style.transform = ""; e.style.transition = ""; e.style.opacity = ""; });
+    ghost.className = "m-ghost" + (dir < 0 ? " fwd" : "");
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.appendChild(copy);
+    ghost.style.transform = from ? "translateX(" + from + "px)" : "";
+    document.body.appendChild(ghost);
+    ghost.scrollTop = y;
+    run();
+    /* Si las dos pantallas tienen el menú de abajo, el menú se queda quieto (como en iOS) */
+    var keepNav = nav && root.querySelector(".m-nav");
+    if (keepNav) {
+      Array.prototype.forEach.call(copy.querySelectorAll(".m-nav"), function (e) { e.remove(); });
+      ghost.style.bottom = root.querySelector(".m-nav").offsetHeight + "px";
+    }
+    var now = swipeTargets();
+    var start = Math.round(-w * 0.3 * dir + from * 0.3);
+    now.forEach(function (el) { el.style.transition = "none"; el.style.transform = "translateX(" + start + "px)"; el.style.filter = "brightness(0.72)"; });
+    html.classList.add("m-sliding");
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        var ease = "cubic-bezier(0.32, 0.72, 0, 1)";
+        ghost.style.transition = "transform " + SLIDE_MS + "ms " + ease;
+        ghost.style.transform = "translateX(" + (w * dir) + "px)";
+        now.forEach(function (el) {
+          el.style.transition = "transform " + SLIDE_MS + "ms " + ease + ", filter " + SLIDE_MS + "ms " + ease;
+          el.style.transform = "";
+          el.style.filter = "";
+        });
+        setTimeout(function () {
+          ghost.remove();
+          now.forEach(function (el) { el.style.transition = ""; el.style.transform = ""; el.style.filter = ""; });
+          html.classList.remove("m-sliding");
+        }, SLIDE_MS + 40);
+      });
+    });
+  }
+  /* Atrás con animación. Devuelve lo mismo que back() (lo usa el atrás de Android). */
+  function backAnimated(from) {
+    if (!popsScreen() || reducedMotion() || html.classList.contains("m-sliding")) { return back(); }
+    var ok = false;
+    slideScreens(1, from || 0, function () { ok = back(); });
+    return ok;
+  }
+  function forwardAnimated(from) {
+    if (!canForward() || reducedMotion() || html.classList.contains("m-sliding")) { return forward(); }
+    var ok = false;
+    slideScreens(-1, from || 0, function () { ok = forward(); });
+    return ok;
+  }
+
+  /* ===================== Deslizar desde los bordes: atrás y adelante (iPhone) =====================
+   * La app instalada desde Safari no tiene botones ni gestos de navegación.
+   *   Borde izquierdo → atrás: lo mismo que el atrás de Android (back(): cierra la hoja, el menú o el reproductor,
+   *                      o vuelve a la pantalla anterior).
+   *   Borde derecho  → adelante: vuelve a la pantalla que se dejó al ir atrás (forward()).
+   * Solo en la app instalada: en Safari normal el navegador ya tiene sus propios gestos. En el APK, Android.
    * Para probar en el navegador: ?swipe=1 */
   function installed() {
     return window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
@@ -1307,6 +1394,7 @@ var HFMobile = (function () {
     if (S.view === "settings" && S.firstTime) { return false; }
     return S.stack.length > 0 || (!!TABS[S.view] && S.view !== "home");
   }
+  function canForward() { return ahead.length > 0 && !S.sheet && !S.overlay && S.view !== "player"; }
   /* Lo que se mueve con el dedo: la hoja o el menú abiertos, o la pantalla (el menú de abajo se queda, como en iOS). */
   function swipeTargets() {
     var top = root.querySelector(".m-sheet, .m-overlay");
@@ -1320,52 +1408,48 @@ var HFMobile = (function () {
     });
   }
   function swipeClear(els) {
-    els.forEach(function (el) { el.style.transition = ""; el.style.transform = ""; });
-    html.classList.remove("m-swiping");
+    els.forEach(function (el) { el.style.transition = ""; el.style.transform = ""; el.style.opacity = ""; });
+    html.classList.remove("m-swiping", "m-swiping-fwd");
   }
   document.addEventListener("touchstart", function (e) {
-    if (!SWIPE_ON || e.touches.length !== 1 || e.touches[0].clientX > EDGE || !canBack()) { return; }
-    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dx: 0, on: false, els: null };
+    if (!SWIPE_ON || e.touches.length !== 1) { return; }
+    var x = e.touches[0].clientX;
+    var dir = x <= EDGE && canBack() ? 1 : x >= window.innerWidth - EDGE && canForward() ? -1 : 0;
+    if (!dir) { return; }
+    swipe = { dir: dir, x: x, y: e.touches[0].clientY, t: Date.now(), d: 0, on: false, els: null };
   }, { passive: true });
   document.addEventListener("touchmove", function (e) {
     if (!swipe) { return; }
-    var dx = e.touches[0].clientX - swipe.x;
+    var d = (e.touches[0].clientX - swipe.x) * swipe.dir; /* cuánto avanzó hacia adentro de la pantalla */
     var dy = e.touches[0].clientY - swipe.y;
     if (!swipe.on) {
-      if (Math.abs(dy) > 12 && Math.abs(dy) > dx) { swipe = null; return; }
-      if (dx < 10) { return; }
+      if (Math.abs(dy) > 12 && Math.abs(dy) > d) { swipe = null; return; }
+      if (d < 10) { return; }
       swipe.on = true;
       swipe.els = swipeTargets();
-      html.classList.add("m-swiping");
+      html.classList.add(swipe.dir > 0 ? "m-swiping" : "m-swiping-fwd");
       pull = null; /* no confundir con deslizar para actualizar */
     }
     if (e.cancelable) { e.preventDefault(); }
-    swipe.dx = Math.max(0, dx);
-    swipeMove(swipe.els, swipe.dx, false);
+    swipe.d = Math.max(0, d);
+    swipeMove(swipe.els, swipe.d * swipe.dir, false);
   }, { passive: false });
   function swipeEnd() {
     var sw = swipe;
     var w = window.innerWidth;
     swipe = null;
     if (!sw || !sw.on) { return; }
-    var fast = sw.dx / Math.max(1, Date.now() - sw.t) > 0.5;
-    if (sw.dx > w * 0.33 || (fast && sw.dx > 40)) {
-      swipeMove(sw.els, w, true);
-      setTimeout(function () {
+    var fast = sw.d / Math.max(1, Date.now() - sw.t) > 0.5;
+    if (sw.d > w * 0.33 || (fast && sw.d > 40)) {
+      if (sw.dir > 0 ? popsScreen() : canForward()) {
+        /* Cambia de pantalla: sigue desde donde soltó el dedo, con la pantalla de atrás entrando a la vez */
         swipeClear(sw.els);
-        back();
-        /* La pantalla anterior entra suave desde la izquierda */
-        var now = swipeTargets();
-        swipeMove(now, -Math.round(w * 0.25), false);
-        now.forEach(function (el) { el.style.opacity = "0.6"; });
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            swipeMove(now, 0, true);
-            now.forEach(function (el) { el.style.opacity = ""; });
-            setTimeout(function () { swipeClear(now); }, 280);
-          });
-        });
-      }, 240);
+        if (sw.dir > 0) { backAnimated(sw.d); } else { forwardAnimated(-sw.d); }
+        return;
+      }
+      /* Una hoja o el menú: terminan de salir y se cierran */
+      swipeMove(sw.els, w * sw.dir, true);
+      setTimeout(function () { swipeClear(sw.els); back(); }, 240);
     } else {
       swipeMove(sw.els, 0, true);
       setTimeout(function () { swipeClear(sw.els); }, 280);
@@ -1565,5 +1649,5 @@ var HFMobile = (function () {
     boot();
   }
 
-  return { back: back, go: go };
+  return { back: backAnimated, forward: forwardAnimated, go: go };
 })();
