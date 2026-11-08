@@ -771,3 +771,20 @@ img.art:not(.ready) { background: var(--panel); }
 @media (min-width: 1280px) {
   /* Escritorio: tendrá el diseño de la TV con ancho fluido (fase 2 del plan). */
 }
+
+/* Video real (motor de Telegram): capas de subtítulos que pinta el motor y avisos de error */
+.video[hidden] { display: none; }
+.video { position: absolute; inset: 0; }
+.sub-pic { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.sub-lines, .sub-top { position: absolute; left: 6%; right: 6%; text-align: center; pointer-events: none; color: #fff; font-size: clamp(16px, 2.6vw, 30px); line-height: 1.35; font-weight: 600; text-shadow: 0 0 4px #000, 0 2px 3px #000; }
+.sub-lines { bottom: 10%; }
+.sub-top { top: 6%; }
+.play-error { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; margin: 0; padding: 10px 14px; border-radius: 10px; background: rgba(20, 22, 26, 0.9); border: 1px solid rgba(255, 138, 128, 0.4); color: #ffb4ab; font-size: 14px; text-align: center; z-index: 3; }
+
+/* Avatares con imagen (los mismos de la TV y el celular) */
+.avatar-pic { background: #2a2d32; overflow: visible; }
+.avatar-pic img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
+.av-pick { overflow-x: auto; scrollbar-width: none; }
+.av-pick::-webkit-scrollbar { display: none; }
+.qr-wait { color: #555; font-size: 14px; }
+.qr-box svg { width: 100%; height: auto; display: block; border-radius: 20px; box-shadow: 0 20px 60px -20px rgba(230, 193, 147, 0.35); }

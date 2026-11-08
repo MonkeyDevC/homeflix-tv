@@ -92,11 +92,19 @@ function svg(t, kind) {
 }
 
 const cache = new Map();
-/** Igual que HFTelegram.image: promesa de una URL de imagen para una clave de mensaje. */
+/** Al pasar a la cuenta real: las portadas dibujadas de la demostración no deben taparle las de Telegram. */
+export function clear() { meta.clear(); cache.clear(); }
+
+/** Igual que HFTelegram.image: promesa de una URL de imagen para una clave de mensaje.
+ * Demostración: portada dibujada. Cuenta real: la miniatura de Telegram (con la caché del motor). */
 export function image(key) {
   if (cache.has(key)) return Promise.resolve(cache.get(key));
   const m = meta.get(key);
-  if (!m) return Promise.reject(new Error('sin imagen'));
+  if (!m) {
+    const T = globalThis.HFTelegram;
+    if (!T || !T.available()) return Promise.reject(new Error('sin imagen'));
+    return T.image(key, 640).then((url) => url || Promise.reject(new Error('sin imagen')));
+  }
   const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg(m.t, m.kind))}`;
   cache.set(key, url);
   return Promise.resolve(url);

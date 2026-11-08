@@ -5,15 +5,26 @@ Tablet (≥768 px) y escritorio (≥1280 px, con el diseño de la TV) vienen en 
 
 ## Estado actual
 
-- **Independiente, con datos de demostración.** El motor compartido que describe el plan
-  (`js/telegram.js`, `js/library.js`, `js/playback.js`, `js/engine/*`, `mobile/`, `design/`) todavía
-  **no está en este repo**. Mientras tanto, `web/js/data/` lo imita con los **mismos nombres de API**
-  para poder cambiarlo después sin tocar la interfaz:
-  - `data/library.js` → `HFLibrary` (parseCaption, composeCaption, build, filterKids, perfiles, PIN, progreso, Mi lista, nextEpisode, episodeAfter, formatos).
-  - `data/playback.js` → `HFPlayback` (open, play, pause, toggle, seek, time, duration, close, tracks, setAudio, setSub, qualities, setQuality, `simulated`).
-  - `data/art.js` → `HFTelegram.image(key)` (portadas SVG generadas; no hay imágenes con derechos).
-  - `data/demo-items.js` → lo que devolvería `HFTelegram.scan()`: títulos inventados con comentarios en el formato real.
-- El inicio de sesión (número, código, contraseña, QR) es solo diseño: cualquier dato entra a la demostración.
+- **Conectada al motor real de Telegram** (el mismo de la TV y el celular). `web/index.html` carga como scripts
+  clásicos `../js/tg.bundle.js`, `config.js`, `telegram.js`, `library.js`, `sync.js`, `engine/*` y `playback.js`
+  (globales `HFTelegram`, `HFLibrary`, `HFSync`, `HFPlayback`) antes de los módulos de la web.
+- `web/js/data/` es un **adaptador**: las pantallas siguen usando la forma de datos de la web, pero por dentro todo
+  sale del motor, con las **mismas claves** de título y de video que la TV y el celular:
+  - `data/library.js` → arma la biblioteca con `HFLibrary.build` y la traduce (`t.video` = el video «de identidad»
+    que usa el motor para el progreso). Perfiles, PIN, chats por perfil (`{id: título}`), progreso y Mi lista se
+    guardan con el motor, así se sincronizan (`homeflix-sync.json` en Mensajes guardados, `js/sync.js`).
+    Las preferencias (calidad, siguiente capítulo) son de cada dispositivo. `realEntry(key)` da la entrada real.
+  - `data/playback.js` → con la cuenta real usa `HFPlayback` (video de verdad, partes, calidad automática, audio y
+    subtítulos); necesita `#playerVideo`, `#playerSub`, `#playerSubTop` y `#playerSubPic` (los pone `ui/player.js`).
+  - `data/art.js` → miniaturas de Telegram (`HFTelegram.image`); las portadas dibujadas son solo de la demostración.
+  - `data/demo-items.js` → títulos inventados para la cuenta «demo» y el tablero (`?design=`).
+- **Inicio de sesión real** (`ui/access.js`): QR (`HFTelegram.loginQr`), número y código (`sendCode` / `signInCode`)
+  y contraseña de dos pasos (`signInPassword`). «Probar con datos de demostración» sigue disponible.
+- Ajustes: los chats de la cuenta (`HFTelegram.dialogs`) con su interruptor por perfil; «Sincronizar ahora» los relee.
+- Para que la web tenga la clave de Telegram, el servidor la inyecta desde `.env` (`TG_API_ID`, `TG_API_HASH`) en
+  `js/config.js`; sin clave, los botones de entrar avisan. **Nunca** se sube `.env` ni se escribe la `api_hash`.
+- Si cambias el motor (`js/*.js` fuera de `web/`), corre `node tools/test-library.mjs` y avisa en el PR: lo usan la
+  TV y el celular. `node tools/test-web.mjs` prueba el adaptador contra el motor real (`tools/web-engine.mjs`).
 
 ## Cómo correrlo
 

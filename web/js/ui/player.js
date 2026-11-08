@@ -3,7 +3,7 @@ import { I } from '../icons.js';
 import * as L from '../data/library.js';
 import * as P from '../data/playback.js';
 import * as Art from '../data/art.js';
-import { state } from '../state.js';
+import { state, isDemo } from '../state.js';
 import { go, back, playHref } from '../router.js';
 import { esc, img, iconBtn, empty, backBtn } from './components.js';
 import { sheetQuality, sheetTracks, closeTopSheet } from './sheets.js';
@@ -29,9 +29,13 @@ export function player(route) {
     chrome: false,
     html: `<div class="player show" data-player tabindex="-1" style="--tint:${Art.color(it.t.titleKey, 14)}">
       <div class="stage" data-stage>
-        <video class="video" data-video playsinline webkit-playsinline preload="metadata" hidden></video>
+        <video class="video" id="playerVideo" data-video playsinline webkit-playsinline preload="metadata" hidden></video>
+        <canvas id="playerSubPic" class="sub-pic" width="1920" height="1080"></canvas>
+        <div id="playerSub" class="sub-lines"></div>
+        <div id="playerSubTop" class="sub-top"></div>
         <div class="sim" data-sim>${img(it.t.bannerKey || it.t.imageKey, 'sim-img', '')}</div>
         <p class="subtitle" data-subline hidden></p>
+        <p class="play-error" data-err hidden></p>
         <div class="spinner" data-spin></div>
         <div class="tap-zone left" data-dbl="-10"><span>${I.rew}</span></div>
         <div class="tap-zone right" data-dbl="10"><span>${I.fwd}</span></div>
@@ -73,7 +77,7 @@ export function player(route) {
         <span class="next-actions"><a class="btn btn-primary" href="${playHref(nextEp.video)}" data-nextgo>${I.play}<span>Ver</span></a>
         <button class="btn btn-secondary" type="button" data-nextno>Ahora no</button></span>
       </aside>` : ''}
-      ${P.simulated ? '<span class="demo-badge">Vista de demostración</span>' : ''}
+      ${isDemo() ? '<span class="demo-badge">Vista de demostración</span>' : ''}
     </div>`,
     mount(el) { return mountPlayer(el, it, route, nextEp); },
   };
@@ -106,7 +110,7 @@ function mountPlayer(el, it, route, nextEp) {
     s.setAttribute('aria-valuetext', `${fmt(cur)} de ${fmt(dur)}`);
     const sub = P.tracks().current?.sub;
     const line = $('[data-subline]');
-    line.hidden = !sub || sub === 'off';
+    line.hidden = !P.simulated || !sub || sub === 'off'; // con video real los subtítulos los pinta el motor
     if (!line.hidden) line.textContent = SUBS[Math.floor(cur / 4) % SUBS.length];
     if (nextEp && !nextDismissed && dur - cur <= 15 && dur - cur > 0) showNext();
   };
@@ -119,10 +123,18 @@ function mountPlayer(el, it, route, nextEp) {
 
   const save = () => { if (cur > 5 && !state.design) L.setProgress(it.video, cur, dur); };
 
-  P.open({ titleKey: it.t.titleKey, video: it.video, versions: it.versions, version }, start, {
+  P.open({ titleKey: it.t.titleKey, video: it.video, versions: it.versions, version, preferred: want !== 'auto' }, start, {
     onTime: (t, d) => { cur = t; dur = d; paint(); },
+    onError: (msg) => {
+      const er = $('[data-err]');
+      er.textContent = msg || 'No se pudo reproducir este video.';
+      er.hidden = false;
+      showControls(true);
+    },
+    onNote: (msg) => { const er = $('[data-err]'); er.textContent = msg; er.hidden = false; setTimeout(() => { er.hidden = true; }, 4000); },
     onState: (s) => {
       root.dataset.state = s;
+      if (!P.simulated && s === 'playing') { video.hidden = false; $('[data-sim]').hidden = true; $('[data-err]').hidden = true; }
       $('[data-toggle]').innerHTML = s === 'playing' ? I.pause : I.play;
       $('[data-toggle]').setAttribute('aria-label', s === 'playing' ? 'Pausar' : 'Reproducir');
       if ('mediaSession' in navigator) navigator.mediaSession.playbackState = s === 'playing' ? 'playing' : 'paused';

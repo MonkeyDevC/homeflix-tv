@@ -1,6 +1,7 @@
 // Pruebas de la biblioteca de demostración de la web.
 // Uso: node tools/test-web.mjs
 //  o, sin Node, con el motor de Safari: /System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc -m tools/test-web.mjs
+import './web-engine.mjs'; // el motor compartido (global HFLibrary), como en la página
 import * as L from '../web/js/data/library.js';
 import { demoItems } from '../web/js/data/demo-items.js';
 
@@ -58,15 +59,16 @@ ok(kids.movies.every((t) => t.kids) && kids.movies.length === 4, 'perfil infanti
 eq(kids.series.map((s) => s.name), ['Los Exploradores del Patio'], 'perfil infantil: series');
 
 // Progreso y siguiente capítulo
-L.setAccount('test'); L.setProfile('familia');
+L.setAccount('test'); L.setProfile('p1');
 const e1 = casa.seasons[0].episodes[0];
 eq(L.nextEpisode(casa).video, e1.video, 'sin progreso: primer capítulo');
-L.setProgress(e1.video, 2700, 2760);
+L.setProgress(e1.video, 2740, 2760); // el motor lo da por visto en los últimos 30 s (igual en TV y celular)
 eq(L.nextEpisode(casa).video, casa.seasons[0].episodes[1].video, 'terminado: el siguiente');
 eq(L.episodeAfter(casa, casa.seasons[0].episodes[2].video).video, casa.seasons[1].episodes[0].video, 'cambia de temporada');
 ok(L.toggleMyList(est.titleKey) && L.inMyList(est.titleKey), 'Mi lista agrega');
 ok(!L.toggleMyList(est.titleKey) && !L.inMyList(est.titleKey), 'Mi lista quita');
-ok(L.checkPin('santi', '1234') && !L.checkPin('santi', '0000'), 'PIN');
+L.saveProfile({ id: 'p2', name: 'Santiago', avatar: '02-Captain_Carter', kids: false, pin: '1234' });
+ok(L.checkPin('p2', '1234') && !L.checkPin('p2', '0000'), 'PIN');
 
 eq(L.formatDuration(7680), '2 h 8 min', 'formatDuration');
 eq(L.formatClock(3725), '1:02:05', 'formatClock');

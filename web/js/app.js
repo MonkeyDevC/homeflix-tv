@@ -1,5 +1,5 @@
 // Arranque de HomeFlix web: rutas, guardas, transiciones, gestos y modo tablero (?design=<vista>).
-import { state, sync, signIn, chooseProfile } from './state.js';
+import { state, sync, signIn, signOut, chooseProfile, onLibrary, rebuild } from './state.js';
 import * as R from './router.js';
 import { tabbar, hydrate, skeletonRows } from './ui/components.js';
 import { closeTopSheet, sheetTracks } from './ui/sheets.js';
@@ -47,7 +47,7 @@ let prevHash = null;
 // Mismos nombres de vista que la TV y el celular. Cada cuadro del tablero abre web/?design=<vista>.
 const DESIGN = {
   login: '/login', 'login-qr': '/login/qr', 'login-phone': '/login/numero', 'login-code': '/login/codigo', 'login-password': '/login/clave',
-  profiles: '/perfiles', 'profile-edit': '/perfiles/editar/santi', pin: '/pin/santi',
+  profiles: '/perfiles', 'profile-edit': '/perfiles/editar/p2', pin: '/pin/p2',
   home: '/inicio', movies: '/peliculas', series: '/series', mylist: '/mi-lista', categories: '/categorias', search: '/buscar',
   'detail-movie': '/titulo/m%3Ala%20ultima%20estacion%3A2025', 'detail-series': '/titulo/s%3Acasa%20solar',
   'sheet-quality': '/titulo/m%3Ala%20ultima%20estacion%3A2025?sheet=quality',
@@ -59,7 +59,7 @@ function startDesign(name) {
   state.design = name;
   html.dataset.design = name;
   signIn('design', false);
-  if (!/^(login|profiles|profile-edit|pin)/.test(name)) chooseProfile('familia');
+  if (!/^(login|profiles|profile-edit|pin)/.test(name)) chooseProfile('p1');
   let path = DESIGN[name] || '/inicio';
   if (path.includes('@movie')) path = `/ver/${encodeURIComponent(state.lib.titles['m:orbita cero:2026'].video)}`;
   if (path.includes('@episode')) path = `/ver/${encodeURIComponent(state.lib.titles['s:casa solar'].seasons[0].episodes[1].video)}`;
@@ -170,8 +170,7 @@ pullToRefresh(viewEl, document.getElementById('ptr'), {
   enabled: () => state.route?.view === 'home' && !document.querySelector('.sheet-layer'),
   onRefresh: async () => {
     viewEl.querySelector('.rows')?.insertAdjacentHTML('afterbegin', `<div class="refreshing">${skeletonRows(1)}</div>`);
-    await new Promise((r) => setTimeout(r, 900));
-    sync();
+    await sync();
     render('none');
   },
 });
@@ -184,9 +183,31 @@ function registerSW() {
 }
 
 // ---------- Inicio ----------
-sync();
+/* Volver a pintar cuando cambia la biblioteca (llegó lo de Telegram u otro dispositivo cambió Mi lista, progreso,
+ * perfiles). No se toca el reproductor ni las pantallas donde se está escribiendo. */
+const CALM = new Set(['home', 'movies', 'series', 'mylist', 'categories', 'detail', 'profiles']);
+onLibrary(() => { if (state.route && CALM.has(state.route.view) && !document.querySelector('.sheet-layer')) render('none'); });
+
+/* Sesión de Telegram guardada: se comprueba con Telegram (pudo cerrarse desde el teléfono). */
+function resume() {
+  const T = globalThis.HFTelegram;
+  const acc = state.account;
+  if (!acc || acc === 'demo' || !T || !T.available() || !T.credentials()) return;
+  T.me().then((u) => {
+    if (state.account !== acc) return;
+    if (u && String(u.id) === String(acc)) {
+      signIn(u);
+      sync();
+      if (state.route) render('none');
+    } else {
+      signOut().then(() => R.go('/login', { replace: true }));
+    }
+  }, () => { /* sin conexión: se queda con lo guardado */ });
+}
+
 const design = new URLSearchParams(location.search).get('design');
 if (design) startDesign(design);
+else { rebuild(); resume(); }
 R.start(render);
 document.getElementById('splash')?.classList.add('gone');
 setTimeout(() => document.getElementById('splash')?.remove(), 600);

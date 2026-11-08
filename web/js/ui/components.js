@@ -37,8 +37,25 @@ const AV = [
   ['#b9f0c4', '#3fa36b'], ['#ffe58a', '#f29d38'], ['#d7b6ff', '#7b52d9'],
 ];
 export const AVATAR_COUNT = AV.length;
+
+/** Avatares con imagen (images/avatares/, los mismos de la TV y el celular): ids como «02-Captain_Carter». */
+export function avatarIds() {
+  return (globalThis.HF_AVATARES || []).map((src) => String(src).replace(/^.*\//, '').replace(/\.[a-z]+$/i, ''));
+}
+function avatarImage(id) {
+  const src = (globalThis.HF_AVATARES || []).find((x) => String(x).replace(/^.*\//, '').replace(/\.[a-z]+$/i, '') === id);
+  return src ? `../${src}` : '';
+}
+
 export function avatar(p, cls = '') {
-  const [a, b] = AV[(p.avatar ?? 0) % AV.length];
+  const pic = typeof p.avatar === 'string' ? avatarImage(p.avatar) : '';
+  if (pic) {
+    return `<span class="avatar avatar-pic ${cls}" aria-hidden="true"><img src="${esc(pic)}" alt="" decoding="async">
+    ${p.kids ? `<i class="avatar-star">${I.star}</i>` : ''}</span>`;
+  }
+  /* avatar sin imagen (los dibujos de fábrica de la TV: «panda», «zorro»…): una cara de color según el nombre */
+  const n = typeof p.avatar === 'number' ? p.avatar : [...String(p.avatar || '')].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const [a, b] = AV[n % AV.length];
   return `<span class="avatar ${cls}" style="--a:${a};--b:${b}" aria-hidden="true">
     <svg viewBox="0 0 64 64"><circle cx="22" cy="27" r="4" fill="#1a1a1a"/><circle cx="42" cy="27" r="4" fill="#1a1a1a"/>
     <path d="M22 41c5 5 15 5 20 0" fill="none" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/></svg>
