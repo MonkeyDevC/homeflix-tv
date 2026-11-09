@@ -1132,12 +1132,15 @@ var HFMobile = (function () {
   }
 
   var hideTimer = null;
+  /* Los subtítulos (fuera de #m, en #mplayer) suben mientras se ven los controles */
+  function chromeOn(on) { document.documentElement.classList.toggle("m-chrome-on", !!on); }
   function showChrome() {
     var pl = byId("pl");
     if (!pl) { return; }
     pl.classList.remove("idle");
+    chromeOn(true);
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(function () { if (HFPlayback.playing() && byId("pl") && !S.sheet) { byId("pl").classList.add("idle"); } }, 3500);
+    hideTimer = setTimeout(function () { if (HFPlayback.playing() && byId("pl") && !S.sheet) { byId("pl").classList.add("idle"); chromeOn(false); } }, 3500);
   }
 
   function startPlayback() {
@@ -1301,6 +1304,7 @@ var HFMobile = (function () {
     var fz = byId("plFreeze");
     if (fz) { fz.hidden = true; }
     byId("mplayer").hidden = true;
+    chromeOn(false);
     playerMode(false);
     S.player = null;
     S.sheet = null;
@@ -1356,7 +1360,7 @@ var HFMobile = (function () {
     if (S.view === "player" && (!el || el.id === "pl")) {
       /* tocar el video muestra u oculta los controles */
       var pl = byId("pl");
-      if (pl && !el) { if (pl.classList.contains("idle")) { showChrome(); } else { pl.classList.add("idle"); } }
+      if (pl && !el) { if (pl.classList.contains("idle")) { showChrome(); } else { pl.classList.add("idle"); chromeOn(false); } }
       if (!el) { return; }
     }
     if (!el) { return; }
