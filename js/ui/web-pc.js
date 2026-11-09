@@ -150,16 +150,110 @@
       slideIdle = setTimeout(function () { a.track.classList.add("anim"); }, 200);
       return;
     }
-    /* Arriba / abajo: de fila en fila */
+    /* Arriba / abajo: la página se desplaza suave, lo que gire la rueda o deslice el panel (sin mover el foco) */
     e.preventDefault();
+    if (pageScrollable()) { scrollBy(dy / scale()); return; }
+    /* Pantallas sin página que se desplace (listas de ajustes…): de elemento en elemento, como ▲ ▼ */
     acc += dy;
     if (Math.abs(acc) < 50 || Date.now() - lastStep < 220) { return; }
     lastStep = Date.now();
     var down = acc > 0;
     acc = 0;
-    html.classList.remove("hf-mouse"); /* el foco lo mueve la rueda: que se vea dónde quedó */
+    html.classList.remove("hf-mouse");
     if (down) { moveDown(); } else { moveUp(); }
   }, { passive: false });
+
+  /* ---------- Desplazamiento suave de la página + barra de desplazamiento ----------
+   * La página de la TV se mueve con transform (pageState en js/ui/core.js). Con la rueda se anima ese desplazamiento
+   * hacia el punto pedido; a la derecha, una barra fina (que se puede arrastrar) muestra dónde se está. */
+  var target = 0;
+  var anim = 0;
+  function maxPage() { return Math.max(0, pageState.el.offsetHeight - pageState.viewH + 80); }
+  function pageScrollable() { return !!(pageState.el && pageState.el.isConnected && maxPage() > 0); }
+  function setPage(y) {
+    pageState.offset = y;
+    pageState.el.style.transform = "translate3d(0," + (-Math.round(y)) + "px,0)";
+    paintBar();
+  }
+  function scrollBy(d) {
+    if (!anim) { target = pageState.offset; }
+    target = Math.max(0, Math.min(maxPage(), target + d));
+    html.classList.add("hf-wheel"); /* sin la transición de la TV: la anima este código */
+    if (!anim) { anim = requestAnimationFrame(step); }
+    showBar();
+  }
+  function step() {
+    anim = 0;
+    if (!pageScrollable()) { return; }
+    var cur = pageState.offset;
+    var next = cur + (target - cur) * 0.22;
+    if (Math.abs(target - next) < 0.5) { next = target; }
+    setPage(next);
+    if (next !== target) { anim = requestAnimationFrame(step); }
+    else { setTimeout(function () { if (!anim) { html.classList.remove("hf-wheel"); } }, 120); }
+  }
+
+  /* Barra fina a la derecha (fuera del lienzo escalado, en píxeles de la ventana) */
+  var bar = document.createElement("div");
+  bar.className = "hf-scrollbar";
+  bar.innerHTML = "<i></i>";
+  document.body.appendChild(bar);
+  var thumb = bar.firstChild;
+  var barHide = 0;
+  function paintBar() {
+    if (!pageScrollable() || currentRoute === "player") { bar.classList.remove("on"); return; }
+    var total = pageState.el.offsetHeight + 80;
+    var h = bar.clientHeight;
+    var th = Math.max(36, h * Math.min(1, pageState.viewH / total));
+    thumb.style.height = th + "px";
+    thumb.style.transform = "translateY(" + Math.round((h - th) * (pageState.offset / maxPage())) + "px)";
+  }
+  function showBar() {
+    if (!pageScrollable() || currentRoute === "player") { return; }
+    paintBar();
+    bar.classList.add("on");
+    clearTimeout(barHide);
+    barHide = setTimeout(function () { if (!barDrag) { bar.classList.remove("on"); } }, 1200);
+  }
+  /* Al pasar el mouse por el borde derecho también aparece */
+  document.addEventListener("mousemove", function (e) { if (e.clientX > window.innerWidth - 24) { showBar(); } });
+  /* Arrastrar la barra */
+  var barDrag = null;
+  thumb.addEventListener("mousedown", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    barDrag = { y: e.clientY, off: pageState.offset };
+    bar.classList.add("drag");
+  });
+  bar.addEventListener("mousedown", function (e) {
+    if (e.target !== bar || !pageScrollable()) { return; }
+    /* Clic en el riel: salta una pantalla hacia ese lado */
+    var r = thumb.getBoundingClientRect();
+    scrollBy((e.clientY < r.top ? -1 : 1) * pageState.viewH * 0.9);
+  });
+  document.addEventListener("mousemove", function (e) {
+    if (!barDrag) { return; }
+    var h = bar.clientHeight - thumb.offsetHeight;
+    var y = barDrag.off + ((e.clientY - barDrag.y) / Math.max(1, h)) * maxPage();
+    if (anim) { cancelAnimationFrame(anim); anim = 0; }
+    html.classList.add("hf-wheel");
+    target = Math.max(0, Math.min(maxPage(), y));
+    setPage(target);
+    showBar();
+  });
+  document.addEventListener("mouseup", function () {
+    if (!barDrag) { return; }
+    barDrag = null;
+    bar.classList.remove("drag");
+    html.classList.remove("hf-wheel");
+    showBar();
+  });
+  /* Cuando el teclado (o un clic) mueve la página, la barra la sigue; al cambiar de pantalla se esconde */
+  var baseScrollPage2 = window.scrollPage;
+  window.scrollPage = function (a) { baseScrollPage2(a); target = pageState.offset; paintBar(); };
+  var baseSetAreas2 = window.setAreas;
+  window.setAreas = function () { var r = baseSetAreas2.apply(this, arguments); target = pageState.offset || 0; paintBar(); return r; };
+  window.addEventListener("resize", paintBar);
 
   /* ---------- Reproductor ----------
    *   Mover el mouse muestra los controles (se ocultan solos a los 5 s, y con ellos el cursor).

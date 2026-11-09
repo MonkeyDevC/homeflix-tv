@@ -1418,4 +1418,18 @@ html[data-web="pc"] .hf2-back:hover svg { stroke: #ffffff; }
 /* Botón de pantalla completa: el último de la fila, abajo a la derecha */
 html[data-web="pc"] .hf2-pl-btn.hf-fs { margin: 0 0 0 18px; flex: none; }
 html[data-web="pc"] .hf2-pl-btn.hf-fs svg { stroke: currentColor; }
+/* Desplazamiento con la rueda en computador: lo anima js/ui/web-pc.js (sin la transición lenta de la TV) */
+html[data-web="pc"].hf-wheel .hf2-scroll > .hf2-scroll-inner { transition: none; }
+/* Barra de desplazamiento fina a la derecha (aparece al desplazar o al acercar el mouse al borde) */
+html[data-web="pc"] .hf-scrollbar {
+  position: fixed; top: 8px; bottom: 8px; right: 3px; width: 12px; z-index: 50;
+  border-radius: 6px; opacity: 0; transition: opacity 0.25s, background 0.2s; cursor: pointer;
+}
+html[data-web="pc"] .hf-scrollbar.on { opacity: 1; }
+html[data-web="pc"] .hf-scrollbar:hover, html[data-web="pc"] .hf-scrollbar.drag { background: rgba(255, 255, 255, 0.08); }
+html[data-web="pc"] .hf-scrollbar i {
+  position: absolute; left: 3px; right: 3px; top: 0; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.45); transition: left 0.15s, right 0.15s, background 0.15s;
+}
+html[data-web="pc"] .hf-scrollbar:hover i, html[data-web="pc"] .hf-scrollbar.drag i { left: 2px; right: 2px; background: rgba(230, 193, 147, 0.85); }
 
