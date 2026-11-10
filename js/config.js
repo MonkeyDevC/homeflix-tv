@@ -4,4 +4,3 @@ var HF_TG_API_PACKED = "";
 
 /* Versión de esta app (la escriben tools/build-wgt.mjs y tools/serve.mjs desde config.xml) y repo donde buscar actualizaciones. */
 var HF_VERSION = "";
-var HF_UPDATE_REPO = "MonkeyDevC/homeflix-tv";

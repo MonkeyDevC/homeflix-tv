@@ -152,6 +152,8 @@ function buildArea(def) {
     keepColumn: !!def.keepColumn,
     sideways: !!def.sideways,
     edge: def.edge || null,
+    holdPage: !!def.holdPage,
+    resume: def.resume || null,
     onFocus: def.onFocus || null
   });
 }
@@ -284,6 +286,9 @@ function scrollPage(a) {
   var maxOffset;
   if (!pageState.el) {
     return;
+  }
+  if (a.holdPage) {
+    return; // p. ej. el menú de arriba: no mueve la página, se queda donde estaba
   }
   if (!a.page) {
     target = 0;
@@ -464,9 +469,15 @@ function moveUp() {
 
 function moveDown() {
   var a = currentArea();
+  var back;
   if (a && a.dir === "v" && state.itemIndex < a.count - 1) {
     state.itemIndex += 1;
     updateFocus();
+    return;
+  }
+  /* Si se subió con BACK desde una fila, ▼ vuelve a esa misma fila y tarjeta */
+  back = a && a.resume ? a.resume() : null;
+  if (back && focusAreaByName(back.name, back.item)) {
     return;
   }
   changeArea(1);
@@ -575,6 +586,8 @@ var routeHints = {
   detail: "◀ ▶ Botones · ▼ Más · OK Seleccionar · BACK Volver",
   "tag-edit": "◀ ▶ ▲ ▼ Moverse · OK Cambiar o escribir · BACK Cancelar",
   search: "▼ Resultados · OK Escribir · BACK Volver",
+  live: "▲ ▼ Canales · ◀ ▶ Categorías · Números: ir a un canal · OK Pantalla completa · BACK Menú",
+  "live-player": "",
   player: ""
 };
 

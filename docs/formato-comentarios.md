@@ -69,3 +69,17 @@ Abajo del editor se muestra el comentario equivalente por si quieres copiarlo a 
 - Los videos sin comentario o con otro formato aparecen en la fila **Sin clasificar** con el nombre del archivo,
   para que veas cuáles faltan por etiquetar.
 - Si subes el mismo capítulo o película dos veces, HomeFlix muestra uno (el más reciente).
+
+## Marcas que pone el preparador (al final del comentario)
+
+| Marca | Dónde | Qué hace |
+|---|---|---|
+| `#tmdb603` / `#tmdbtv1399` | video | Ficha de TMDB (solo la usa el preparador). |
+| `#miniaturas` | hojas `.jpg` | Tira de cuadros para «Recortar» del celular. |
+| `#audio-x-eng` | video | Idioma correcto de cada pista de audio, en orden (`x` = deja el suyo). Va en el comentario **de cada archivo**. |
+| `#subs-x-spa` | video | Lo mismo para las pistas de subtítulos que el video trae dentro (videos viejos). |
+| `#subs-spa` | archivo `.srt` | **Subtítulos aparte**: un `.srt` por idioma, con el comentario de la película (`pelicula#Nombre (2015) #subs-eng`). Sirven para todas las calidades. |
+| `#subs-spa-f` | archivo `.srt` | Igual, pero son **forzados** (carteles y diálogos en otro idioma): se activan solos con el audio de ese idioma. |
+
+Desde la versión 1.1.28 los subtítulos no van dentro de los videos: cada idioma se publica una sola vez como `.srt`
+aparte (`Nombre (2015).spa.srt`, `.eng.srt`, `.spa.forzados.srt`) y la TV y el celular los usan en todas las calidades.

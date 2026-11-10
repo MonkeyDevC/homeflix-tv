@@ -273,7 +273,7 @@ function openTagEditor(entry, back) {
   tagEdit.back = back || null;
   tagEdit.seriesNames = fullLibrary.series.map(function (s) { return s.name; });
   if (entry.type === "movie") {
-    f = { type: "movie", name: entry.name, year: entry.year || 0, description: entry.description || "", kids: !!entry.kids, categories: (entry.categories || []).slice() };
+    f = { type: "movie", name: entry.name, year: entry.year || 0, description: entry.description || "", kids: !!entry.kids, categories: (entry.categories || []).slice(), tmdb: entry.tmdb || null };
   } else if (entry.type === "episode") {
     f = { type: "series", name: entry.seriesName, season: entry.season, episode: entry.episode,
       episodeTitle: /^Capítulo \d+$/.test(entry.title) ? "" : entry.title, description: entry.description || "", kids: !!entry.kids,

@@ -53,6 +53,7 @@ function openPlayer(item, startAt, series) {
       if (player.panel === "tracks") {
         renderTracksPanel();
       }
+      castNotify(); // el celular que controla ve las pistas nuevas (js/ui/cast.js)
     }
   });
   if (HFPlayback.simulated && byId("plNotice")) {
@@ -163,6 +164,7 @@ function showPlayerError(msg) {
 function onPlayerState(s) {
   var toggle = byId("plToggle");
   player.state = s;
+  castNotify();
   if (player.error) {
     return;
   }
@@ -265,6 +267,7 @@ function savePlayerProgress() {
 function closePlayer() {
   savePlayerProgress();
   HFPlayback.close();
+  castClosed(); // si lo controlaba un celular, deja de mostrar el control
   if (player.hideTimer) {
     clearTimeout(player.hideTimer);
     player.hideTimer = null;

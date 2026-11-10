@@ -48,7 +48,7 @@ function setSyncBadge() {
   if (!el) {
     return;
   }
-  el.innerHTML = syncing ? IC.clock + esc(syncProgress) : (syncError ? "⚠ " + esc(syncError) : (upd ? "⬆ Nueva versión v" + esc(upd.version) : ""));
+  el.innerHTML = syncing ? IC.clock + esc(syncProgress) : (syncError ? "⚠ " + esc(syncError) : (upd ? esc(updateBadgeText()) : ""));
   el.setAttribute("data-state", syncing ? "busy" : (syncError ? "error" : "idle"));
 }
 
@@ -60,14 +60,29 @@ function librarySyncDue() {
 
 /* Revisa los chats activos del perfil y rearma la biblioteca. La caché guarda los videos por chat:
  * lo revisado reemplaza lo de ese chat, y lo de otros perfiles se conserva. */
-function syncLibrary() {
+var syncWaiters = []; // avisos de «terminé» (syncLibrary(onDone)), p. ej. para «Ver en la TV» (js/ui/cast.js)
+function flushSyncWaiters() {
+  var w = syncWaiters;
+  syncWaiters = [];
+  w.forEach(function (fn) { try { fn(); } catch (e) { /* un aviso roto no frena a los demás */ } });
+}
+
+/* onDone (opcional) se llama al terminar, también si ya había una revisión en curso (al terminar esa). */
+function syncLibrary(onDone) {
   var ids = enabledSourceIds();
   var all = [];
   var done = {};
   var failed = 0;
   var acc = HFLibrary.accountId();
   var i = 0;
-  if (syncing || !telegramUser || !HFTelegram.available()) {
+  if (onDone) {
+    syncWaiters.push(onDone);
+  }
+  if (syncing) {
+    return; // la revisión en curso avisa al terminar
+  }
+  if (!telegramUser || !HFTelegram.available()) {
+    flushSyncWaiters();
     return;
   }
   syncing = true;
@@ -77,6 +92,7 @@ function syncLibrary() {
       /* se cambió de cuenta a mitad de camino: lo leído era de la otra cuenta y se descarta */
       syncing = false;
       setSyncBadge();
+      flushSyncWaiters();
       return;
     }
     if (i >= ids.length) {
@@ -97,10 +113,11 @@ function syncLibrary() {
       setLibraryItems(merged);
       setSyncBadge();
       if (currentRoute === "browse") {
-        var a = currentArea();
-        renderBrowse(a ? a.name : null, state.itemIndex);
+        var f = browseFocus();
+        renderBrowse(f.name, f.index, true);
         updateStatus("Biblioteca actualizada: " + library.movies.length + " películas, " + library.series.length + " series");
       }
+      flushSyncWaiters();
       return;
     }
     syncProgress = "Actualizando " + (i + 1) + "/" + ids.length + "…";
@@ -453,7 +470,8 @@ var MENU = [
   { id: "home", label: "Inicio" },
   { id: "movies", label: "Películas" },
   { id: "series", label: "Series" },
-  { id: "mylist", label: "Mi lista" }
+  { id: "mylist", label: "Mi lista" },
+  { id: "live", label: "TV en vivo" }
 ];
 
 function openBrowse(section, message) {
@@ -469,14 +487,64 @@ function openBrowse(section, message) {
   setSyncBadge();
 }
 
+/* Botón «Actualizar» de la barra: lee otra vez los chats del perfil (títulos nuevos) y revisa si hay una versión nueva
+ * de la app; si la hay, abre el modal de actualización (js/ui/updatemodal.js). */
+function refreshCatalog() {
+  var before = Object.keys(library.titles || {}).length;
+  var btn = document.querySelector(".hf2-refresh");
+  var catText = null;
+  var verText = null;
+  function settle() {
+    var b;
+    if (catText === null || verText === null) {
+      return;
+    }
+    b = document.querySelector(".hf2-refresh");
+    if (b) {
+      b.classList.remove("spinning");
+    }
+    updateStatus(catText + (verText ? " · " + verText : ""));
+  }
+  if (btn) {
+    btn.classList.add("spinning");
+  }
+  updateStatus("Buscando películas, series y versiones nuevas…");
+  checkUpdatesNow().then(function (info) {
+    if (info && info.hay) {
+      verText = "hay una versión nueva (v" + info.version + ")";
+      openUpdateModal();
+    } else {
+      verText = "HomeFlix" + (appVersion() ? " v" + appVersion() : "") + " está al día";
+    }
+    settle();
+  }, function () {
+    verText = "no se pudo buscar una versión nueva";
+    settle();
+  });
+  if (syncing) {
+    catText = "Ya se está actualizando el catálogo…";
+    settle();
+    return;
+  }
+  syncLibrary(function () {
+    var added = Object.keys(library.titles || {}).length - before;
+    catText = syncError ? "No se pudo actualizar todo: " + syncError
+      : added > 0 ? (added === 1 ? "Hay 1 título nuevo" : "Hay " + added + " títulos nuevos") + " en el catálogo"
+      : "El catálogo está al día";
+    settle();
+  });
+}
+
 function topbarHtml(active) {
   var p = activeProfile || { name: "Perfil", avatar: "panda" };
   return '<div class="hf2-topbar">' + brandHtml("small") +
-    '<nav class="hf2-menu">' + MENU.map(function (m) {
+    '<nav class="hf2-menu">' + MENU.filter(function (m) { return m.id !== "live" || !currentProfileIsKids(); }).map(function (m) {
       return '<span class="' + (m.id === active ? "on" : "") + '" data-focusable="true" data-menu="' + m.id + '" data-title="' + m.label + '" data-description="' + m.label + '" tabindex="0">' + m.label + "</span>";
     }).join("") + "</nav>" +
     '<div class="hf2-top-right"><span class="hf2-sync-badge" id="syncBadge"></span>' +
       '<span class="hf2-round sm" data-focusable="true" data-menu="search" data-title="Buscar" data-description="Buscar películas y series" tabindex="0">' + IC.search + "</span>" +
+      /* Actualizar: vuelve a leer los chats del perfil para traer lo recién publicado sin salir de la app */
+      '<span class="hf2-round sm hf2-refresh' + (syncing ? " spinning" : "") + '" data-focusable="true" data-menu="refresh" data-title="Actualizar" data-description="Buscar películas y series nuevas en tus chats" tabindex="0">' + IC.refresh + "</span>" +
       (currentProfileIsKids() ? "" : '<span class="hf2-round sm" data-focusable="true" data-menu="settings" data-title="Ajustes" data-description="Chats de la biblioteca" tabindex="0">' + IC.gear + "</span>") +
       '<span class="hf2-me" data-focusable="true" data-menu="profiles" data-title="' + esc(p.name) + '" data-description="Cambiar de perfil" tabindex="0"><span class="hf2-me-avatar">' + avatarSvg(p.avatar) + "</span>" + esc(p.name) + "</span>" +
     "</div></div>";
@@ -572,16 +640,15 @@ function gridHtml(titles) {
   return '<div class="hf2-grid">' + rows.join("") + "</div>";
 }
 
-/* Una fila por categoría (#Marvel, #Terror… en el comentario). withKids agrega «Infantil» con lo marcado #infantil.
+/* Una fila por categoría (#Marvel, #Terror… en el comentario), y cada título en UNA sola: la de más prioridad del
+ * catálogo (js/library.js primaryCategory: Marvel > Infantil > género). withKids: lo marcado #infantil va a «Infantil».
  * Las categorías con algo agregado hace poco van primero. titles ya viene del más nuevo al más viejo. */
 function categoryRows(titles, prefix, withKids) {
   var groups = {};
   var order = [];
   titles.forEach(function (t) {
-    var cats = (t.categories || []).slice();
-    if (withKids && t.kids) {
-      cats.push("Infantil");
-    }
+    var main = HFLibrary.primaryCategory(t, withKids);
+    var cats = main ? [main] : [];
     cats.forEach(function (c) {
       var id = normText(c).replace(/[^a-z0-9]+/g, "-");
       if (!groups[id]) {
@@ -595,7 +662,9 @@ function categoryRows(titles, prefix, withKids) {
   });
   return order.map(function (id) {
     var g = groups[id];
-    return [prefix + "-" + id, g.name, g.items, { note: g.items.length === 1 ? "1 título" : g.items.length + " títulos" }];
+    var chrono = HFLibrary.isChronoCategory(g.name); // Marvel: en el orden de la historia (js/library.js)
+    return [prefix + "-" + id, g.name, HFLibrary.sortForCategory(g.name, g.items),
+      { note: (g.items.length === 1 ? "1 título" : g.items.length + " títulos") + (chrono ? " · en orden cronológico" : "") }];
   });
 }
 
@@ -640,7 +709,7 @@ function sectionContent(section) {
   return { heroList: heroList || [], rows: rows };
 }
 
-function renderBrowse(focusName, focusIndex) {
+function renderBrowse(focusName, focusIndex, keepView) {
   var root = byId("scrBrowse");
   var section = browse.section;
   var html = "";
@@ -650,6 +719,11 @@ function renderBrowse(focusName, focusIndex) {
   var defs = [];
   var scroll;
 
+  var kept = keepView ? captureBrowseView() : null;
+
+  if (focusName !== "top") {
+    browse.resume = null; // el «volver a la fila donde estaba» solo vale mientras se está en el menú
+  }
   if (section === "mylist") {
     var titles = myListTitles();
     html = '<div class="hf2-page" style="top:120px"><div class="hf2-grid-head"><h2>Mi lista <span>' + titles.length + " títulos</span></h2></div>" +
@@ -670,7 +744,11 @@ function renderBrowse(focusName, focusIndex) {
   root.innerHTML = html + topbarHtml(section);
   setSyncBadge();
 
-  defs.push({ name: "top", items: root.querySelectorAll(".hf2-topbar [data-focusable]"), dir: "h" });
+  /* BACK desde una fila sube al menú sin mover la página ni las filas; ▼ vuelve a donde se estaba (browse.resume) */
+  defs.push({
+    name: "top", items: root.querySelectorAll(".hf2-topbar [data-focusable]"), dir: "h", holdPage: true,
+    resume: function () { var r = browse.resume; browse.resume = null; return r; }
+  });
   scroll = byId("browseScroll");
   if (hero) {
     defs.push({ name: "hero", items: root.querySelectorAll("#billboard .hf2-bb-actions [data-focusable]"), dir: "h", page: scroll, follow: "top" });
@@ -696,8 +774,10 @@ function renderBrowse(focusName, focusIndex) {
   } else {
     setAreas(defs, defs.length > 1 ? 1 : 0, 0);
   }
+  restoreBrowseView(kept);
   observeImages(root);
   shapeHeroSwitch(root.querySelector(".hf2-bb-dots"));
+  reattachUpdateModal(); // si el modal de actualización está abierto, conserva el foco
   if (hero) {
     if (browse.heroDir) {
       animateHero(byId("billboard"), browse.heroDir);
@@ -793,9 +873,12 @@ function handleBrowseSelect(el) {
   if (menu) {
     if (menu === "search") { openSearch(); return; }
     if (menu === "settings") { openSettings({ returnTo: "browse" }); return; }
+    if (menu === "refresh") { refreshCatalog(); return; }
     if (menu === "profiles") { openProfiles("¿Quién está viendo?"); return; }
+    if (menu === "live") { openLive(); return; }
     browse.section = menu;
-    renderBrowse("top", MENU.map(function (m) { return m.id; }).indexOf(menu));
+    browse.resume = null;
+    renderBrowse("top",MENU.map(function (m) { return m.id; }).indexOf(menu));
     return;
   }
   if (action === "settings") { openSettings({ returnTo: "browse" }); return; }

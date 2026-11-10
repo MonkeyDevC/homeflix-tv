@@ -1,0 +1,35 @@
+services:
+  homeflix:
+    build: .
+    container_name: homeflix
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      # Canal de actualizaciones: lo sube tools/publicar-version.mjs (scp a ~/homeflix-servidor/versiones)
+      VERSIONS_DIR: /versiones
+      PORT: "3000"
+    ports:
+      # Solo el loopback: Caddy es la entrada pública (scalvache.shop/productos/HomeFlix).
+      - "127.0.0.1:4500:3000"
+    volumes:
+      - homeflix-datos:/data
+      - ./versiones:/versiones:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    mem_limit: 256m
+    cpus: 0.5
+    networks:
+      - default
+      # La red privada con la consola (contenedor nexuscard): por ella llega a /interno/v1.
+      - scalvache-interna
+
+volumes:
+  homeflix-datos:
+
+networks:
+  scalvache-interna:
+    external: true

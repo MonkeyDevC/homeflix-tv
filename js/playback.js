@@ -9,6 +9,8 @@
  *   HFPlayback.setAudio(key)     cambia de pista de audio (reabre en el mismo punto)
  *   HFPlayback.setSub(key|null)  muestra una pista de subtítulos o ninguna
  *   HFPlayback.qualities()       → {auto, current: {q}, list: [{key, q}]} o null si el video tiene una sola versión
+ *   HFPlayback.setRate(r) / rate()  velocidad (1 = normal); vuelve a 1 con cada video nuevo
+ *   HFPlayback.element()         el <video> real (para grabar un recorte), null en el simulador
  *
  * Partes: una versión puede venir en varios archivos («parte 1 de 7»…, tools/preparador). Se reproducen seguidos como una
  * sola película: el tiempo, la duración y los saltos son los de la película entera; al terminar una parte se abre la
@@ -327,8 +329,8 @@ var HFPlayback = (function () {
 
   function setParts(v) {
     var off = 0;
-    vparts = (v && v.parts && v.parts.length ? v.parts : [{ key: videoKey, dur: (item && item.video && item.video.duration) || 0 }]).map(function (x) {
-      var o = { key: x.key, dur: x.dur || 0, off: off };
+    vparts = (v && v.parts && v.parts.length ? v.parts : [{ key: videoKey, dur: (item && item.video && item.video.duration) || 0, langs: item && item.video && item.video.langs }]).map(function (x) {
+      var o = { key: x.key, dur: x.dur || 0, off: off, langs: x.langs || null };
       off += o.dur;
       return o;
     });
@@ -393,10 +395,19 @@ var HFPlayback = (function () {
   var renderer = null;
   var emb = {};
   var embOrder = [];
+  var pendingSubLang = "";  // su idioma: si el otro archivo no lo tiene igual (aparte ↔ dentro del video), se busca por idioma
   var subOn = null;
   var subDecided = false;
   var trackInfo = { audio: [], subs: [] };
   var lastState = "";
+  var rate = 1; // velocidad elegida (0.5–1.5): se vuelve a poner cada vez que el motor abre un archivo
+
+  function applyRate() {
+    if (video) {
+      video.defaultPlaybackRate = rate;
+      video.playbackRate = rate;
+    }
+  }
 
   function realAvailable() {
     return typeof Player !== "undefined" && typeof window.MediaSource !== "undefined" &&
@@ -461,21 +472,14 @@ var HFPlayback = (function () {
     return t;
   }
 
-  function langName(code) {
-    var c = String(code || "").toLowerCase();
-    var map = { spa: "Español", es: "Español", eng: "Inglés", en: "Inglés", por: "Portugués", pt: "Portugués", fre: "Francés", fra: "Francés", fr: "Francés",
-      ita: "Italiano", it: "Italiano", ger: "Alemán", deu: "Alemán", de: "Alemán", jpn: "Japonés", ja: "Japonés", kor: "Coreano", ko: "Coreano",
-      chi: "Chino", zho: "Chino", zh: "Chino", rus: "Ruso", ru: "Ruso", lat: "Latino", und: "" };
-    return map.hasOwnProperty(c) ? map[c] : (c ? c.toUpperCase() : "");
-  }
+  /* Nombres de las pistas: los mismos en la TV, el celular y el preparador (library.js) */
+  function trackLabels(list, kind) { return HFLibrary.trackLabels(list, kind); }
 
-  function trackLabel(t, i, kind) {
-    var parts = [];
-    if (t.name) { parts.push(t.name); }
-    if (langName(t.lang) && (!t.name || t.name.toLowerCase().indexOf(langName(t.lang).toLowerCase()) < 0)) { parts.push(langName(t.lang)); }
-    if (kind === "audio" && t.channels) { parts.push(t.channels >= 6 ? "5.1" : t.channels === 2 ? "Estéreo" : t.channels + " canales"); }
-    if (kind === "subs" && t.isForced) { parts.push("forzados"); }
-    return parts.join(" · ") || (kind === "audio" ? "Audio " : "Subtítulos ") + (i + 1);
+  /* Corrección de idioma guardada en el comentario del video (#audio-spa-eng, #subs-spa): la pista N toma el código N */
+  function applyLangFix(list, codes) {
+    (codes || []).forEach(function (c, i) {
+      if (list[i] && c && c !== "x") { list[i].lang = c; }
+    });
   }
 
   function isSpanish(lang) {
@@ -495,7 +499,8 @@ var HFPlayback = (function () {
     if (saved !== null) {
       pick = saved === "off" ? null : (emb[saved] ? saved : null);
     } else {
-      tr.subs.forEach(function (s) { if (!pick && s.isForced) { pick = s.key; } });
+      /* los forzados (carteles, diálogos en otro idioma) solo si son del idioma del audio que suena */
+      tr.subs.forEach(function (s) { if (!pick && s.isForced && (!audioLang || !s.lang || (isSpanish(s.lang) === isSpanish(audioLang) && (isSpanish(s.lang) || String(s.lang).slice(0, 2) === String(audioLang).slice(0, 2))))) { pick = s.key; } });
       if (!pick && !isSpanish(audioLang)) {
         tr.subs.forEach(function (s) { if (!pick && isSpanish(s.lang)) { pick = s.key; } });
       }
@@ -508,9 +513,51 @@ var HFPlayback = (function () {
     renderer.set(subOn ? emb[subOn].track : null);
   }
 
+  /* Subtítulos aparte del título (un .srt publicado en el grupo): se bajan una vez (son unos KB) y valen para todas
+   * las calidades. Si el archivo que suena ya trae ese idioma, no se repite. */
+  var extSubCache = {};
+  function extSubEvents(x) {
+    if (!extSubCache[x.key]) {
+      extSubCache[x.key] = HFTelegram.fileUrl(x.key).then(function (url) {
+        if (!url) { throw new Error("sin archivo"); }
+        return fetch(url).then(function (r) { return r.arrayBuffer(); });
+      }).then(function (b) {
+        return Subs.parse(Subs.decode(new Uint8Array(b)), x.name || "x.srt");
+      });
+      extSubCache[x.key].catch(function () { delete extSubCache[x.key]; });
+    }
+    return extSubCache[x.key];
+  }
+  /* Los subtítulos aparte son LOS del título (iguales en todas las calidades). Los que un video viejo trae dentro solo
+   * se muestran si de ese idioma no hay uno aparte. */
+  function subLang3(c) { c = String(c || "").toLowerCase(); return { es: "spa", lat: "spa", en: "eng" }[c] || c; }
+  function coveredByExt(t) {
+    var files = (item && item.subFiles) || [];
+    return !!t.lang && files.some(function (x) { return x.lang && subLang3(x.lang) === subLang3(t.lang) && !!x.forced === !!t.isForced; });
+  }
+  function extSubs() {
+    return ((item && item.subFiles) || []).map(function (x) {
+      var key = "x:" + x.key;
+      if (!emb[key]) {
+        emb[key] = { info: { key: key, lang: x.lang, name: "", isForced: !!x.forced }, track: Subs.track("srt") };
+        embOrder.push(key);
+        extSubEvents(x).then(function (list) {
+          if (emb[key]) { emb[key].track.addEvents(list); }
+        }, function () { /* sin subtítulo aparte */ });
+      }
+      return { key: key, lang: x.lang || "", name: "", isForced: !!x.forced, codec: "srt", ext: true };
+    });
+  }
+
   function onEngineTracks(tr, mySession) {
     if (mySession !== session) {
       return;
+    }
+    /* los del archivo + los aparte (sin copiar el arreglo del motor) */
+    tr = { audio: tr.audio, subs: tr.subs };
+    applyLangFix(tr.subs, ((vparts[partIdx] && vparts[partIdx].langs) || {}).subs);
+    if (typeof HFTelegram !== "undefined" && item && item.subFiles && item.subFiles.length) {
+      tr.subs = extSubs().concat(tr.subs.filter(function (t) { return !coveredByExt(t); }));
     }
     if (pendingSub !== undefined) {
       tr.subs.forEach(function (t) {
@@ -519,6 +566,9 @@ var HFPlayback = (function () {
           embOrder.push(t.key);
         }
       });
+      if (pendingSub && !emb[pendingSub] && pendingSubLang) {
+        tr.subs.forEach(function (t) { if (!emb[pendingSub] && !t.isForced && String(t.lang || "") === pendingSubLang) { pendingSub = t.key; } });
+      }
       setSubInternal(pendingSub);
       pendingSub = undefined;
     }
@@ -528,9 +578,14 @@ var HFPlayback = (function () {
         embOrder.push(t.key);
       }
     });
+    /* la corrección del archivo que suena (cada calidad tiene su comentario y sus pistas) */
+    var fix = (vparts[partIdx] && vparts[partIdx].langs) || null;
+    applyLangFix(tr.audio, fix && fix.audio);
+    var aLabels = trackLabels(tr.audio, "audio");
+    var sLabels = trackLabels(tr.subs, "subs");
     trackInfo = {
-      audio: tr.audio.map(function (a, i) { return { key: a.key, label: trackLabel(a, i, "audio") + (a.ok ? "" : " (no compatible)"), current: a.current, ok: a.ok, lang: a.lang }; }),
-      subs: tr.subs.map(function (s, i) { return { key: s.key, label: trackLabel(s, i, "subs"), lang: s.lang, isForced: s.isForced }; })
+      audio: tr.audio.map(function (a, i) { return { key: a.key, label: aLabels[i] + (a.ok ? "" : " (no compatible)"), current: a.current, ok: a.ok, lang: a.lang }; }),
+      subs: tr.subs.map(function (s, i) { return { key: s.key, label: sLabels[i], lang: s.lang, isForced: s.isForced }; })
     };
     decideSubs({ audio: trackInfo.audio, subs: tr.subs });
     if (ev && ev.onTracks) {
@@ -547,6 +602,7 @@ var HFPlayback = (function () {
     if (opts && opts.reopen && opts.fileChanged) {
       /* otro archivo (otra parte u otra calidad): sus subtítulos tienen otros tiempos; se conserva cuál estaba elegido */
       pendingSub = subOn;
+      pendingSubLang = subOn && emb[subOn] ? String(emb[subOn].info.lang || "") : "";
       emb = {};
       embOrder = [];
       subOn = null;
@@ -596,6 +652,7 @@ var HFPlayback = (function () {
         vparts[partIdx].dur = d;
         reoffset();
       }
+      applyRate();
       emitState(video.paused ? "paused" : "playing");
     }, function (e) {
       if (mySession === session && ev && ev.onError) {
@@ -696,6 +753,7 @@ var HFPlayback = (function () {
 
   api.open = function (it, startAt, events) {
     api.close();
+    rate = 1; // cada video empieza a velocidad normal
     ev = events || {};
     item = it;
     videoKey = it.video ? it.video.key : it.key;
@@ -776,6 +834,15 @@ var HFPlayback = (function () {
     }
     return totalDuration();
   };
+
+  /* Velocidad de reproducción (Velocidad en el reproductor del celular). */
+  api.setRate = function (r) {
+    rate = Math.max(0.25, Math.min(2, Number(r) || 1));
+    applyRate();
+  };
+  api.rate = function () { return rate; };
+  /* El <video> real (para grabar un recorte con captureStream); null en el simulador. */
+  api.element = function () { return api.simulated ? null : video; };
 
   api.playing = function () {
     return api.simulated ? sim.playing : !!(video && !video.paused && lastState === "playing");

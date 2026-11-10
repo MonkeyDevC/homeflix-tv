@@ -12,8 +12,11 @@
 //  - Un fotograma clave cada 2 s (la app cambia de calidad en esos puntos).
 //  - Audio AAC / AC3 / E-AC3 se copia; cualquier otro (DTS, TrueHD, FLAC…) se pasa a AAC estéreo.
 //  - MP4: subtítulos de texto como mov_text (los de imagen, PGS/VobSub, no caben). MKV: todos.
+//  - Copia directa: si una calidad sale igual que el original (misma resolución, códec que la TV ya reproduce y una tasa
+//    razonable), el video NO se vuelve a codificar: se copia tal cual (minutos en vez de media hora, sin perder nada) y,
+//    si no cabe en Telegram, se corta en cuadros clave: la parte 1 lo más grande que quepa y el resto al final.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 
 export const RUNGS = [
@@ -69,6 +72,7 @@ export function probe(file) {
   }));
   const subs = info.streams.filter((s) => s.codec_type === 'subtitle').map((s) => ({
     index: s.index, codec: s.codec_name, lang: lang(s), title: title(s), text: TEXT_SUBS.includes(s.codec_name),
+    forced: !!(s.disposition && s.disposition.forced),
   }));
   const rung = Math.max(v.height, Math.round((v.width * 9) / 16));
   const size = statSync(file).size;
@@ -76,7 +80,7 @@ export function probe(file) {
   const vBps = streamBps(v) || Math.max(0, (size * 8) / duration - audios.reduce((n, a) => n + (a.bps || 192000), 0));
   return {
     file, name: basename(file), size, duration,
-    video: { index: v.index, codec: v.codec_name, width: v.width, height: v.height, rung, kbps: Math.round(vBps / 1000), fps: v.avg_frame_rate, transfer: v.color_transfer || '', hdr: /smpte2084|arib-std-b67/.test(v.color_transfer || '') },
+    video: { index: v.index, codec: v.codec_name, pixFmt: v.pix_fmt || '', profile: v.profile || '', width: v.width, height: v.height, rung, kbps: Math.round(vBps / 1000), fps: v.avg_frame_rate, transfer: v.color_transfer || '', hdr: /smpte2084|arib-std-b67/.test(v.color_transfer || '') },
     audios, subs, chapters: (info.chapters || []).length,
     rungs: RUNGS.map((r) => ({ id: r.id, name: r.name, possible: r.h <= rung + 8 })),
     guess: guessTitle(basename(file, extname(file))),
@@ -109,7 +113,24 @@ function pickSubs(src, opts) {
 
 /* Peso del audio (para descontarlo del tope). */
 function audioBps(src, opts) {
-  return pickAudios(src, opts).reduce((n, a) => n + (a.copy ? a.bps || (a.codec === 'aac' ? 192000 : 640000) : 192000), 0);
+  return pickAudios(src, opts).reduce((n, a) => n + (a.copy ? a.bps || (a.codec === 'aac' ? 192000 : 640000) : 192000), 0) +
+    (opts.extraAudio && opts.extraAudio.path ? 384000 : 0);
+}
+
+/* ¿Esta calidad puede salir copiando el video del original, sin recodificar? Misma resolución, el códec que esa calidad
+ * usa en la TV (H.264 de 8 bits; el 4K en H.265), sin pasar HDR a SDR y sin una tasa desmedida (un remux de 30 Mbps sí
+ * se recodifica: serían muchas partes y pesado para el celular). opts.reencode: forzar la recodificación. */
+export function canCopy(src, r, opts) {
+  if (opts.reencode) return false;
+  const v = src.video;
+  if (Math.abs(v.rung - r.h) > 8 || v.width > r.w + 8 || v.height > r.h + 8) return false;
+  if (r.codec === 'h264') {
+    if (v.codec !== 'h264' || v.hdr || (v.pixFmt && v.pixFmt !== 'yuv420p' && v.pixFmt !== 'yuvj420p') || /10|4:4:4|4:2:2/i.test(v.profile)) return false;
+  } else if (!/hevc|h265/.test(v.codec)) {
+    return false;
+  }
+  const top = r.id === '2160' ? Math.max(r.kbps, Number(opts.k4Mbps || 14) * 1000) : r.kbps;
+  return !v.kbps || v.kbps <= top * 1.5;
 }
 
 /* Qué se va a hacer con cada calidad: tasa de video, en cuántas partes y tamaño esperado.
@@ -122,6 +143,18 @@ export function plan(src, opts) {
   const split = opts.split !== false;
   const want = opts.qualities && opts.qualities.length ? opts.qualities.map(String) : RUNGS.map((r) => r.id);
   return RUNGS.filter((r) => want.includes(r.id) && src.rungs.find((x) => x.id === r.id).possible).map((r) => {
+    if (canCopy(src, r, opts)) {
+      /* copia directa: pesa lo que pesa el original; la parte 1 lo más grande que quepa y el resto al final */
+      const kbpsCopy = src.video.kbps || Math.round((src.size * 8) / src.duration / 1000);
+      const bytesCopy = Math.round(((kbpsCopy * 1000 + aBps) * dur) / 8);
+      const partsCopy = split && bytesCopy > limit * 0.97 ? Math.ceil(bytesCopy / (limit * 0.96)) : 1;
+      return {
+        id: r.id, name: r.name, file: r.file, codec: r.codec, kbps: kbpsCopy, parts: partsCopy,
+        partSeconds: partsCopy > 1 ? Math.min(dur, Math.floor((limit * 0.96 * 8) / (kbpsCopy * 1000 + aBps))) : dur,
+        bytes: bytesCopy, partBytes: partsCopy > 1 ? Math.round(limit * 0.96) : bytesCopy,
+        low: false, rating: 'original', copy: true, audioKbps: Math.round(aBps / 1000),
+      };
+    }
     let capped = false;
     let target = r.id === '2160' ? Math.max(4000, Math.min(r.cap, Math.round(Number(opts.k4Mbps || 14) * 1000))) : r.kbps;
     /* Nunca más tasa que el original en su misma resolución: no gana calidad y ocupa más.
@@ -180,7 +213,7 @@ export function caption(o) {
   } else {
     c = `pelicula#${name}${Number(o.year) ? ` (${Number(o.year)})` : ''}` + (desc ? `#${desc}` : '');
   }
-  return c + catTags(o.categories) + (o.kids ? ' #infantil' : '');
+  return c + catTags(o.categories) + (o.kids ? ' #infantil' : '') + (o.tmdb && o.tmdb.id ? ' #tmdb' + (o.tmdb.type === 'tv' ? 'tv' : '') + Number(o.tmdb.id) : '');
 }
 
 /* «Marvel, ciencia ficción» (o una lista) → « #Marvel #ciencia_ficción»: cada una es una fila en la app */
@@ -216,6 +249,7 @@ export function hasNvenc() {
 
 function ffmpegArgs(src, p, opts, out, kbps, gpu, seg) {
   const r = RUNGS.find((x) => x.id === p.id);
+  const copyV = !!p.copy;
   const hevc = r.codec === 'hevc';
   const hdr = src.video.hdr;
   const keepHdr = hdr && hevc;
@@ -226,8 +260,27 @@ function ffmpegArgs(src, p, opts, out, kbps, gpu, seg) {
   const a = ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1'];
   if (seg.start) a.push('-ss', String(seg.start));
   a.push('-i', src.file, '-t', String(seg.len));
-  a.push('-map', `0:${src.video.index}`, '-vf', vf);
-  if (gpu) a.push('-c:v', hevc ? 'hevc_nvenc' : 'h264_nvenc', '-preset', 'p6', '-tune', 'hq', '-rc', 'vbr', '-multipass', 'qres', '-spatial-aq', '1');
+  /* Español de otro archivo: un audio (de otra copia de la película o un .ac3/.mka). «offset» (segundos) corre el
+   * audio si no empieza igual que el video. Va primero y queda como predeterminado.
+   * Los subtítulos de texto NO van dentro del video: se sacan una vez como .srt por idioma (extractSubs) y todas las
+   * calidades usan los mismos, como en el streaming de siempre. Dentro solo quedan los de imagen (PGS) en un MKV. */
+  const xa = opts.extraAudio && opts.extraAudio.path ? opts.extraAudio : null;
+  let nextInput = 1;
+  let xaIn = -1;
+  if (xa) {
+    const off = Number(xa.offset) || 0;
+    if (off) a.push('-itsoffset', String(off));
+    if (seg.start) a.push('-ss', String(seg.start));
+    a.push('-i', xa.path);
+    xaIn = nextInput++;
+  }
+  a.push('-map', `0:${src.video.index}`);
+  if (copyV) {
+    a.push('-c:v', 'copy');
+    if (hevc) a.push('-tag:v', 'hvc1');
+  } else {
+  a.push('-vf', vf);
+  if (gpu) a.push('-c:v', hevc ? 'hevc_nvenc' : 'h264_nvenc', ...NVENC_Q);
   else a.push('-c:v', hevc ? 'libx265' : 'libx264', '-preset', 'medium');
   a.push('-b:v', kbps + 'k', '-maxrate', Math.round(kbps * 1.6) + 'k', '-bufsize', kbps * 2 + 'k');
   if (hevc) {
@@ -243,20 +296,174 @@ function ffmpegArgs(src, p, opts, out, kbps, gpu, seg) {
   }
   a.push('-force_key_frames', 'expr:gte(t,n_forced*2)');
   if (gpu) a.push('-forced-idr', '1');
-  pickAudios(src, opts).forEach((au, i) => {
+  }
+  let ai = 0;
+  if (xa) {
+    a.push('-map', `${xaIn}:a:${Number(xa.track) || 0}`, `-c:a:0`, 'aac', `-b:a:0`, '384k', '-metadata:s:a:0', 'language=spa', '-metadata:s:a:0', 'title=' + (xa.title || 'Español'), '-disposition:a:0', 'default');
+    ai = 1;
+  }
+  pickAudios(src, opts).forEach((au) => {
+    const i = ai++;
     a.push('-map', `0:${au.index}`);
     if (au.copy) a.push(`-c:a:${i}`, 'copy');
     else a.push(`-c:a:${i}`, 'aac', `-b:a:${i}`, '192k', `-ac:a:${i}`, '2');
+    if (xa) a.push(`-disposition:a:${i}`, '0');
   });
-  const subs = pickSubs(src, opts);
-  if (subs.length) {
-    subs.forEach((s) => a.push('-map', `0:${s.index}`));
-    a.push('-c:s', opts.mkv ? 'copy' : 'mov_text');
+  const imageSubs = opts.mkv ? pickSubs(src, opts).filter((s) => !s.text) : [];
+  if (imageSubs.length) {
+    imageSubs.forEach((s) => a.push('-map', `0:${s.index}`));
+    a.push('-c:s', 'copy');
   }
   a.push('-map_metadata', '0', '-map_chapters', p.parts > 1 ? '-1' : '0');
   if (!opts.mkv) a.push('-movflags', '+faststart');
   a.push(out);
   return a;
+}
+
+/* Ajustes de NVENC: p4 + multipass qres + AQ espacial. Medido (2026-11-10, RTX 3050, 1080p→720p): misma calidad que p6
+ * (VMAF 95,99 frente a 95,96) en un 30 % menos de tiempo. */
+const NVENC_Q = ['-preset', 'p4', '-tune', 'hq', '-rc', 'vbr', '-multipass', 'qres', '-spatial-aq', '1'];
+
+/* ¿Puede la tarjeta hacer TODO con este archivo? (leerlo con NVDEC, escalarlo con CUDA y, si es HDR, pasarlo a SDR con
+ * libplacebo en Vulkan). Se prueba con un segundo del archivo; si no, se usa el camino de siempre. */
+const fullGpuCache = new Map();
+export function canFullGpu(src) {
+  const k = src.file + '|' + src.size;
+  if (!fullGpuCache.has(k)) {
+    const vf = src.video.hdr
+      ? 'hwdownload,format=p010le,libplacebo=w=640:h=-2:tonemapping=bt.2390:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:format=yuv420p'
+      : 'scale_cuda=w=640:h=-2:interp_algo=lanczos:format=nv12';
+    fullGpuCache.set(k, works(['-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda', '-ss', String(Math.min(60, Math.floor(src.duration / 2))), '-t', '1', '-i', src.file,
+      '-map', `0:${src.video.index}`, '-vf', vf, '-c:v', 'h264_nvenc']));
+  }
+  return fullGpuCache.get(k);
+}
+
+/* Todas las calidades que se recodifican, en UNA sola pasada y todo en la tarjeta: el original se lee una vez (NVDEC),
+ * la imagen se reparte (split) y cada calidad se escala en la GPU (scale_cuda, lanczos; o libplacebo si hay que pasar
+ * HDR a SDR) y se comprime con NVENC. Salen archivos enteros; si alguno pasa del tope, se corta después sin recodificar
+ * (los cuadros clave van cada 2 s). Medido: 720p + 360p de un 1080p en ~40 % del tiempo de hacerlas por separado. */
+function gpuAllArgs(src, steps, opts, outs, dur) {
+  const hdr = src.video.hdr;
+  const a = ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1', '-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda', '-extra_hw_frames', '16'];
+  if (opts.testSeconds) a.push('-t', String(dur));
+  a.push('-i', src.file);
+  const xa = opts.extraAudio && opts.extraAudio.path ? opts.extraAudio : null;
+  if (xa) {
+    const off = Number(xa.offset) || 0;
+    if (off) a.push('-itsoffset', String(off));
+    if (opts.testSeconds) a.push('-t', String(dur));
+    a.push('-i', xa.path);
+  }
+  const n = steps.length;
+  const chains = [`[0:${src.video.index}]${n > 1 ? 'split=' + n + steps.map((_, i) => '[s' + i + ']').join('') : 'null[s0]'}`];
+  steps.forEach((p, i) => {
+    const r = RUNGS.find((x) => x.id === p.id);
+    const hevc = r.codec === 'hevc';
+    const keepHdr = hdr && hevc;
+    const fit = `w='min(${r.w},iw)':h='min(${r.h},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2`;
+    if (hdr && !keepHdr) {
+      /* se achica primero en la GPU (CUDA) y solo el cuadro chico pasa a libplacebo (Vulkan) para HDR→SDR: bajar el 4K
+       * entero por cada calidad era lo que frenaba */
+      chains.push(`[s${i}]scale_cuda=${fit}:interp_algo=lanczos:format=p010,hwdownload,format=p010le,libplacebo=tonemapping=bt.2390:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:format=yuv420p[v${i}]`);
+    } else {
+      chains.push(`[s${i}]scale_cuda=${fit}:interp_algo=lanczos:format=${keepHdr ? 'p010' : 'nv12'}[v${i}]`);
+    }
+  });
+  a.push('-filter_complex', chains.join(';'));
+  steps.forEach((p, i) => {
+    const r = RUNGS.find((x) => x.id === p.id);
+    const hevc = r.codec === 'hevc';
+    const keepHdr = hdr && hevc;
+    const kbps = p.kbps;
+    a.push('-map', `[v${i}]`, '-c:v', hevc ? 'hevc_nvenc' : 'h264_nvenc', ...NVENC_Q,
+      '-b:v', kbps + 'k', '-maxrate', Math.round(kbps * 1.6) + 'k', '-bufsize', kbps * 2 + 'k');
+    if (hevc) {
+      a.push('-tag:v', 'hvc1');
+      if (keepHdr) a.push('-profile:v', 'main10', '-color_primaries', 'bt2020', '-color_trc', src.video.transfer, '-colorspace', 'bt2020nc');
+      else a.push('-profile:v', 'main');
+    } else {
+      a.push('-profile:v', 'high', '-level:v', r.h > 720 ? '4.1' : '3.1');
+    }
+    a.push('-force_key_frames', 'expr:gte(t,n_forced*2)', '-forced-idr', '1');
+    /* audio: el mismo de siempre en cada archivo */
+    let ai = 0;
+    if (xa) {
+      a.push('-map', `1:a:${Number(xa.track) || 0}`, '-c:a:0', 'aac', '-b:a:0', '384k', '-metadata:s:a:0', 'language=spa', '-metadata:s:a:0', 'title=' + (xa.title || 'Español'), '-disposition:a:0', 'default');
+      ai = 1;
+    }
+    pickAudios(src, opts).forEach((au) => {
+      const k = ai++;
+      a.push('-map', `0:${au.index}`);
+      if (au.copy) a.push(`-c:a:${k}`, 'copy');
+      else a.push(`-c:a:${k}`, 'aac', `-b:a:${k}`, '192k', `-ac:a:${k}`, '2');
+      if (xa) a.push(`-disposition:a:${k}`, '0');
+    });
+    const imageSubs = opts.mkv ? pickSubs(src, opts).filter((x) => !x.text) : [];
+    if (imageSubs.length) {
+      imageSubs.forEach((x) => a.push('-map', `0:${x.index}`));
+      a.push('-c:s', 'copy');
+    }
+    a.push('-map_metadata', '0', '-map_chapters', '0');
+    if (!opts.mkv) a.push('-movflags', '+faststart');
+    a.push(outs[i]);
+  });
+  return a;
+}
+
+/* Subtítulos aparte, como en el streaming: un .srt por idioma que comparten TODAS las calidades.
+ * «Nombre (2015).spa.srt», «Nombre (2015).eng.srt», «Nombre (2015).spa.forzados.srt»; si hay dos del mismo idioma, el
+ * segundo es «.eng.2.srt». Salen del .srt que se eligió (español / inglés) y de los de texto del original. */
+const ISO3 = { es: 'spa', esp: 'spa', lat: 'spa', en: 'eng', pt: 'por', fr: 'fre', fra: 'fre', it: 'ita', de: 'ger', deu: 'ger', ja: 'jpn', ko: 'kor', zh: 'chi', zho: 'chi', ru: 'rus' };
+export function lang3(c) { c = String(c || '').toLowerCase().trim(); return ISO3[c] || (/^[a-z]{3}$/.test(c) ? c : 'und'); }
+export function extractSubs(src, opts, outDir, base, dur) {
+  const list = [];
+  if (opts.extraSub && opts.extraSub.path) list.push({ input: opts.extraSub.path, map: '0:s:0', lang: 'spa', forced: false });
+  if (opts.extraSubEn && opts.extraSubEn.path) list.push({ input: opts.extraSubEn.path, map: '0:s:0', lang: 'eng', forced: false });
+  pickSubs(src, opts).filter((s) => s.text).forEach((s) => list.push({ input: src.file, map: `0:${s.index}`, lang: lang3(s.lang), forced: s.forced || /forz|forced/i.test(s.title) }));
+  const used = {};
+  list.forEach((x) => {
+    const k = x.lang + (x.forced ? '.forzados' : '');
+    used[k] = (used[k] || 0) + 1;
+    x.name = `${base}.${k}${used[k] > 1 ? '.' + used[k] : ''}.srt`;
+    x.file = join(outDir, x.name);
+  });
+  /* las del mismo archivo salen en UNA pasada (un video de varios GB se lee una sola vez); si esa falla, una por una */
+  const run = (input, items) => {
+    const args = ['-hide_banner', '-v', 'error', '-y', '-i', input];
+    items.forEach((x) => {
+      args.push('-map', x.map);
+      if (opts.testSeconds) args.push('-t', String(dur));
+      args.push('-c:s', 'srt', x.file);
+    });
+    return spawnSync('ffmpeg', args, { encoding: 'utf8', windowsHide: true }).status === 0;
+  };
+  const inputs = [...new Set(list.map((x) => x.input))];
+  inputs.forEach((input) => {
+    const items = list.filter((x) => x.input === input);
+    if (!run(input, items) && items.length > 1) items.forEach((x) => run(input, [x]));
+  });
+  const out = [];
+  list.forEach((x) => {
+    if (existsSync(x.file) && statSync(x.file).size > 0) out.push({ file: x.file, name: x.name, lang: x.lang, forced: x.forced, size: statSync(x.file).size });
+    else { try { if (existsSync(x.file)) unlinkSync(x.file); } catch { /* nada */ } }
+  });
+  /* Muchos originales traen los forzados (carteles, diálogos en otro idioma) sin la marca: una segunda pista del mismo
+   * idioma con muy pocas líneas al lado de la completa. Se marcan y se renombran «….spa.forzados.srt». */
+  const cues = (f) => { try { return (readFileSync(f, 'utf8').match(/-->/g) || []).length; } catch { return 0; } };
+  out.forEach((x) => { x.cues = cues(x.file); });
+  out.forEach((x) => {
+    if (x.forced) return;
+    const top = Math.max(...out.filter((y) => y.lang === x.lang && !y.forced).map((y) => y.cues));
+    if (top >= 200 && x.cues < top * 0.2) {
+      const others = out.filter((y) => y.lang === x.lang && y.forced).length;
+      const name = `${base}.${x.lang}.forzados${others ? '.' + (others + 1) : ''}.srt`;
+      const file = join(outDir, name);
+      try { renameSync(x.file, file); x.file = file; x.name = name; x.forced = true; } catch { /* queda como está */ }
+    }
+  });
+  out.forEach((x) => { delete x.cues; });
+  return out;
 }
 
 /* Corre ffmpeg informando el avance. job.kill() lo detiene. */
@@ -291,6 +498,81 @@ function encode(args, duration, onProgress, job) {
   });
 }
 
+/* Copia directa y cortes en UNA sola pasada (lee y escribe la película una vez): se arman los argumentos de siempre y
+ * la salida pasa por el «segment» de ffmpeg con cortes según el peso esperado. Devuelve las partes o null si alguna se
+ * pasó del tope (entonces se hace en dos pasos: copiar y luego cortar con márgenes más amplios). */
+async function copyInParts(args, p, dur, limit, nameFor, job, onPct) {
+  const ext = extname(args[args.length - 1]);
+  const mp4 = /\.(mp4|m4v|mov)$/i.test(ext);
+  const a = args.slice(0, -1);
+  const mf = a.indexOf('-movflags');
+  if (mf >= 0) a.splice(mf, 2);
+  const perSec = p.bytes / dur;
+  const chunk = limit * 0.96;
+  const n = Math.max(2, Math.ceil(p.bytes / chunk));
+  const times = [];
+  for (let k = 1; k < n; k += 1) times.push(((k * chunk) / perSec).toFixed(3));
+  const tmpDir = join(dirname(nameFor(1, n)), '.copiando-' + Date.now());
+  mkdirSync(tmpDir, { recursive: true });
+  a.push('-f', 'segment', '-segment_times', times.join(','), '-reset_timestamps', '1');
+  if (mp4) a.push('-segment_format', 'mp4', '-segment_format_options', 'movflags=+faststart');
+  a.push(join(tmpDir, 'p%02d' + ext));
+  const clean = () => {
+    readdirSync(tmpDir).forEach((f) => { try { unlinkSync(join(tmpDir, f)); } catch { /* nada */ } });
+    try { rmdirSync(tmpDir); } catch { /* nada */ }
+  };
+  job.current = tmpDir;
+  try { await encode(a, dur, (pr) => onPct(pr.pct, pr), job); } catch (e) { clean(); throw e; }
+  const out = readdirSync(tmpDir).filter((f) => /^p\d+/.test(f)).sort().map((f) => join(tmpDir, f));
+  if (out.length !== n || !out.every((f) => statSync(f).size <= limit)) { clean(); return null; }
+  const files = out.map((f, i) => {
+    const dest = nameFor(i + 1, n);
+    renameSync(f, dest);
+    return { file: dest, size: statSync(dest).size };
+  });
+  clean();
+  return files;
+}
+
+/* Corta un archivo (ya copiado) en partes que quepan en Telegram, sin recodificar: cortes en cuadros clave, la parte 1 lo
+ * más grande que quepa y lo que sobra al final. Si un corte cae lejos de un cuadro clave y una parte se pasa, se prueba
+ * con cortes un poco antes. nameFor(i, n) da el nombre de cada parte. */
+async function splitCopy(file, limit, nameFor, job, onPct) {
+  const size = statSync(file).size;
+  const dur = Number(ffprobeJson(file).format.duration) || 0;
+  const mp4 = /\.(mp4|m4v|mov)$/i.test(file);
+  const ext = extname(file);
+  for (const fill of [0.96, 0.92, 0.87, 0.8, 0.7]) {
+    const chunk = limit * fill;
+    const n = Math.ceil(size / chunk);
+    const times = [];
+    for (let k = 1; k < n; k += 1) times.push(((dur * k * chunk) / size).toFixed(3));
+    const tmpDir = join(dirname(file), '.partiendo-' + Date.now());
+    mkdirSync(tmpDir, { recursive: true });
+    const args = ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1', '-i', file, '-map', '0', '-map_chapters', '-1', '-c', 'copy', '-f', 'segment', '-segment_times', times.join(','), '-reset_timestamps', '1'];
+    if (mp4) args.push('-segment_format', 'mp4', '-segment_format_options', 'movflags=+faststart');
+    args.push(join(tmpDir, 'p%02d' + ext));
+    let failed = null;
+    try { await encode(args, dur, (pr) => onPct(pr.pct), job); } catch (e) { failed = e; }
+    const out = readdirSync(tmpDir).filter((f) => /^p\d+/.test(f)).sort().map((f) => join(tmpDir, f));
+    const ok = !failed && out.length === n && out.every((f) => statSync(f).size <= limit);
+    if (!ok) {
+      out.forEach((f) => { try { unlinkSync(f); } catch { /* nada */ } });
+      try { rmdirSync(tmpDir); } catch { /* nada */ }
+      if (failed) throw failed;
+      continue;
+    }
+    const files = out.map((f, i) => {
+      const dest = nameFor(i + 1, n);
+      renameSync(f, dest);
+      return { file: dest, size: statSync(dest).size };
+    });
+    try { rmdirSync(tmpDir); } catch { /* nada */ }
+    return files;
+  }
+  throw new Error('No pude partirlo en partes que quepan sin recodificar.');
+}
+
 /* Prepara todas las versiones. emit(evento) informa: start, rung-start, progress, retry, rung-done, rung-error, done.
  * Devuelve {job, promise}: job.cancel() detiene todo y borra el archivo a medias. */
 export function prepare(opts, emit) {
@@ -309,17 +591,90 @@ export function prepare(opts, emit) {
     const base = baseNameFor(opts, src);
     const ext = opts.mkv ? '.mkv' : '.mp4';
     const dur = opts.testSeconds ? Math.min(src.duration, Number(opts.testSeconds)) : src.duration;
-    const limit = limitBytes(opts.limitGb);
+    const limit = Number(opts.limitBytesTest) || limitBytes(opts.limitGb); // limitBytesTest: solo para pruebas del corte en partes
     const text = caption(opts);
-    emit({ type: 'start', outDir, gpu, steps, caption: text });
+    const gpuTotal = !!(gpu && opts.gpuTotal !== false && steps.some((x) => !x.copy) && canFullGpu(src));
+    emit({ type: 'start', outDir, gpu, gpuTotal, steps, caption: text });
+    /* subtítulos aparte primero (son segundos): sirven para todas las calidades, también las que ya están en el grupo */
+    const subs = extractSubs(src, opts, outDir, base, dur);
+    emit({ type: 'subs', files: subs.map((x) => ({ name: x.name, lang: x.lang, forced: x.forced, size: x.size })) });
     const results = [];
+    /* todo en la tarjeta, todas juntas (si se puede); lo que no salga así se hace por el camino de siempre */
+    const gpuDone = new Set();
+    const enc = steps.map((p, i) => ({ p, i })).filter((x) => !x.p.copy);
+    if (gpu && opts.gpuTotal !== false && enc.length && canFullGpu(src)) {
+      const tmps = enc.map((x) => join(outDir, `${base} [${x.p.file}].tmp${ext}`));
+      enc.forEach((x) => emit({ type: 'rung-start', id: x.p.id, index: x.i, kbps: x.p.kbps, parts: x.p.parts, together: true }));
+      job.current = tmps[0];
+      try {
+        await encode(gpuAllArgs(src, enc.map((x) => x.p), opts, tmps, dur), dur, (pr) => enc.forEach((x) => emit({
+          type: 'progress', id: x.p.id, index: x.i, part: 0, parts: 1, pct: pr.pct, left: pr.left, speed: pr.speed, elapsed: pr.elapsed, together: true,
+        })), job);
+        for (const [k, x] of enc.entries()) {
+          const files = [];
+          const size = statSync(tmps[k]).size;
+          if (size <= limit || opts.split === false) {
+            const out = join(outDir, `${base} [${x.p.file}]${ext}`);
+            renameSync(tmps[k], out);
+            files.push({ file: out, size, over: size > limit });
+          } else {
+            const parts = await splitCopy(tmps[k], limit, (q, m) => join(outDir, `${base} [${x.p.file}] parte ${q} de ${m}${ext}`), job,
+              (pct) => emit({ type: 'progress', id: x.p.id, index: x.i, part: 0, parts: 1, pct: 99, left: 0, speed: '', elapsed: 0 }));
+            unlinkSync(tmps[k]);
+            parts.forEach((f) => files.push({ file: f.file, size: f.size, over: false }));
+          }
+          const total = files.reduce((m, f) => m + f.size, 0);
+          files.forEach((f) => results.push({ id: x.p.id, name: x.p.name, file: f.file, size: f.size, kbps: x.p.kbps, over: f.over }));
+          emit({ type: 'rung-done', id: x.p.id, index: x.i, size: total, over: files.some((f) => f.over), parts: files.length, files: files.map((f) => basename(f.file)) });
+          gpuDone.add(x.p.id);
+        }
+      } catch (e) {
+        tmps.forEach((t) => { try { if (existsSync(t)) unlinkSync(t); } catch { /* nada */ } });
+        if (e.cancelled) throw e;
+        emit({ type: 'retry', id: enc[0].p.id, index: enc[0].i, message: 'La tarjeta no pudo hacerlo todo junta; sigo una por una. ' + String(e.message || e).split('\n').pop() });
+      }
+      job.current = null;
+    }
     for (let i = 0; i < steps.length; i += 1) {
       const p = steps[i];
+      if (gpuDone.has(p.id)) continue;
       let kbps = p.kbps;
       const files = [];
-      emit({ type: 'rung-start', id: p.id, index: i, kbps, parts: p.parts });
+      emit({ type: 'rung-start', id: p.id, index: i, kbps, parts: p.parts, copy: !!p.copy });
       try {
-        for (let j = 0; j < p.parts; j += 1) {
+        if (p.copy) {
+          /* copia directa: un archivo con el video tal cual (pistas y subtítulos como en las demás) y, si se pasa del
+           * tope, se corta sin recodificar */
+          const whole = join(outDir, `${base} [${p.file}].tmp${ext}`);
+          const partName = (k, n) => join(outDir, `${base} [${p.file}] parte ${k} de ${n}${ext}`);
+          /* lo normal: copiar y cortar en una sola pasada */
+          const direct = p.parts > 1 && opts.split !== false
+            ? await copyInParts(ffmpegArgs(src, p, opts, whole, kbps, false, { start: 0, len: dur }), p, dur, limit, partName, job,
+              (pct, pr) => emit({ type: 'progress', id: p.id, index: i, part: 0, parts: 1, pct, left: pr.left, speed: pr.speed, elapsed: pr.elapsed, copy: true }))
+            : null;
+          if (direct) direct.forEach((f) => files.push({ file: f.file, size: f.size, over: false }));
+          job.current = whole;
+          if (!direct) try {
+            await encode(ffmpegArgs(src, p, opts, whole, kbps, false, { start: 0, len: dur }), dur, (pr) => emit({
+              type: 'progress', id: p.id, index: i, part: 0, parts: 1, pct: pr.pct * (p.parts > 1 ? 0.6 : 1), left: pr.left, speed: pr.speed, elapsed: pr.elapsed, copy: true,
+            }), job);
+            const wsize = statSync(whole).size;
+            if (wsize <= limit || opts.split === false) {
+              const out = join(outDir, `${base} [${p.file}]${ext}`);
+              renameSync(whole, out);
+              files.push({ file: out, size: wsize, over: wsize > limit });
+            } else {
+              const parts = await splitCopy(whole, limit, (k, n) => join(outDir, `${base} [${p.file}] parte ${k} de ${n}${ext}`), job,
+                (pct) => emit({ type: 'progress', id: p.id, index: i, part: 0, parts: 1, pct: 60 + pct * 0.4, left: 0, speed: '', elapsed: 0, copy: true }));
+              unlinkSync(whole);
+              parts.forEach((f) => files.push({ file: f.file, size: f.size, over: false }));
+            }
+          } catch (e) {
+            try { if (existsSync(whole)) unlinkSync(whole); } catch { /* nada */ }
+            throw e;
+          }
+        }
+        for (let j = 0; j < (p.copy ? 0 : p.parts); j += 1) {
           const start = j * p.partSeconds;
           const len = Math.min(p.partSeconds, dur - start);
           const tag = p.parts > 1 ? ` parte ${j + 1} de ${p.parts}` : '';
@@ -368,8 +723,8 @@ export function prepare(opts, emit) {
     const all = readdirSync(outDir).filter((f) => /\.(mp4|mkv)$/i.test(f) && !/\.tmp\./i.test(f))
       .map((f) => ({ file: join(outDir, f), size: statSync(join(outDir, f)).size }));
     writeFileSync(join(outDir, 'COMO-SUBIR.txt'), howTo(text, all.length ? all : results), 'utf8');
-    emit({ type: 'done', outDir, results: results.map((r) => ({ ...r, file: basename(r.file) })), caption: text });
-    return { outDir, results, caption: text };
+    emit({ type: 'done', outDir, results: results.map((r) => ({ ...r, file: basename(r.file) })), subs: subs.map((x) => x.name), caption: text });
+    return { outDir, results, subs, caption: text };
   })();
   promise.catch(() => {});
   return { job, promise };
