@@ -1,0 +1,9 @@
+# Claves y configuración local: nunca al repo
+.env
+*.local.*
+secrets/
+
+# El preparador crea estos al trabajar
+.cola.json
+.reinicio
+node_modules/
