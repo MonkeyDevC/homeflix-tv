@@ -24,8 +24,31 @@ var HFRemote = (function () {
   var timer = null;
   var gen = 0;
   var listeners = [];
+  /* Varias pestañas del mismo navegador comparten el mismo dispositivo (mismo identificador): si todas escucharan, se echarían una a otra del canal
+   * sin parar. En el computador solo escucha UNA pestaña a la vez (la que consigue el candado); si se cierra, otra toma su lugar. */
+  var owner = true;
+  var asked = false;
+  function needsLock() {
+    try { return !!(navigator.locks && navigator.locks.request && HFSync.device().tipo === "pc"); } catch (e) { return false; }
+  }
+  function askLock() {
+    if (asked) { return; }
+    asked = true;
+    owner = false;
+    navigator.locks.request("homeflix-remoto", function () {
+      owner = true;
+      if (on) { abort(); retry = 0; listen(); }
+      return new Promise(function () { /* se queda con el candado hasta que se cierre la pestaña */ });
+    });
+  }
 
-  function url(path) { return HFSync.server + "/api/v1/remoto" + path; }
+  /* La identidad del dispositivo (plataforma, interfaz, canal, navegador, versión, modelo) va en la dirección, no en una cabecera nueva: un
+   * servidor que aún no se actualizó la ignora, mientras que una cabecera desconocida le hace rechazar toda la petición (CORS). */
+  function url(path) {
+    var info = "";
+    try { info = HFSync.deviceInfo ? "?i=" + encodeURIComponent(JSON.stringify(HFSync.deviceInfo())) : ""; } catch (e) { info = ""; }
+    return HFSync.server + "/api/v1/remoto" + path + info;
+  }
 
   function headers(key, extra) {
     var d = HFSync.device();
@@ -75,7 +98,7 @@ var HFRemote = (function () {
     var mine;
     clearTimeout(timer);
     timer = null;
-    if (!on || live) { return; }
+    if (!on || live || !owner) { return; }
     gen += 1;
     mine = gen;
     live = true;
@@ -142,6 +165,7 @@ var HFRemote = (function () {
   return {
     start: function () {
       on = true;
+      if (needsLock()) { askLock(); }
       abort();
       retry = 0;
       listen();

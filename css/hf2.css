@@ -23,7 +23,7 @@
   --gold-text: #d9b28a;
   --gold-ring: #e6c193;
   position: relative;
-  width: 1920px;
+  width: var(--W, 1920px);
   height: 1080px;
   overflow: hidden;
   background: var(--bg);
@@ -3008,14 +3008,18 @@
   font-weight: 700;
 }
 
+/* Marca de agua: en la esquina superior derecha de la pantalla, con el mismo margen arriba que a la derecha
+ * (.hf2-pl-top está a 52 px de arriba y 70 px de la derecha: los desplazamientos negativos compensan). */
 .hf2-pl-brand {
-  margin-left: auto;
-  opacity: 0.85;
+  position: absolute;
+  top: -8px;   /* 44 px del borde de arriba */
+  right: -26px; /* 44 px del borde derecho */
+  opacity: 0.9;
 }
 
 .hf2-pl-brand .hf2-logo {
-  width: 54px;
-  height: 54px;
+  width: 88px;
+  height: 88px;
   border-width: 2px;
 }
 

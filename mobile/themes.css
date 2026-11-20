@@ -1,0 +1,158 @@
+/* =====================================================================
+   HomeFlix · celular · apariencias (lógica en mobile/themes.js).
+   Plaza Celeste: paleta clara con celeste. Todo cuelga de html[data-theme="wii"] y, para las pantallas claras, de «#m.lt» (m.js pone «lt» solo en
+   ellas: el reproductor, el inicio de sesión, la galería y el control remoto siguen oscuros). Se carga después de m.css para poder reemplazarlo.
+   Regla para temas nuevos: cada pantalla nueva debe mirarse con cada tema.
+   ===================================================================== */
+
+/* ---------- Paleta: m.css pinta casi todo con estas variables ---------- */
+html[data-theme="wii"] #m.lt {
+  --bg: #f1f5f7; --bg-2: #e6ecef; --card: #ffffff; --card-2: #e6edf1; --line: rgba(70, 100, 120, 0.16);
+  --text: #3f4a55; --muted: #66727d; --dim: #8693a0;
+  --gold-1: #98e6f3; --gold-2: #2fb9d4; --gold-text: #1b8da8; --gold-ring: #38c3dd;
+  --nav-h: 132px; /* la curva de abajo */
+  color: var(--text);
+  background: radial-gradient(120% 70% at 50% 0%, #ffffff 0%, #f3f6f8 52%, #dfe5e9 100%);
+}
+html.hf-lt, html.hf-lt body { background: #e6ecef; }
+
+/* barra de arriba */
+html[data-theme="wii"] #m.lt .m-top { background: linear-gradient(180deg, rgba(243, 246, 248, 0.97) 0%, rgba(243, 246, 248, 0.82) 70%, rgba(243, 246, 248, 0) 100%); }
+html[data-theme="wii"] #m.lt .m-top.solid { background: rgba(243, 246, 248, 0.97); border-bottom-color: rgba(111, 211, 230, 0.35); }
+html[data-theme="wii"] #m.lt .m-logo b { color: #3f4a55; }
+html[data-theme="wii"] #m.lt .m-iconbtn { color: #4d93a6; }
+html[data-theme="wii"] #m.lt .m-top .right .m-iconbtn { background: #fff; border: 2px solid rgba(111, 211, 230, 0.7); width: 40px; height: 40px; box-shadow: 0 3px 8px rgba(60, 90, 110, 0.12); }
+html[data-theme="wii"] #m.lt .m-top .right .m-iconbtn svg { width: 20px; height: 20px; }
+html[data-theme="wii"] #m.lt .m-avatar { border-radius: 50%; box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(111, 211, 230, 0.7); }
+html[data-theme="wii"] #m.lt .m-sync { color: #4d93a6; }
+
+/* píldoras, botones y avisos */
+html[data-theme="wii"] #m.lt .m-chip { border: 2px solid rgba(111, 211, 230, 0.55); background: rgba(255, 255, 255, 0.75); color: #4d93a6; font-weight: 700; }
+html[data-theme="wii"] #m.lt .m-chip.on { background: linear-gradient(180deg, #b6eef7, #6fd3e6); border-color: #fff; color: #07475a; box-shadow: 0 4px 10px rgba(56, 195, 221, 0.35); }
+html[data-theme="wii"] #m.lt .m-btn.primary { background: linear-gradient(180deg, #98e6f3 0%, #2fb9d4 100%); color: #053c49; box-shadow: 0 6px 14px rgba(47, 185, 212, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+html[data-theme="wii"] #m.lt .m-btn.ghost { background: rgba(255, 255, 255, 0.85); color: #3f4a55; border: 2px solid rgba(111, 211, 230, 0.55); }
+html[data-theme="wii"] #m.lt .m-btn.danger-fill { background: #d6504a; color: #fff; }
+html[data-theme="wii"] #m.lt .m-dots i, html[data-theme="wii"] #m.lt .m-dots button { background: rgba(70, 100, 120, 0.25); }
+html[data-theme="wii"] #m.lt .m-dots i.on, html[data-theme="wii"] #m.lt .m-dots button.on { background: #38c3dd; }
+html[data-theme="wii"] #m.lt .m-toast { background: #3f4a55; color: #fff; }
+html[data-theme="wii"] #m.lt .m-error { background: rgba(214, 80, 74, 0.1); border-color: rgba(214, 80, 74, 0.35); color: #b23a34; }
+html[data-theme="wii"] #m.lt .m-empty { border-color: rgba(111, 211, 230, 0.6); background: rgba(255, 255, 255, 0.6); }
+html[data-theme="wii"] #m.lt .m-spin { border-color: rgba(70, 100, 120, 0.15); border-top-color: #38c3dd; }
+html[data-theme="wii"] #m.lt .m-opt.danger b { color: #c0392b; }
+html[data-theme="wii"] #m.lt .m-btn.danger { color: #c0392b; }
+
+/* tarjetas de las filas (Anime, ficha, búsqueda…) */
+html[data-theme="wii"] #m.lt .m-card .img { border-radius: 14px; border: 3px solid #fff; box-shadow: 0 0 0 1.5px #cfe6ec, 0 6px 14px rgba(50, 80, 100, 0.18); background-color: #dfe7ec; }
+html[data-theme="wii"] #m.lt .m-card .img .fallback { background: linear-gradient(135deg, #c9d7de, #aebfc8); color: #3f4a55; }
+html[data-theme="wii"] #m.lt .m-card .badge { background: rgba(255, 255, 255, 0.92); color: #1b8da8; }
+html[data-theme="wii"] #m.lt .m-card .bar { background: rgba(255, 255, 255, 0.7); }
+html[data-theme="wii"] #m.lt .m-card .t { color: #3f4a55; font-weight: 700; }
+html[data-theme="wii"] #m.lt .m-card.more .img { background: rgba(255, 255, 255, 0.7); border: 2px dashed rgba(111, 211, 230, 0.8); }
+html[data-theme="wii"] #m.lt .m-card.wide .play b { background: rgba(255, 255, 255, 0.85); border-color: #6fd3e6; }
+html[data-theme="wii"] #m.lt .m-card.wide .play svg { stroke: #2fb9d4; fill: #2fb9d4; }
+html[data-theme="wii"] #m.lt .m-row-head h2 { color: #3f4a55; }
+html[data-theme="wii"] #m.lt .m-hero { background: #fff; box-shadow: 0 0 0 3px #fff, 0 0 0 5px #cfe6ec, 0 10px 22px rgba(50, 80, 100, 0.2); }
+html[data-theme="wii"] #m.lt .m-hero .amb::after { background: linear-gradient(180deg, rgba(243, 246, 248, 0.2), rgba(243, 246, 248, 0.92) 75%); }
+html[data-theme="wii"] #m.lt .m-hero h1 { text-shadow: none; }
+
+/* ---------- La plaza: portadas por páginas ---------- */
+.wii-lobby { padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 6px); }
+.wii-pills { padding-bottom: 6px; }
+.wii-head { display: flex; align-items: center; gap: 10px; padding: 2px 18px 10px; }
+.wii-head b { font-size: 27px; font-weight: 800; color: #3f4a55; letter-spacing: -0.3px; }
+.wii-head em { margin-left: auto; font-style: normal; font-size: 14px; font-weight: 700; color: #98a3ad; }
+.wii-head .m-iconbtn { margin-left: -8px; background: #fff; border: 2px solid rgba(111, 211, 230, 0.7); width: 40px; height: 40px; }
+.wii-stage { position: relative; }
+.wii-pages { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.wii-pages::-webkit-scrollbar { display: none; }
+.wii-page { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 14px 12px; align-content: start; padding: 6px 16px 8px; }
+/* la plaza siempre usa portadas apaisadas (16:9), sea cual sea la «Vista de tarjetas» */
+html .m-card.tile:not(.wide), html.m-vcards .m-card.tile:not(.wide) { width: auto; }
+html .m-card.tile .img, html.m-vcards .m-card.tile:not(.wide) .img { aspect-ratio: 16 / 9; border-radius: 14px; }
+.m-card.tile .img { transition: transform 0.2s cubic-bezier(0.22, 1.25, 0.36, 1), box-shadow 0.2s ease; }
+.m-card.tile:active .img { transform: scale(0.96); box-shadow: 0 0 0 1.5px #6fd3e6, 0 0 0 5px rgba(56, 195, 221, 0.35), 0 6px 14px rgba(50, 80, 100, 0.2); }
+.m-card.tile .t { font-size: 13.5px; }
+.wii-dots { display: flex; justify-content: center; gap: 8px; margin: 8px 0 0; }
+.wii-dots button { width: 9px; height: 9px; border-radius: 50%; background: rgba(70, 100, 120, 0.22); transition: width 0.2s, background 0.2s; }
+.wii-dots button.on { width: 24px; border-radius: 5px; background: #38c3dd; }
+.wii-arrow { display: none; position: absolute; top: 40%; z-index: 3; width: 46px; height: 46px; border-radius: 50%; background: #fff; border: 3px solid #6fd3e6; color: #2fb9d4; font-size: 30px; line-height: 38px; text-align: center; box-shadow: 0 6px 14px rgba(50, 80, 100, 0.18); }
+.wii-arrow.l { left: 4px; }
+.wii-arrow.r { right: 4px; }
+@media (min-width: 720px) and (pointer: fine) { .wii-arrow { display: block; } }
+
+/* ---------- Barra de abajo: curva con reloj ---------- */
+html[data-theme="wii"] #m.lt .m-nav.wii-bar, html[data-theme="wii"] .m-nav.wii-bar { left: 0; right: 0; bottom: 0; height: calc(112px + var(--safe-bottom)); padding: 0; display: block; background: none; border: 0; border-radius: 0; box-shadow: none; pointer-events: none; }
+html[data-theme="wii"] #m.nav-hidden .m-nav.wii-bar { transform: none; opacity: 1; } /* la curva no se esconde al bajar por la pantalla */
+.wii-bar > * { pointer-events: auto; }
+.wii-curve { position: absolute; left: 0; bottom: 0; width: 100%; height: calc(112px + var(--safe-bottom)); pointer-events: none; filter: drop-shadow(0 -4px 10px rgba(50, 80, 100, 0.1)); }
+.wii-curve .fill { fill: #f1f5f7; }
+.wii-curve .line { fill: none; stroke: #38c3dd; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.m-nav.wii-bar .wii-rb { position: absolute; bottom: calc(14px + var(--safe-bottom)); flex: none; width: 56px; height: 56px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 4px solid #6fd3e6; color: #3fb0c8; box-shadow: 0 0 0 3px rgba(56, 195, 221, 0.18), 0 8px 16px rgba(50, 80, 100, 0.2); transition: transform 0.18s cubic-bezier(0.22, 1.25, 0.36, 1); }
+.m-nav.wii-bar .wii-rb svg { width: 26px; height: 26px; stroke: currentColor; }
+.m-nav.wii-bar .wii-rb:active, .m-nav.wii-bar .wii-rb.on { transform: scale(1.08); background: linear-gradient(180deg, #b6eef7, #6fd3e6); color: #07475a; border-color: #fff; }
+.m-nav.wii-bar .wii-rb.cat { left: 14px; }
+.m-nav.wii-bar .wii-rb.sr { right: 14px; }
+.m-nav.wii-bar .wii-sd { position: absolute; left: 80px; bottom: calc(22px + var(--safe-bottom)); flex: none; width: 40px; height: 44px; padding: 0; display: grid; place-items: center; color: #8aa1ad; border-radius: 12px; }
+.m-nav.wii-bar .wii-sd svg { width: 28px; height: 28px; stroke: currentColor; }
+.m-nav.wii-bar .wii-sd.on, .m-nav.wii-bar .wii-sd:active { color: #2fb9d4; background: none; padding: 0; } /* sin el relleno dorado que m.css le da a cualquier botón «on» de la barra */
+.wii-clock { position: absolute; left: 50%; bottom: calc(8px + var(--safe-bottom)); transform: translateX(-50%); display: flex; align-items: baseline; gap: 5px; white-space: nowrap; color: #98a3ad; pointer-events: none; }
+.wii-clock b { font-size: 28px; font-weight: 300; letter-spacing: 1px; color: #8d99a5; }
+.wii-clock i { font-style: normal; font-size: 12px; font-weight: 700; }
+.wii-clock span { font-size: 13px; font-weight: 800; color: #6b7782; margin-left: 4px; }
+@media (max-width: 359px) { .wii-clock span { display: none; } .m-nav.wii-bar .wii-sd { left: 74px; } }
+
+/* ---------- Ficha: la portada como el mini reproductor de la plaza ---------- */
+html[data-theme="wii"] #m.lt .m-dt-art { margin: calc(14px + var(--safe-top)) 14px 0; border-radius: 26px; border: 5px solid #fff; aspect-ratio: 16 / 9; overflow: hidden; background-color: #cfd6dc; box-shadow: 0 0 0 2px #cfe6ec, 0 0 0 7px rgba(56, 195, 221, 0.28), 0 14px 26px rgba(50, 80, 100, 0.28); }
+html[data-theme="wii"] #m.lt .m-dt-art::after { background: linear-gradient(170deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.06) 36%, rgba(255, 255, 255, 0) 52%); pointer-events: none; }
+html[data-theme="wii"] #m.lt .m-dt-art .bar-top { padding: 6px 6px 0; }
+html[data-theme="wii"] #m.lt .m-dt-art .m-iconbtn { background: rgba(255, 255, 255, 0.85); color: #2fb9d4; width: 38px; height: 38px; }
+html[data-theme="wii"] #m.lt .m-dt { margin-top: 20px; }
+html[data-theme="wii"] #m.lt .m-dt h1 { color: #3f4a55; font-weight: 900; }
+html[data-theme="wii"] #m.lt .m-meta { color: #6b7782; }
+html[data-theme="wii"] #m.lt .m-meta .year { color: #1b8da8; }
+html[data-theme="wii"] #m.lt .m-meta .q { border-color: #cfe6ec; background: #fff; color: #3f4a55; }
+html[data-theme="wii"] #m.lt .m-meta .kids { background: rgba(56, 195, 221, 0.16); color: #1b8da8; }
+html[data-theme="wii"] #m.lt .m-desc { color: #55616d; }
+html[data-theme="wii"] #m.lt .m-acts svg { stroke: #4d93a6; }
+html[data-theme="wii"] #m.lt .m-cats span, html[data-theme="wii"] #m.lt .m-cats button { background: #fff; border: 2px solid rgba(111, 211, 230, 0.5); color: #4d93a6; border-radius: 14px; padding: 5px 12px; font-size: 12.5px; font-weight: 700; }
+html[data-theme="wii"] #m.lt .m-resume .bar { background: rgba(70, 100, 120, 0.15); }
+html[data-theme="wii"] #m.lt .m-seasons button { background: #fff; border: 2px solid rgba(111, 211, 230, 0.5); color: #4d93a6; font-weight: 700; }
+html[data-theme="wii"] #m.lt .m-seasons button.on { background: linear-gradient(180deg, #b6eef7, #6fd3e6); border-color: #fff; color: #07475a; }
+html[data-theme="wii"] #m.lt .m-ep { border-bottom-color: rgba(70, 100, 120, 0.12); }
+html[data-theme="wii"] #m.lt .m-ep .img { border: 3px solid #fff; border-radius: 12px; box-shadow: 0 0 0 1.5px #cfe6ec, 0 4px 10px rgba(50, 80, 100, 0.15); background: linear-gradient(135deg, #c9d7de, #aebfc8); }
+html[data-theme="wii"] #m.lt .m-ep .img .play b { background: rgba(255, 255, 255, 0.88); border-color: #6fd3e6; }
+html[data-theme="wii"] #m.lt .m-ep .img .play svg { stroke: #2fb9d4; fill: #2fb9d4; }
+html[data-theme="wii"] #m.lt .m-ep .img .bar { background: rgba(255, 255, 255, 0.7); }
+html[data-theme="wii"] #m.lt .m-ep.now .n { color: #1b8da8; }
+html[data-theme="wii"] #m.lt .m-ep p { color: #66727d; }
+html[data-theme="wii"] #m.lt .m-dt .m-restart { background: #fff; border: 2px solid rgba(111, 211, 230, 0.5); }
+
+/* ---------- Búsqueda, ajustes, perfiles ---------- */
+html[data-theme="wii"] #m.lt .m-search { background: rgba(241, 245, 247, 0.97); }
+html[data-theme="wii"] #m.lt .m-input { background: #fff; border-color: rgba(111, 211, 230, 0.55); }
+html[data-theme="wii"] #m.lt .m-input.focus { border-color: #38c3dd; }
+html[data-theme="wii"] #m.lt .m-group, html[data-theme="wii"] #m.lt .m-acc, html[data-theme="wii"] #m.lt .m-tipbox { background: #fff; box-shadow: 0 0 0 2px #e1f0f4, 0 6px 14px rgba(50, 80, 100, 0.08); }
+html[data-theme="wii"] #m.lt .m-acc .ok { background: rgba(56, 195, 221, 0.16); color: #1b8da8; }
+html[data-theme="wii"] #m.lt .m-toggle { background: #c9d3d9; }
+html[data-theme="wii"] #m.lt .m-toggle.on { background: #38c3dd; }
+html[data-theme="wii"] #m.lt .m-opt.chat .ci { background: linear-gradient(135deg, #b6eef7, #6fd3e6); color: #07475a; }
+html[data-theme="wii"] #m.lt .m-pgrid .add { border-color: rgba(111, 211, 230, 0.7); }
+html[data-theme="wii"] #m.lt .m-pgrid .av, html[data-theme="wii"] #m.lt .m-pgrid .av { box-shadow: 0 0 0 3px #fff, 0 0 0 5px rgba(111, 211, 230, 0.7), 0 8px 16px rgba(50, 80, 100, 0.2); }
+html[data-theme="wii"] #m.lt .m-pgrid .av em { background: #38c3dd; color: #053c49; }
+html[data-theme="wii"] #m.lt .m-pin .pad button { background: #fff; box-shadow: 0 0 0 2px #e1f0f4; }
+html[data-theme="wii"] #m.lt .m-pin .dots i { border-color: rgba(70, 100, 120, 0.4); }
+
+/* ---------- Hojas, categorías y avisos sobre la pantalla ---------- */
+html[data-theme="wii"] #m.lt .m-backdrop { background: rgba(40, 60, 72, 0.42); }
+html[data-theme="wii"] #m.lt .m-sheet { background: #f7fafb; border-top: 3px solid #6fd3e6; box-shadow: 0 -10px 30px rgba(50, 80, 100, 0.2); }
+html[data-theme="wii"] #m.lt .m-sheet .grab { background: rgba(70, 100, 120, 0.25); }
+html[data-theme="wii"] #m.lt .m-sheet .sh-col .sh-sec { background: #f7fafb; }
+html[data-theme="wii"] #m.lt .m-radio .r { border-color: rgba(70, 100, 120, 0.4); }
+html[data-theme="wii"] #m.lt .m-radio.on .r { border-color: #38c3dd; }
+html[data-theme="wii"] #m.lt .m-overlay { background: rgba(241, 245, 247, 0.97); }
+html[data-theme="wii"] #m.lt .m-catlist button { color: #66727d; font-weight: 600; }
+html[data-theme="wii"] #m.lt .m-catlist button.on { color: #1b8da8; }
+html[data-theme="wii"] #m.lt .m-close { background: #fff; border: 4px solid #6fd3e6; box-shadow: 0 8px 16px rgba(50, 80, 100, 0.2); }
+html[data-theme="wii"] #m.lt .m-close svg { stroke: #2fb9d4; }
+html[data-theme="wii"] #m.lt .m-castbar { background: rgba(255, 255, 255, 0.97); border-color: rgba(111, 211, 230, 0.7); color: #3f4a55; box-shadow: 0 8px 20px rgba(50, 80, 100, 0.2); }
+html[data-theme="wii"] #m.lt .m-castbar small { color: #1b8da8; }

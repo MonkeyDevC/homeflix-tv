@@ -1,5 +1,5 @@
 /* HomeFlix · actualizaciones (TV y celular). El canal es el servidor de HomeFlix en el VPS:
- *   GET https://scalvache.shop/productos/HomeFlix/actualizaciones/v1   → la versión vigente (actual.json)
+ *   GET <servidor>/actualizaciones/v1   → la versión vigente (actual.json). <servidor> = hfServidor() de js/config.js
  *   GET …/actualizaciones/archivos/<v>/<archivo>                       → la interfaz (web-<v>.json), el .wgt, el .apk
  *
  * Dos clases de actualización:
@@ -18,7 +18,7 @@
 var HFUpdate = (function () {
   "use strict";
 
-  var SERVER = String(window.HF_SYNC_URL || "https://scalvache.shop/productos/HomeFlix").replace(/\/+$/, "");
+  var SERVER = typeof hfServidor === "function" ? hfServidor() : String(window.HF_SYNC_URL || "https://scalvache.shop/productos/HomeFlix").replace(/\/+$/, "");
   var android = window.HFAndroid || null;
   var LS_LAST = "hf.update.last";
   var LS_OTA = "hf.ota";

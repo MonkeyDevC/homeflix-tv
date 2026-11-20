@@ -34,7 +34,7 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix ".dev"
-            manifestPlaceholders = [cleartext: "true", appLabel: "HomeFlix (dev)"]
+            manifestPlaceholders = [cleartext: "true", appLabel: "HomeFlix"] // el APK que se publica es este (debug): sin «(dev)» en el inicio
         }
         release {
             minifyEnabled false
@@ -63,5 +63,8 @@ dependencies {
     // TV en vivo (IPTV) en el celular: ExoPlayer con HLS y la vista que lo dibuja
     implementation "androidx.media3:media3-exoplayer:1.4.1"
     implementation "androidx.media3:media3-exoplayer-hls:1.4.1"
+    // canales DASH (.mpd) y Smooth Streaming: ExoPlayer los pide por reflexión al armar la fuente y, sin estos módulos, la app se cerraba
+    implementation "androidx.media3:media3-exoplayer-dash:1.4.1"
+    implementation "androidx.media3:media3-exoplayer-smoothstreaming:1.4.1"
     implementation "androidx.media3:media3-ui:1.4.1"
 }

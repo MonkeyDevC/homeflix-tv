@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { dirname, join, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { probe, plan, caption, prepare, hasNvenc, safeName, limitBytes, extractSubs } from './prepare.mjs';
+import { probe, plan, caption, prepare, hasNvenc, gpuInfo, safeName, limitBytes, extractSubs } from './prepare.mjs';
 import { listVersions, makeImage, serveMedia, makeThumbs, makeThumbsFrom, fotogramas, partir, mediaPath } from './publish.mjs';
 import { loadApiKey, configJsWithKey, loadTmdbKey } from '../apikey.mjs';
 
@@ -220,7 +220,12 @@ async function tmdb(path, params) {
   const u = new URL(TMDB + path);
   for (const [k, v] of Object.entries(params || {})) if (v !== undefined && v !== '') u.searchParams.set(k, String(v));
   if (!bearer) u.searchParams.set('api_key', key);
-  const r = await fetch(u, { headers: Object.assign({ Accept: 'application/json' }, bearer ? { Authorization: 'Bearer ' + key } : {}) });
+  let r;
+  try {
+    r = await fetch(u, { headers: Object.assign({ Accept: 'application/json' }, bearer ? { Authorization: 'Bearer ' + key } : {}), signal: AbortSignal.timeout(15000) });
+  } catch (e) {
+    throw new Error(e && e.name === 'TimeoutError' ? 'TMDB no respondió a tiempo. Llena los datos a mano o prueba de nuevo.' : 'No pude conectar con TMDB (' + (e && e.cause && e.cause.code || e.message) + '). Llena los datos a mano o prueba de nuevo.');
+  }
   if (r.status === 401) throw new Error('TMDB no aceptó la clave. Revisa TMDB_API_KEY en el .env (themoviedb.org → Ajustes → API).');
   if (!r.ok) throw new Error('TMDB respondió ' + r.status + '. Prueba de nuevo o usa «Abrir en Google».');
   return r.json();
@@ -243,11 +248,31 @@ async function tmdbBuscar(b) {
   list.sort((a, c) => (year ? (Math.abs(a.year - year) <= 1 ? 0 : 1) - (Math.abs(c.year - year) <= 1 ? 0 : 1) : 0) || c.pop - a.pop);
   return { results: list.slice(0, 8) };
 }
+/* Capítulos de una temporada (título y descripción de cada uno, en español): primero es-MX y lo que falte se completa con es-ES. «Episodio 3» no cuenta como título. */
+async function tmdbTemporada(b) {
+  const id = Number(b.id);
+  const n = Number(b.season);
+  if (!id || !n) throw new Error('Falta la serie o la temporada de TMDB.');
+  const mx = await tmdb('/tv/' + id + '/season/' + n, { language: 'es-MX' });
+  let es = null;
+  const hueco = (mx.episodes || []).some((e) => !String(e.overview || '').trim() || /^(episodio|episode|capítulo)\s*\d+$/i.test(String(e.name || '').trim()));
+  if (hueco) { try { es = await tmdb('/tv/' + id + '/season/' + n, { language: 'es-ES' }); } catch (e) { es = null; } }
+  const byN = {};
+  ((es && es.episodes) || []).forEach((e) => { byN[e.episode_number] = e; });
+  const bueno = (t) => { t = String(t || '').trim(); return t && !/^(episodio|episode|capítulo)\s*\d+$/i.test(t) ? t : ''; };
+  return {
+    season: n,
+    episodes: (mx.episodes || []).map((e) => {
+      const o = byN[e.episode_number] || {};
+      return { n: e.episode_number, name: bueno(e.name) || bueno(o.name), overview: String(e.overview || '').trim() || String(o.overview || '').trim(), runtime: e.runtime || 0, still: e.still_path ? IMG_BASE + 'original' + e.still_path : '' };
+    }),
+  };
+}
 async function tmdbFicha(b) {
   const media = b.media === 'tv' ? 'tv' : 'movie';
   const id = Number(b.id);
   if (!id) throw new Error('Falta la película de TMDB.');
-  const extra = media === 'movie' ? 'release_dates,keywords,images' : 'content_ratings,keywords,images';
+  const extra = media === 'movie' ? 'release_dates,keywords,images,translations' : 'content_ratings,keywords,images,translations';
   const d = await tmdb('/' + media + '/' + id, { language: 'es-MX', append_to_response: extra, include_image_language: 'es,en,null' });
   const cert = {};
   if (media === 'movie') {
@@ -266,15 +291,29 @@ async function tmdbFicha(b) {
   const bds = (imgs.backdrops || []).slice().sort((x, y) => y.vote_average - x.vote_average || y.width - x.width);
   const poster = bds.filter((x) => x.iso_639_1).sort((x, y) => rank(x.iso_639_1) - rank(y.iso_639_1))[0] || bds[0];
   const backdrop = bds.filter((x) => !x.iso_639_1 && x !== poster)[0] || bds.find((x) => x !== poster) || bds[0];
+  /* portada vertical (póster 2:3): con el título en español primero, luego inglés, luego sin texto; los más votados y grandes primero */
+  const vps = (imgs.posters || []).slice().sort((x, y) => rank(x.iso_639_1) - rank(y.iso_639_1) || y.vote_average - x.vote_average || y.width - x.width);
+  const vposter = vps[0];
   const year = Number(String(d.release_date || d.first_air_date || '').slice(0, 4)) || 0;
+  /* título en español: con language=es-MX TMDB devuelve el original cuando no hay traducción mexicana, aunque exista la de España («Cómo vender drogas online (rápido)») */
+  const original = d.original_title || d.original_name || '';
+  let titulo = d.title || d.name || '';
+  if (d.original_language !== 'es' && (!titulo || titulo === original)) {
+    const tr = ((d.translations && d.translations.translations) || []).filter((x) => x.iso_639_1 === 'es' && x.data && (x.data.title || x.data.name));
+    const best = tr.find((x) => x.iso_3166_1 === 'MX') || tr.find((x) => x.iso_3166_1 === 'ES') || tr[0];
+    if (best) titulo = best.data.title || best.data.name;
+  }
   return {
-    id, media, title: d.title || d.name || '', original: d.original_title || d.original_name || '', year,
+    id, media, title: titulo, original: d.original_title || d.original_name || '', year,
     overview: d.overview || '', runtime: d.runtime || (d.episode_run_time && d.episode_run_time[0]) || 0,
     genres: (d.genres || []).map((g) => g.name), lang: d.original_language || '',
     companies: (d.production_companies || []).map((c) => c.name), keywords: kw.map((k) => k.name),
     collection: d.belongs_to_collection ? d.belongs_to_collection.name : '', cert,
+    /* temporadas de TMDB (sin los especiales): sirven para partir una numeración continua (1…128) en temporadas */
+    seasons: media === 'tv' ? (d.seasons || []).filter((x) => x.season_number > 0 && x.episode_count > 0).map((x) => ({ n: x.season_number, episodes: x.episode_count, name: x.name || '', year: Number(String(x.air_date || '').slice(0, 4)) || 0 })) : [],
     poster: poster ? { url: IMG_BASE + 'original' + poster.file_path, w: poster.width, h: poster.height, lang: poster.iso_639_1 || '' } : null,
     backdrop: backdrop ? { url: IMG_BASE + 'original' + backdrop.file_path, w: backdrop.width, h: backdrop.height, lang: backdrop.iso_639_1 || '' } : null,
+    vertical: vposter ? { url: IMG_BASE + 'original' + vposter.file_path, w: vposter.width, h: vposter.height, lang: vposter.iso_639_1 || '' } : null,
   };
 }
 
@@ -302,15 +341,22 @@ async function buscarImagenes(b) {
     pick = matches[0] || null;
   }
   if (!pick) return { results: [], matches, picked: null, next: 0 };
-  const im = await tmdb('/' + pick.media + '/' + pick.id + '/images', { include_image_language: 'es,en,null' });
-  const results = (im.backdrops || []).map((x) => ({
-    url: TMDB_IMG + 'original' + x.file_path, thumb: TMDB_IMG + 'w300' + x.file_path, w: x.width, h: x.height,
+  const season = Number(b.season) || 0;
+  const episode = Number(b.episode) || 0;
+  const still = b.kind === 'capitulo' && pick.media === 'tv' && season && episode; // imágenes de ese capítulo
+  const im = await tmdb(still ? '/tv/' + pick.id + '/season/' + season + '/episode/' + episode + '/images' : '/' + pick.media + '/' + pick.id + '/images', { include_image_language: 'es,en,null' });
+  const vertical = b.kind === 'vertical';
+  const results = (still ? im.stills || [] : vertical ? im.posters || [] : im.backdrops || []).map((x) => ({
+    url: TMDB_IMG + 'original' + x.file_path, thumb: TMDB_IMG + (vertical ? 'w342' : 'w300') + x.file_path, w: x.width, h: x.height,
     lang: x.iso_639_1 || '', score: x.vote_average || 0, title: '', site: 'themoviedb.org',
   })).sort((a, c) => c.score - a.score || c.w - a.w);
   return { results, matches, picked: pick, next: 0 };
 }
 function tempImageDir() {
-  const d = join(tmpdir(), 'homeflix-preparador', 'imagenes', String(Date.now()) + '-' + Math.random().toString(36).slice(2, 7));
+  const base = join(tmpdir(), 'homeflix-preparador', 'imagenes');
+  /* las imágenes temporales de más de un día ya no hacen falta: se borran para no llenar el disco */
+  try { for (const n of readdirSync(base)) { const p = join(base, n); if (Date.now() - statSync(p).mtimeMs > 86400000) rmSync(p, { recursive: true, force: true }); } } catch { /* no hay carpeta aún */ }
+  const d = join(base, String(Date.now()) + '-' + Math.random().toString(36).slice(2, 7));
   mkdirSync(d, { recursive: true });
   return d;
 }
@@ -323,20 +369,20 @@ async function imagenDesdeUrl(b) {
   const d = tempImageDir();
   const src = join(d, 'original');
   writeFileSync(src, buf);
-  return makeImage(src, b.kind, carpetaImagen(b.outDir) || d);
+  return makeImage(src, b.kind, carpetaImagen(b.outDir) || d, b.num);
 }
 /* la carpeta de la película (la de «Carpeta a publicar»), si existe: ahí la cola y la pestaña 4 la encuentran */
 function carpetaImagen(dir) {
   try { return dir && existsSync(dir) && statSync(dir).isDirectory() ? dir : ''; } catch { return ''; }
 }
-async function imagenDesdeBytes(req, kind, outDir) {
+async function imagenDesdeBytes(req, kind, outDir, num) {
   const chunks = [];
   let n = 0;
   for await (const c of req) { n += c.length; if (n > 40 * 1048576) throw new Error('La imagen es demasiado grande.'); chunks.push(c); }
   const d = tempImageDir();
   const src = join(d, 'original');
   writeFileSync(src, Buffer.concat(chunks));
-  return makeImage(src, kind, carpetaImagen(outDir) || d);
+  return makeImage(src, kind, carpetaImagen(outDir) || d, num);
 }
 
 /* ----- Videos del grupo bajados a este PC (para sacar fotogramas, miniaturas o crear calidades) -----
@@ -391,6 +437,8 @@ function miVersion() {
   try { return JSON.parse(readFileSyncFs(join(here, 'version.json'), 'utf8')).version || ''; } catch { /* sin archivo */ }
   try { return (/<widget[^>]*\sversion="([^"]+)"/.exec(readFileSyncFs(join(ROOT, 'config.xml'), 'utf8')) || [])[1] || ''; } catch { return ''; }
 }
+/* la versión con la que arrancó ESTE proceso: si en disco hay otra, se actualizó y falta reiniciar */
+const VERSION_ARRANQUE = miVersion();
 function esDesarrollo() { return !process.env.HF_FORZAR_ACTUALIZAR && existsSync(join(ROOT, '.git')); }
 function cmpVer(a, b) {
   const x = String(a || '0').split('.').map(Number);
@@ -525,8 +573,25 @@ function colaGuardar() {
   try { writeFileSync(COLA_FILE, JSON.stringify(COLA, null, 1)); } catch { /* sin disco: sigue en memoria */ }
   send({ type: 'cola', cola: colaVista() });
 }
+/* Avance de la publicación de cada película (qué archivo va, bytes, velocidad y el estado de cada archivo). Lo manda la página que sube
+ * (la única con la sesión de Telegram) y lo ve CUALQUIER pestaña —o la misma tras recargar—: antes vivía solo en la memoria de esa página y
+ * las demás mostraban «Publicando…» con la barra vacía y sin marcar nada de lo ya subido. Solo en memoria: al reiniciar se vuelve a empezar. */
+const PUBS = {};
 function colaVista() {
-  return { items: COLA.items.map((x) => ({ id: x.id, nombre: x.nombre, estado: x.estado, outDir: x.outDir, error: x.error || '', creado: x.creado, fin: x.fin || 0, calidades: x.opts.qualities || [], opts: x.opts })), pausa: COLA.pausa, auto: COLA.auto, actual: (COLA.items.find((x) => x.estado === 'renderizando') || {}).id || '' };
+  return { items: COLA.items.map((x) => ({ id: x.id, nombre: x.nombre, estado: x.estado, outDir: x.outDir, error: x.error || '', creado: x.creado, fin: x.fin || 0, calidades: x.opts.qualities || [], opts: x.opts, pub: PUBS[x.id] || null })), pausa: COLA.pausa, auto: COLA.auto, actual: (COLA.items.find((x) => x.estado === 'renderizando') || {}).id || '' };
+}
+/* Evento en vivo: va a las páginas conectadas pero no se guarda en el historial que se repite a las que llegan después. */
+function sendLive(ev) {
+  const data = 'data: ' + JSON.stringify(ev) + '\n\n';
+  clients.forEach((res) => res.write(data));
+}
+function colaProgreso(b) {
+  const x = colaItem(b.id);
+  const p = b.pub && typeof b.pub === 'object' ? b.pub : null;
+  if (!p || x.estado !== 'publicando') return { ok: true }; // lo que llega tarde (ya terminó o se devolvió a la fila) no se guarda
+  PUBS[x.id] = { i: Number(p.i) || 0, n: Number(p.n) || 0, done: Number(p.done) || 0, sent: Number(p.sent) || 0, total: Number(p.total) || 0, speed: String(p.speed || '').slice(0, 40), skip: Number(p.skip) || 0, keys: p.keys && typeof p.keys === 'object' ? p.keys : {}, at: Date.now() };
+  sendLive({ type: 'cola-pub', id: x.id, pub: PUBS[x.id] });
+  return { ok: true };
 }
 function colaItem(id) {
   const x = COLA.items.find((i) => i.id === id);
@@ -540,55 +605,83 @@ function colaAgregar(b) {
   if (!o.qualities || !o.qualities.length) throw new Error('Marca al menos una calidad.');
   o.outDir = String(o.outDir || '').trim() || defaultOutDir(o.file);
   mkdirSync(o.outDir, { recursive: true });
-  for (const kind of ['portada', 'banner']) {
+  /* Un doble clic (o dos pestañas, o un reintento de la red) no puede meter la misma película dos veces: si ya hay una igual
+   * esperando o renderizándose se devuelve esa y no se agrega nada (antes se procesaba dos veces). */
+  const igual = COLA.items.find((y) => (y.estado === 'espera' || y.estado === 'renderizando') && colaClave(y.opts) === colaClave(o));
+  if (igual) return { ok: true, id: igual.id, repetida: true, cola: colaVista() };
+  for (const kind of ['portada', 'banner', 'vertical', 'capitulo', 'capitulos']) {
     const p = b.images && b.images[kind];
     /* una imagen guardada en la carpeta de otra película de la cola es de esa película (la página la arrastró): no se copia */
     const deOtra = p && COLA.items.some((y) => y.outDir && y.outDir !== o.outDir && dirname(p).toLowerCase() === y.outDir.toLowerCase());
     if (p && existsSync(p) && !deOtra && p !== join(o.outDir, kind + '.jpg')) copyFileSync(p, join(o.outDir, kind + '.jpg'));
   }
-  const x = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: (o.name || basename(o.file)) + (Number(o.year) ? ' (' + Number(o.year) + ')' : ''), opts: o, estado: 'espera', outDir: o.outDir, creado: Date.now() };
-  if (b.primero) {
-    const i = COLA.items.findIndex((y) => y.estado === 'espera');
-    COLA.items.splice(i < 0 ? COLA.items.length : i, 0, x);
-  } else {
-    COLA.items.push(x);
+  for (const p of (b.images && b.images.galeria) || []) {
+    const m = /(galeria-\d{1,3}\.jpg)$/i.exec(String(p || ''));
+    if (m && existsSync(p) && p !== join(o.outDir, m[1])) copyFileSync(p, join(o.outDir, m[1]));
   }
+  const x = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: (o.name || basename(o.file)) + (Number(o.year) ? ' (' + Number(o.year) + ')' : ''), opts: o, estado: 'espera', outDir: o.outDir, creado: Date.now() };
+  /* Siempre al final: «Crear versiones» (sin cola) y «＋ Agregar a la cola» (con cola) son el mismo botón del paso 3 y agregan de última;
+   * el orden se cambia a propósito desde la cola (subir / bajar), no porque una película se cuele. */
+  COLA.items.push(x);
   colaGuardar();
   colaSeguir();
   return { ok: true, id: x.id, cola: colaVista() };
 }
-/* Si no hay nada renderizando, empieza la siguiente que espera. */
+/* Lo que identifica «la misma película con lo mismo»: el archivo, la carpeta de salida y las calidades pedidas. */
+function colaClave(o) {
+  return [o.file, o.outDir, (o.qualities || []).slice().sort().join(','), o.testSeconds || 0].join('|').toLowerCase();
+}
+/* Si no hay nada renderizando, empieza la siguiente que espera.
+ * El arranque de un trabajo (probar la tarjeta, leer el video…) tiene partes que paran el programa un buen rato: se hace unos
+ * milisegundos DESPUÉS, para que quien pidió esto (un clic) reciba su respuesta antes. «arrancando» evita que, en ese ratito,
+ * otra llamada empiece una segunda película al mismo tiempo. */
+let arrancando = false;
 function colaSeguir() {
-  if (job || COLA.pausa) return;
+  if (job || arrancando || COLA.pausa) return;
   const x = COLA.items.find((i) => i.estado === 'espera');
   if (!x) return;
+  arrancando = true;
   x.estado = 'renderizando';
   x.error = '';
   last = [];
   colaGuardar();
-  const run = prepare(x.opts, (ev) => send(Object.assign({ cola: x.id, colaNombre: x.nombre }, ev)));
-  job = run.job;
-  run.promise.then((r) => {
-    job = null;
-    x.estado = 'renderizado';
-    x.outDir = r.outDir;
-    x.fin = Date.now();
-    colaGuardar();
-    colaSeguir();
-  }, (e) => {
-    job = null;
-    x.estado = e.cancelled ? 'cancelado' : 'error';
-    x.error = e.cancelled ? '' : e.message;
-    send(e.cancelled ? { type: 'cancelled', cola: x.id } : { type: 'error', message: e.message, cola: x.id });
-    colaGuardar();
-    colaSeguir();
-  });
+  setTimeout(() => {
+    arrancando = false;
+    let run;
+    try {
+      run = prepare(x.opts, (ev) => send(Object.assign({ cola: x.id, colaNombre: x.nombre }, ev)));
+    } catch (e) {
+      x.estado = 'error';
+      x.error = e.message;
+      send({ type: 'error', message: e.message, cola: x.id });
+      colaGuardar();
+      colaSeguir();
+      return;
+    }
+    job = run.job;
+    run.promise.then((r) => {
+      job = null;
+      x.estado = 'renderizado';
+      x.outDir = r.outDir;
+      x.fin = Date.now();
+      colaGuardar();
+      colaSeguir();
+    }, (e) => {
+      job = null;
+      x.estado = e.cancelled ? 'cancelado' : 'error';
+      x.error = e.cancelled ? '' : e.message;
+      send(e.cancelled ? { type: 'cancelled', cola: x.id } : { type: 'error', message: e.message, cola: x.id });
+      colaGuardar();
+      colaSeguir();
+    });
+  }, 150);
 }
 function colaEstado(b) {
   const x = colaItem(b.id);
   if (!['publicando', 'publicado', 'error', 'renderizado'].includes(b.estado)) throw new Error('Estado no válido.');
   x.estado = b.estado;
   x.error = b.estado === 'error' ? String(b.error || '') : '';
+  if (b.estado === 'publicando' || b.estado === 'renderizado') delete PUBS[x.id]; // empieza de cero (o se devolvió a la fila)
   if (b.estado === 'publicado') x.fin = Date.now();
   colaGuardar();
   return colaVista();
@@ -598,6 +691,7 @@ function colaQuitar(b) {
   if (x.estado === 'renderizando') throw new Error('Se está renderizando: cancélala primero.');
   if (x.estado === 'publicando') throw new Error('Se está publicando: espera a que termine.');
   COLA.items = COLA.items.filter((i) => i !== x);
+  delete PUBS[x.id];
   colaGuardar();
   return colaVista();
 }
@@ -623,7 +717,7 @@ function defaultOutDir(file) {
 }
 
 const routes = {
-  'GET /api/state': () => ({ busy: !!job, events: last, gpu: hasNvenc(), version: miVersion(), cola: colaVista() }),
+  'GET /api/state': () => ({ busy: !!job, events: last, gpu: hasNvenc(), gpuInfo: hasNvenc() ? gpuInfo() : null, version: miVersion(), corriendo: VERSION_ARRANQUE, cola: colaVista() }),
   'GET /api/actualizacion': () => buscarActualizacion(),
   'POST /api/actualizar': () => actualizar(),
   'GET /api/actualizar/estado': () => ({ ...UPD, actual: miVersion() }),
@@ -640,11 +734,11 @@ const routes = {
     const src = probe(b.file);
     return { plan: plan(src, b), caption: caption(b), limit: limitBytes(b.limitGb) };
   },
-  /* «Crear versiones»: va primero en la cola (empieza ya si no hay otra renderizando) */
-  'POST /api/start': (b) => colaAgregar(b.opts ? Object.assign({}, b, { primero: true }) : { opts: b, primero: true }),
+  'POST /api/start': (b) => colaAgregar(b.opts ? b : { opts: b }), // lo mismo que «Agregar a la cola» (la página ya solo manda por un botón)
   'GET /api/cola': () => colaVista(),
   'POST /api/cola/agregar': (b) => colaAgregar(b),
   'POST /api/cola/estado': (b) => colaEstado(b),
+  'POST /api/cola/progreso': (b) => colaProgreso(b),
   'POST /api/cola/quitar': (b) => colaQuitar(b),
   'POST /api/cola/mover': (b) => colaMover(b),
   'POST /api/cola/reintentar': (b) => colaReintentar(b),
@@ -657,11 +751,19 @@ const routes = {
   },
   'POST /api/pick-image': (b) => ({ path: pickImage(b.start) }),
   'POST /api/versions': (b) => listVersions(b.dir),
-  'POST /api/image': (b) => makeImage(b.path, b.kind, b.outDir || tempImageDir()),
+  'POST /api/image': (b) => makeImage(b.path, b.kind, b.outDir || tempImageDir(), b.num),
+  /* quita una escena de la galería de la carpeta (galeria-NN.jpg) */
+  'POST /api/borrar-escena': (b) => {
+    const p = String(b.path || '');
+    if (!/galeria-\d{1,3}\.jpg$/i.test(p) || !existsSync(p)) throw new Error('Esa escena ya no está en la carpeta.');
+    unlinkSync(p);
+    return { ok: true };
+  },
   'POST /api/thumbs': (b) => makeThumbs(b.dir),
   'POST /api/buscar-imagenes': (b) => buscarImagenes(b),
   'POST /api/tmdb/buscar': (b) => tmdbBuscar(b),
   'POST /api/tmdb/ficha': (b) => tmdbFicha(b),
+  'POST /api/tmdb/temporada': (b) => tmdbTemporada(b),
   'POST /api/imagen-url': (b) => imagenDesdeUrl(b),
   'POST /api/ya-bajado': (b) => yaBajado(b),
   'POST /api/fotogramas': (b) => fotogramas(b.path, b.n, b.seed),
@@ -687,16 +789,16 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
   /* La biblioteca del preparador (entrar, elegir el chat, Inicio y ficha) */
-  const OWN = { '/biblioteca.js': ['biblioteca.js', 'text/javascript'], '/biblioteca.css': ['biblioteca.css', 'text/css'], '/cola.js': ['cola.js', 'text/javascript'], '/subsync.js': ['subsync.js', 'text/javascript'] };
+  const OWN = { '/biblioteca.js': ['biblioteca.js', 'text/javascript'], '/importar.js': ['importar.js', 'text/javascript'], '/biblioteca.css': ['biblioteca.css', 'text/css'], '/cola.js': ['cola.js', 'text/javascript'], '/subsync.js': ['subsync.js', 'text/javascript'], '/cache.js': ['cache.js', 'text/javascript'], '/temas.js': ['temas.js', 'text/javascript'], '/sw-stream.js': ['sw-stream.js', 'text/javascript'] };
   if (req.method === 'GET' && OWN[url.pathname]) {
-    res.writeHead(200, { 'Content-Type': OWN[url.pathname][1] + '; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.writeHead(200, { 'Content-Type': OWN[url.pathname][1] + '; charset=utf-8', 'Cache-Control': 'no-store', 'Service-Worker-Allowed': '/' });
     res.end(await readFile(join(here, OWN[url.pathname][0])));
     return;
   }
   /* Idioma de un video del grupo: la página manda el encabezado del archivo (unos MB) y ffprobe dice sus pistas */
   if (req.method === 'POST' && (url.pathname === '/api/imagen-bytes' || url.pathname === '/api/recibir')) {
     try {
-      json(res, 200, url.pathname === '/api/recibir' ? await recibir(req, url) : await imagenDesdeBytes(req, url.searchParams.get('kind'), url.searchParams.get('outDir')));
+      json(res, 200, url.pathname === '/api/recibir' ? await recibir(req, url) : await imagenDesdeBytes(req, url.searchParams.get('kind'), url.searchParams.get('outDir'), url.searchParams.get('num')));
     } catch (e) {
       json(res, 400, { error: e.message });
     }

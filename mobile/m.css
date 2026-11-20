@@ -108,7 +108,8 @@ svg { display: block; }
 .m-btn:active { transform: scale(0.97); }
 
 /* ---------- Filas ---------- */
-.m-row { margin-top: 22px; }
+.m-row { margin-top: 22px; content-visibility: auto; contain-intrinsic-size: auto 215px; } /* lo que está fuera de la pantalla no se calcula ni se pinta */
+.m-vcards .m-row { contain-intrinsic-size: auto 300px; }
 .m-row-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 16px 10px; }
 .m-row-head h2 { margin: 0; font-size: 18px; font-weight: 700; }
 .m-row-head small { font-size: 13px; color: var(--dim); }
@@ -247,7 +248,12 @@ svg { display: block; }
 .m-search .m-input svg { width: 20px; height: 20px; margin-left: 14px; stroke: var(--dim); flex: none; }
 .m-search .m-input input { font-size: 16px; padding-left: 10px; }
 .m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 10px; padding: 4px 16px 0; }
-.m-grid .m-card { width: auto; }
+.m-grid .m-card { width: auto; content-visibility: auto; contain-intrinsic-size: auto 150px; }
+/* «Ver todo» al final de una fila con tope */
+.m-card.more .img { display: grid; place-items: center; background: var(--card-2); border: 1px dashed rgba(230, 193, 147, 0.5); }
+.m-card.more .mo { display: grid; gap: 2px; text-align: center; color: var(--gold-text); }
+.m-card.more .mo b { font-size: 22px; font-weight: 800; }
+.m-card.more .mo span { font-size: 12px; font-weight: 700; }
 .m-sub { padding: 6px 16px 10px; font-size: 13px; color: var(--dim); }
 
 /* ---------- Reproductor (horizontal) ---------- */
@@ -492,8 +498,15 @@ body { background: #000; }
 .m-player .seek .track .buf, .m-player .seek .track .now { top: 12px; bottom: auto; height: 4px; }
 
 /* Carrusel del destacado: se desliza con el dedo, una tarjeta a la vez */
-.m-heros { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; padding: 4px 16px 6px; overscroll-behavior-x: contain; }
-.m-heros .m-hero { flex: 0 0 100%; margin: 0; scroll-snap-align: center; scroll-snap-stop: always; }
+/* destacados apilados: se ve uno y el cambio es «Circle blur» (el nuevo se revela con un círculo sobre el anterior) */
+.m-heros { display: grid; position: relative; padding: 4px 16px 6px; overflow: hidden; }
+.m-heros .m-hero { grid-area: 1 / 1; margin: 0; visibility: hidden; }
+.m-heros .m-hero.under { visibility: visible; z-index: 1; }
+.m-heros .m-hero.cur { visibility: visible; z-index: 2; }
+/* vista previa del destacado: el video aparece con un fundido sobre la imagen */
+.m-hero .m-pv { position: absolute; inset: 0; opacity: 0; transition: opacity 0.8s ease; pointer-events: none; background: #000; }
+.m-hero .m-pv.on { opacity: 1; }
+.m-hero .m-pv video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .m-dots button { width: 6px; height: 6px; padding: 0; border-radius: 3px; background: rgba(255, 255, 255, 0.3); transition: width 0.25s, background 0.25s; }
 .m-dots button.on { width: 18px; background: var(--gold-ring); }
 .m-dots { gap: 6px; }
@@ -738,9 +751,11 @@ html:not(.m-live-on) .m-livemedia { display: none; }
 .m-chrow { display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 8px; min-height: 80px; cursor: pointer; border-top: 1px solid rgba(255, 255, 255, 0.03); }
 .m-chrow.on { background: rgba(255, 255, 255, 0.07); }
 .m-chrow:active { background: rgba(255, 255, 255, 0.1); }
-.m-chrow .lg { width: 62px; height: 40px; flex: none; background: center / contain no-repeat; display: flex; align-items: center; justify-content: center; }
-.m-chrow .lg i { font-style: normal; font-size: 14px; font-weight: 800; color: var(--dim); }
-.m-chrow .th { position: relative; width: 112px; height: 63px; flex: none; border-radius: 6px; background: #1a1c20 center / cover no-repeat; overflow: hidden; }
+.m-chrow .th i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 20px; font-weight: 800; color: var(--dim); }
+.m-chrow .fvb { flex: none; width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.m-chrow .fvb svg { width: 22px; height: 22px; stroke: currentColor; }
+.m-chrow .fvb.on { color: var(--gold-1); }
+.m-chrow .th { position: relative; width: 128px; height: 72px; flex: none; border-radius: 6px; background: #1a1c20 center / cover no-repeat; overflow: hidden; }
 .m-chrow .th.plain { background-size: 70% auto; background-color: #14161a; }
 .m-chrow .eq { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding-bottom: 20px; background: rgba(0, 0, 0, 0.38); }
 .m-chrow .eq u { width: 4px; height: 8px; border-radius: 2px; background: #fff; animation: mleq 0.9s ease-in-out infinite; }
@@ -754,7 +769,7 @@ html:not(.m-live-on) .m-livemedia { display: none; }
 .m-chrow .tx .bar i { display: block; height: 100%; background: #fff; }
 .m-chrow .fv { color: var(--gold-1); flex: none; }
 .m-chrow .fv svg { width: 16px; height: 16px; }
-.m-chrow .inf { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.m-chrow .inf { flex: none; width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .m-chrow .inf svg { width: 24px; height: 24px; stroke: currentColor; }
 .m-chnone, .m-chempty { padding: 36px 24px; text-align: center; color: var(--muted); font-size: 14.5px; }
 .m-chempty { display: flex; flex-direction: column; align-items: center; gap: 14px; }
@@ -771,3 +786,105 @@ html.m-live-on, html.m-live-on body { background: transparent; }
 /* imagen en imagen: solo el video */
 html.m-pip .m-live-top, html.m-pip .m-live-body, html.m-pip .m-nav, html.m-pip .m-live-ctl { display: none; }
 html.m-pip .m-live-stage { position: fixed; inset: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+
+/* ----- Búsqueda de canales: la lupa a la izquierda de las categorías se expande y ocupa toda la fila ----- */
+.m-chtabs .sbtn { flex: none; width: 38px; height: 38px; border-radius: 19px; border: 1.5px solid rgba(255, 255, 255, 0.28); display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.m-chtabs .sbtn svg { width: 20px; height: 20px; stroke: currentColor; }
+.m-chtabs .sbtn:active { background: rgba(255, 255, 255, 0.12); }
+.m-chtabs.fresh button { animation: mlTabIn 0.5s cubic-bezier(0.16, 0.84, 0.3, 1) both; }
+@keyframes mlTabIn { from { opacity: 0; transform: translate3d(-14px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+.m-chtabs.search { overflow: visible; }
+.m-sfield { position: relative; flex: 1; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 6px 0 14px; min-width: 0; }
+.m-sfield .sbg {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 19px;
+  border: 1.5px solid var(--gold-ring); background: rgba(230, 193, 147, 0.08);
+  transform-origin: 0 50%; animation: mlSExpand 0.55s cubic-bezier(0.16, 0.84, 0.3, 1) both; will-change: transform, opacity;
+}
+@keyframes mlSExpand { from { opacity: 0.4; transform: scale3d(0.1, 1, 1); } to { opacity: 1; transform: scale3d(1, 1, 1); } }
+.m-sfield > svg { position: relative; width: 20px; height: 20px; flex: none; stroke: var(--gold-1); animation: mlSFade 0.4s ease 0.18s both; }
+.m-sfield input { position: relative; flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--text); font-size: 15px; outline: none; animation: mlSFade 0.4s ease 0.18s both; }
+.m-sfield input::placeholder { color: var(--dim); }
+.m-sfield .sx { position: relative; flex: none; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--muted); animation: mlSFade 0.4s ease 0.18s both; }
+.m-sfield .sx svg { width: 18px; height: 18px; stroke: currentColor; }
+@keyframes mlSFade { from { opacity: 0; } to { opacity: 1; } }
+.m-chtabs .m-sfield .sx { padding: 0; border: 0; border-radius: 16px; background: none; width: 32px; height: 32px; color: var(--muted); }
+.m-chtabs .m-sfield .sx:active { background: rgba(255, 255, 255, 0.12); }
+
+
+/* ----- Varias cuentas: etiqueta de cuenta bajo cada perfil y selector de cuenta ----- */
+.m-pgrid .pacc { margin-top: -6px; max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--dim); }
+.m-ap-title { margin: 6px 0 6px; font-size: 22px; font-weight: 700; }
+
+
+/* ----- Vista vertical de tarjetas (Ajustes → Vista de tarjetas, por perfil): póster 2:3; las «wide» (continuar viendo) siguen horizontales ----- */
+.m-vcards .m-card:not(.wide) { width: 122px; }
+.m-vcards .m-card:not(.wide) .img { aspect-ratio: 2 / 3; border-radius: 10px; }
+.m-vcards .m-grid { grid-template-columns: repeat(3, 1fr); gap: 14px 8px; }
+.m-vcards .m-grid .m-card:not(.wide) { width: auto; contain-intrinsic-size: auto 230px; }
+
+/* ----- Aviso «Siguiente capítulo»: tamaño (data-size) y transparencia (--nx-a), por perfil ----- */
+.m-next { background: rgba(20, 22, 26, calc(0.92 * var(--nx-a, 1))); border-color: rgba(255, 255, 255, calc(0.12 * var(--nx-a, 1))); }
+.m-next[data-size="m"] { width: 300px; padding: 8px; gap: 10px; }
+.m-next[data-size="m"] .img { width: 96px; }
+.m-next[data-size="m"] b { font-size: 13px; margin-bottom: 6px; }
+.m-next[data-size="m"] .m-btn { height: 30px; font-size: 12px; padding: 0 10px; }
+.m-next[data-size="s"] { width: 232px; padding: 6px; gap: 8px; right: 14px; bottom: 56px; border-radius: 12px; }
+.m-next[data-size="s"] .img { width: 72px; }
+.m-next[data-size="s"] .cd { width: 28px; height: 28px; font-size: 13px; border-width: 2px; }
+.m-next[data-size="s"] small { display: none; }
+.m-next[data-size="s"] b { font-size: 12px; margin: 0 0 5px; }
+.m-next[data-size="s"] .m-btn { height: 26px; font-size: 11px; padding: 0 8px; }
+.m-next[data-size="s"] .m-btn svg { width: 12px; height: 12px; }
+
+
+/* ----- Galería de escenas (detalle → Galería, solo en la vista vertical) ----- */
+.m-gal { position: fixed; inset: 0; z-index: 30; overflow: hidden; background: #050608; color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; }
+.m-gal .gbg { position: absolute; inset: -8%; background: center / cover no-repeat; filter: blur(34px) saturate(1.25) brightness(0.55); opacity: 0; transition: opacity 0.7s ease; transform: scale(1.08); }
+.m-gal .gbg.show { opacity: 1; }
+.m-gal .gshade { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.55) 100%); pointer-events: none; }
+.m-gal .gtop { position: absolute; left: 0; right: 0; top: 0; z-index: 400; display: flex; align-items: center; gap: 6px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px; background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)); transition: opacity 0.3s; }
+.m-gal .gt { flex: 1; min-width: 0; }
+.m-gal .gt b { display: block; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-gal .gt small { color: rgba(255, 255, 255, 0.7); font-size: 12px; }
+.m-gal .m-iconbtn svg { stroke: #fff; }
+.m-gal .gstage { position: absolute; left: 0; right: 0; top: 0; bottom: 0; perspective: 1100px; perspective-origin: 50% 46%; display: flex; align-items: center; justify-content: center; }
+.m-gal .gcard { position: absolute; width: min(68vw, 340px); aspect-ratio: 3 / 4; border-radius: 18px; overflow: hidden; background: #1a1c20; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08); will-change: transform, opacity; transform-origin: 50% 50%; backface-visibility: hidden; }
+.m-gal[data-mode="fan"] .gcard { transform-origin: 50% 130%; }
+.m-gal[data-fit="wide"] .gcard { width: 94vw; aspect-ratio: 16 / 9; }
+.m-gal .gimg { position: absolute; inset: 0; background: center / cover no-repeat; will-change: transform; opacity: 0; transition: opacity 0.5s ease; }
+.m-gal .gcard.ready .gimg { opacity: 1; }
+.m-gal .gshine { position: absolute; inset: 0; background: linear-gradient(105deg, rgba(255, 255, 255, 0) 38%, rgba(255, 255, 255, 0.16) 50%, rgba(255, 255, 255, 0) 62%); pointer-events: none; will-change: transform; }
+.m-gal .gstrip { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); z-index: 400; display: flex; justify-content: center; gap: 8px; padding: 0 18px; flex-wrap: wrap; }
+.m-gal .gstrip i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); transition: width 0.3s, background 0.3s; }
+.m-gal .gstrip i.on { width: 26px; border-radius: 4px; background: var(--gold-ring, #e6c193); }
+
+
+/* ----- Capítulo con galería: botón a la derecha ----- */
+.m-ep { position: relative; }
+.m-ep.hasg .n { padding-right: 44px; }
+.m-ep .m-epg { position: absolute; right: 2px; top: 10px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(230, 193, 147, 0.14); border: 1px solid rgba(230, 193, 147, 0.5); }
+.m-ep .m-epg svg { width: 19px; height: 19px; stroke: var(--gold-text, #d9b28a); }
+
+/* ----- Galería, «foto completa»: la foto entera, con su proporción, sin recorte ni efectos encima ----- */
+.m-gal[data-fit="wide"] .gcard { width: min(94vw, calc(68vh * var(--ar, 1.78))); aspect-ratio: var(--ar, 1.78); max-height: 76vh; border-radius: 10px; box-shadow: none; }
+.m-gal[data-fit="wide"] .gimg { background-size: contain; background-color: #000; }
+.m-gal[data-fit="wide"] .gshine { display: none; }
+
+/* ----- Foto completa: a pantalla completa, con zoom; sin recorte ----- */
+.m-gal[data-fit="wide"] .gcard { width: min(100vw, calc(100vh * var(--ar, 1.78))); max-height: none; border-radius: 0; }
+.m-gal[data-fit="wide"][data-zoom="1"] .gcard { overflow: visible; }
+.m-gal[data-fit="wide"] .gimg { will-change: transform; }
+.m-gal.calm .gtop, .m-gal.calm .gstrip { opacity: 0; pointer-events: none; }
+.m-gal .gtop, .m-gal .gstrip { transition: opacity 0.3s; }
+
+/* ---------- Tablet y celular grande (≥ 700 px): el mismo diseño del celular, mejor aprovechado ----------
+ * La web instalada en un iPad (o el APK en una tablet) usa estas pantallas: el destacado deja de ocupar media pantalla,
+ * las rejillas meten más columnas y los botones no se estiran de borde a borde. */
+@media (min-width: 700px) {
+  .m-hero .art { aspect-ratio: 2 / 1; }
+  .m-hero h1 { font-size: 38px; }
+  .m-hero h1.long { font-size: 30px; }
+  .m-hero .btns { max-width: 560px; margin: 0 auto; }
+  .m-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px 14px; }
+  .m-vcards .m-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}

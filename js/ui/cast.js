@@ -36,6 +36,7 @@ function castUseProfile(pid) {
   }
   activeProfile = p;
   HFLibrary.setProfile(p.id);
+  applyCardView();
   rebuildLibrary();
 }
 
@@ -49,7 +50,7 @@ function castState() {
   return {
     t: "state",
     key: entryVideoKey(it),
-    poster: it.type === "episode" || it.type === "video" ? it.key : (it.bannerKey || it.imageKey || entryVideoKey(it)),
+    poster: it.anime ? (it.coverKey || "") : it.type === "episode" || it.type === "video" ? it.key : (it.bannerKey || it.imageKey || entryVideoKey(it)),
     name: tt.title,
     sub: tt.sub,
     state: player.error ? "error" : player.state,
@@ -94,6 +95,17 @@ function castPlay(msg, de) {
   if (msg.profile) {
     castUseProfile(msg.profile);
   }
+  /* canal Anime: el capítulo no está en el catálogo de Telegram; se pide al servidor (js/anime.js) */
+  var anime = /^anime:(\d+):(\d+)$/.exec(String(msg.key || ""));
+  if (anime) {
+    castReply(de, { t: "wait", m: "Buscando el capítulo…" });
+    HFAnime.resolve(Number(anime[1]), Number(anime[2])).then(function (r) {
+      castStart(msg, de, r);
+    }, function (e) {
+      castReply(de, { t: "error", m: String((e && e.message) || e) });
+    });
+    return;
+  }
   found = castFind(msg.key);
   if (found) {
     castStart(msg, de, found);
@@ -127,6 +139,7 @@ function castStart(msg, de, found) {
   } catch (e) { /* sin almacenamiento */ }
   cast.ctl = { id: de.id, nombre: de.nombre || "" };
   openPlayer(found.item, Math.max(0, Number(msg.start) || 0), found.series);
+  if (window.HFWebPc && HFWebPc.reanudar) { HFWebPc.reanudar(); } // computador: si el navegador no deja arrancar con sonido, arranca sin sonido y avisa
   updateStatus("Reproduciendo desde " + (de.nombre || "el celular"));
   castReply(de, { t: "ok" });
   castNotify();
@@ -140,8 +153,8 @@ function castStart(msg, de, found) {
 
 function onCastMessage(msg, de) {
   var playing = currentRoute === "player" && player.item;
-  if (!msg || !de || de.tipo === "tv") {
-    return; // las TVs no se mandan órdenes entre sí
+  if (!msg || !de || de.tipo === "tv" || de.tipo === "pc") {
+    return; // las pantallas (TV, computador) no se mandan órdenes entre sí: las órdenes vienen del celular
   }
   if (msg.t === "play") {
     castPlay(msg, de);

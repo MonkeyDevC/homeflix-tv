@@ -1,0 +1,87 @@
+# Motor de recomendaciones de HomeFlix. Sin puertos públicos: el servidor Node (contenedor «homeflix»)
+# es el único que entra, por la red «reco-interna». Crear la red una vez: docker network create reco-interna
+name: homeflix-recomendador
+
+services:
+  reco-db:
+    image: pgvector/pgvector:pg16
+    container_name: reco-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: homeflix_reco
+      POSTGRES_USER: reco_admin
+      POSTGRES_PASSWORD: ${RECO_DB_ADMIN_PASSWORD:?falta RECO_DB_ADMIN_PASSWORD}
+      RECO_DB_APP_PASSWORD: ${RECO_DB_APP_PASSWORD:?falta RECO_DB_APP_PASSWORD}
+    volumes:
+      - reco-datos:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30", "-c", "work_mem=4MB"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reco_admin -d homeflix_reco"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    cpus: 0.5
+    networks: [reco]
+
+  reco-api:
+    build: { context: .., dockerfile: recomendador/Dockerfile }
+    image: homeflix-recomendador:latest
+    container_name: reco-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RECO_DB_URL: postgresql://reco_app:${RECO_DB_APP_PASSWORD}@reco-db:5432/homeflix_reco
+    depends_on:
+      reco-db: { condition: service_healthy }
+    mem_limit: 384m
+    cpus: 0.75
+    networks: [reco, reco-interna]
+
+  reco-worker:
+    image: homeflix-recomendador:latest
+    container_name: reco-worker
+    restart: unless-stopped
+    command: ["python", "-m", "reco.worker"]
+    env_file: .env
+    environment:
+      RECO_DB_URL: postgresql://reco_app:${RECO_DB_APP_PASSWORD}@reco-db:5432/homeflix_reco
+      RECO_SESIONES: /sesiones
+    volumes:
+      - reco-sesiones:/sesiones
+    depends_on:
+      reco-db: { condition: service_healthy }
+      reco-api: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "python", "-m", "reco.worker", "--salud"]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+    mem_limit: 448m
+    cpus: 0.75
+    networks: [reco, reco-interna]
+
+  # Solo para las pruebas de integración en local: docker compose --profile test up -d reco-db-test
+  reco-db-test:
+    profiles: [test]
+    image: pgvector/pgvector:pg16
+    container_name: reco-db-test
+    environment:
+      POSTGRES_DB: homeflix_reco
+      POSTGRES_USER: reco_admin
+      POSTGRES_PASSWORD: prueba
+      RECO_DB_APP_PASSWORD: prueba
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    ports: ["127.0.0.1:55432:5432"]
+    tmpfs: [/var/lib/postgresql/data]
+
+volumes:
+  reco-datos:
+  reco-sesiones:
+
+networks:
+  reco: {}
+  reco-interna:
+    external: true

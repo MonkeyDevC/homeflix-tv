@@ -13,6 +13,15 @@ const LATIDO = 20_000; // un comentario cada 20 s mantiene viva la conexión (Ca
 export function crearRemoto({ ahora = () => Date.now() } = {}) {
   const cuentas = new Map(); // cuenta → Map(idDispositivo → {id, tipo, nombre, desde, res})
 
+  const IDENT = ['tipo', 'nombre', 'plataforma', 'interfaz', 'canal', 'navegador', 'app', 'modelo'];
+  const LARGOS = { tipo: 16, nombre: 80, plataforma: 24, interfaz: 12, canal: 20, navegador: 40, app: 20, modelo: 60 };
+  /** Lo que se sabe de quién es un dispositivo (se reparte a los demás de la cuenta). */
+  function identidad(d) {
+    const o = {};
+    for (const k of IDENT) o[k] = String((d && d[k]) || '').slice(0, LARGOS[k]);
+    return o;
+  }
+
   function escribir(res, texto) {
     try { res.write(texto); return true; } catch { return false; }
   }
@@ -37,7 +46,7 @@ export function crearRemoto({ ahora = () => Date.now() } = {}) {
     if (!m) cuentas.set(cuenta, (m = new Map()));
     const viejo = m.get(id);
     if (viejo) { try { viejo.res.end(); } catch { /* ya cerrada */ } } // el mismo dispositivo se reconectó
-    const yo = { id, tipo: String(dispositivo.tipo || '').slice(0, 16), nombre: String(dispositivo.nombre || '').slice(0, 80), desde: ahora(), res };
+    const yo = { ...identidad(dispositivo), id, desde: ahora(), res };
     m.set(id, yo);
 
     res.writeHead(200, {
@@ -60,7 +69,7 @@ export function crearRemoto({ ahora = () => Date.now() } = {}) {
   function dispositivos(cuenta, menos) {
     const m = cuentas.get(cuenta);
     if (!m) return [];
-    return [...m.values()].filter((d) => d.id !== menos).map(({ id, tipo, nombre, desde }) => ({ id, tipo, nombre, desde }));
+    return [...m.values()].filter((d) => d.id !== menos).map((d) => ({ id: d.id, ...identidad(d), desde: d.desde }));
   }
 
   /** Manda msg a un dispositivo (a = su id) o a todos los demás (a = '*'). Devuelve a cuántos llegó. */
@@ -68,7 +77,7 @@ export function crearRemoto({ ahora = () => Date.now() } = {}) {
     const m = cuentas.get(cuenta);
     if (!m) return 0;
     const yo = m.get(de) || { id: de, tipo: '', nombre: '' };
-    const texto = `data: ${JSON.stringify({ de: { id: yo.id, tipo: yo.tipo, nombre: yo.nombre }, msg })}\n\n`;
+    const texto = `data: ${JSON.stringify({ de: { id: yo.id, ...identidad(yo) }, msg })}\n\n`;
     let n = 0;
     for (const d of m.values()) {
       if (d.id === de || (a !== '*' && d.id !== a)) continue;

@@ -16,6 +16,10 @@ function onAdjust(el, dir) {
 function onLeaveRoute(from, to) {
   if (from === "browse" && to !== "browse") {
     dropUpdateModal();
+    heroPvCancel();
+  }
+  if (from === "detail" && to !== "detail" && typeof heroPvCancel === "function") {
+    heroPvCancel(); // la vista previa de la ficha (js/ui/detail.js)
   }
   if (from === "login" && to !== "login") {
     cancelLogin();
@@ -36,6 +40,8 @@ function selectCurrentItem() {
   if (!el) {
     return;
   }
+  if (NXM.open) { handleNextModalSelect(el); return; }
+  if (CONF.open) { handleConfirmSelect(el); return; }
   if (UPM.open) { handleUpdateSelect(el); return; }
   if (currentRoute === "splash") { handleSplashSelect(el); }
   else if (currentRoute === "login") { handleLoginSelect(el); }
@@ -55,6 +61,8 @@ function selectCurrentItem() {
 }
 
 function goBackByRoute() {
+  if (NXM.open) { closeNextModal(); return; }
+  if (CONF.open) { closeConfirm(false); return; }
   if (UPM.open) { closeUpdateModal(); return; }
   if (currentRoute === "detail") { closeDetail(); return; }
   if (currentRoute === "tag-edit") { cancelTagEdit(); return; }
@@ -77,7 +85,7 @@ function goBackByRoute() {
      * filas: se anota dónde se estaba para que ▼ vuelva ahí. */
     if (currentArea() && currentArea().name !== "top") {
       browse.resume = { name: currentArea().name, item: state.itemIndex };
-      focusAreaByName("top", Math.max(0, MENU.map(function (m) { return m.id; }).indexOf(browse.section)));
+      focusAreaByName("top", Math.max(0, menuIndex(browse.section)));
       return;
     }
     if (browse.section !== "home") {
@@ -200,7 +208,38 @@ function findFocusableFromTarget(target) {
 }
 
 function handlePointerSelect(event) {
-  var element = findFocusableFromTarget(event.target);
+  var element;
+  /* el botón de atrás del reproductor (‹, arriba a la izquierda) no es parte del foco del control, pero con puntero (mouse, Magic Remote) se pulsa */
+  if (currentRoute === "player" && event.target && event.target.closest && event.target.closest(".hf2-pl-back")) { exitPlayer(player.error); return; }
+  /* ✕ de los paneles del reproductor (audio y subtítulos, capítulos): equivale a BACK */
+  if (currentRoute === "player" && player.panel && event.target && event.target.closest && event.target.closest(".hf2-pl-close")) { closePanel(); return; }
+  /* web PC: un clic fuera del panel abierto (audio y subtítulos, capítulos) lo cierra */
+  if (currentRoute === "player" && player.panel && document.documentElement.getAttribute("data-web") === "pc" && event.target && event.target.closest &&
+      !event.target.closest("#plTracks,#plEps")) { closePanel(); return; }
+  /* con puntero (mouse o Magic Remote): «Inicio», «Volver» y el logo de la ficha llevan donde dicen (en la TV el control usa BACK) */
+  if (event.target && event.target.closest && /^(detail|search|guide|browse|live)$/.test(currentRoute) && !(event.target.closest("[data-focusable]"))) {
+    if (event.target.closest(".hf2-home") || event.target.closest(".hf2-brand")) { openBrowse("home"); return; }
+    if (event.target.closest(".hf2-back")) { goBackByRoute(); return; }
+  }
+  /* búsqueda (web PC): ‹ vuelve a la sección de donde se vino y ✕ borra lo escrito */
+  if (currentRoute === "search" && event.target && event.target.closest) {
+    if (event.target.closest(".hf2-s-back")) { openBrowse(browse.section); return; }
+    if (event.target.closest(".hf2-s-clear")) {
+      byId("searchInput").value = "";
+      renderSearchResults("input", 0);
+      focusInput(byId("searchInput"));
+      return;
+    }
+  }
+  /* selector de destacados: ‹ retrocede, › avanza y cada punto va a su destacado (todo el selector es un solo elemento enfocable y antes cualquier clic avanzaba) */
+  if (currentRoute === "browse" && event.target && event.target.closest) {
+    var pick = event.target.closest("#billboard .hf2-bb-dots .arr, #billboard .hf2-bb-dots .pts i");
+    if (pick) {
+      heroPointerPick(pick);
+      return;
+    }
+  }
+  element = findFocusableFromTarget(event.target);
   if (event.target && event.target.tagName === "INPUT") {
     if (element) {
       syncStateToElement(element);
@@ -222,8 +261,7 @@ function onSyncRemote() {
   }
   rebuildLibrary();
   if (currentRoute === "browse") {
-    a = browseFocus();
-    renderBrowse(a.name, a.index, true);
+    browseRepaint(); // llegó progreso / Mi lista de otro dispositivo: solo se repinta si cambió lo que se ve y nadie está navegando
   } else if (currentRoute === "profiles") {
     renderProfiles(false);
   } else if (currentRoute === "live" && !LV.editing) {
@@ -237,7 +275,7 @@ function onSyncRemote() {
 function registerTvKeys() {
   try {
     if (window.tizen && tizen.tvinputdevice) {
-      ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaFastForward", "MediaRewind", "MediaStop", "ChannelUp", "ChannelDown", "Info", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].forEach(function (k) {
+      ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaFastForward", "MediaRewind", "MediaStop", "ChannelUp", "ChannelDown", "Info", "ColorF1Green", "ColorF2Yellow", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].forEach(function (k) {
         try { tizen.tvinputdevice.registerKey(k); } catch (e) { /* no disponible en este modelo */ }
       });
     }
@@ -255,6 +293,16 @@ function fitToWindow() {
   if (!appRootEl || !w || !h) {
     return;
   }
+  /* Versión web en un computador (?web=1, js/web-pc.js): en una ventana más ancha que 16:9 el lienzo se ENSANCHA en vez de dejar franjas
+   * negras a los lados. La altura manda (1080 de diseño), y el ancho de diseño pasa a ser --W (css/app.css y hf2.css lo usan, con 1920 por
+   * defecto, o sea: en la TV no cambia nada). Si la ventana es más angosta que 16:9 queda como siempre (franjas arriba y abajo). */
+  if (document.documentElement.getAttribute("data-web") === "pc" && w / h > 1920 / 1080) {
+    s = h / 1080;
+    appRootEl.style.setProperty("--W", Math.round(w / s) + "px");
+    appRootEl.style.transform = "scale(" + s + ")";
+    return;
+  }
+  appRootEl.style.removeProperty("--W");
   if (Math.abs(s - 1) < 0.01) {
     appRootEl.style.transform = "";
     return;
@@ -267,6 +315,8 @@ window.onload = function () {
   statusMessageEl = byId("statusMessage");
   statusHintsEl = byId("statusHints");
   fitToWindow();
+  applyCardView();
+  initMenuFx();
   window.addEventListener("resize", fitToWindow, false);
   registerTvKeys();
   showRoute("splash"); // la portada se pinta al terminar la intro (abajo)
@@ -288,7 +338,8 @@ window.onload = function () {
   /* La portada (decenas de pósters) se pinta DESPUÉS de la intro y solo si hace falta: decodificar esas imágenes mientras
    * corre la animación la traba en las TVs más modestas. */
   var session = warmUpTelegram();
-  HFIntro.play({ base: "" }).then(function () {
+  /* En la TV la intro sostiene su final hasta que la sesión esté lista (si no, quedaba una pantalla vacía antes de los perfiles). */
+  HFIntro.play({ base: "", ready: session.then(function () {}, function () {}) }).then(function () {
     if (currentRoute !== "splash") {
       return null; // ya se abrió otra cosa (p. ej. un video mandado desde el celular)
     }
@@ -303,7 +354,7 @@ window.onload = function () {
       }
     });
   });
-  setTimeout(function () { checkUpdates(); }, 4000);
+  setTimeout(function () { checkUpdates(); }, 9000);
   /* llegó hasta aquí: esta interfaz arranca bien (js/arranque.js no vuelve atrás) */
   setTimeout(function () { if (typeof HFUpdate !== "undefined") { HFUpdate.ok(); } }, 6000);
 };

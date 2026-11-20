@@ -3,7 +3,8 @@
 //   node tools/publicar-version.mjs 1.1.4 --notas "Qué cambió"            arma todo en dist/versiones/1.1.4/
 //   node tools/publicar-version.mjs 1.1.4 --notas "…" --programa          además pide reinstalar el .wgt/.apk (cuando
 //                                                                       cambia lo nativo: arranque de la TV, Java del APK)
-//   node tools/publicar-version.mjs 1.1.4 --notas "…" --subir             y lo sube al VPS (lo último: actual.json)
+//   node tools/publicar-version.mjs 1.1.4 --notas "…" --local             y la publica en el servidor de la casa (local/versiones)
+//   (--subir era para el VPS, que ya no existe)
 //
 // Qué arma:
 //   web-<v>.json        la interfaz (TV: app.html, css/, js/; celular: mobile/, js/), la que se actualiza sola
@@ -22,7 +23,10 @@ import { loadApiKey, configJsWithKey, configJsWithVersion } from './apikey.mjs';
 import { imagenesJs, IMAGENES_JS } from './portadas.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
-const VPS = { key: join(process.env.USERPROFILE || process.env.HOME || '', '.ssh', 'nexuspos_vps'), host: 'deploy@187.77.20.217', dir: '~/homeflix-servidor/versiones' };
+/* HOMEFLIX_HOST y HOMEFLIX_KEY cambian el VPS y la llave (el dueño usa deploy@…; un colaborador usa deploycolab@…, que solo puede publicar actualizaciones:
+ * servidor/scripts/colab/, docs/acceso-colaborador.md). */
+const VPS = { key: process.env.HOMEFLIX_KEY || join(process.env.USERPROFILE || process.env.HOME || '', '.ssh', 'nexuspos_vps'), host: process.env.HOMEFLIX_HOST || 'deploy@187.77.20.217', dir: '~/homeflix-servidor/versiones' };
+const COLAB = /^deploycolab@/.test(VPS.host);
 
 const args = process.argv.slice(2);
 const version = args.find((a) => /^\d+\.\d+\.\d+$/.test(a));
@@ -82,7 +86,7 @@ writeFileSync(join(out, `web-${version}.json`), web);
 
 /* 4. el preparador de videos (sin claves: su servidor las pone desde el .env de cada PC) */
 const PREP = ['tools/preparador/server.mjs', 'tools/preparador/prepare.mjs', 'tools/preparador/publish.mjs', 'tools/preparador/ui.html',
-  'tools/preparador/biblioteca.js', 'tools/preparador/biblioteca.css', 'tools/preparador/cola.js', 'tools/preparador/subsync.js', 'tools/preparador/version.json', 'tools/apikey.mjs',
+  'tools/preparador/biblioteca.js', 'tools/preparador/biblioteca.css', 'tools/preparador/cola.js', 'tools/preparador/subsync.js', 'tools/preparador/cache.js', 'tools/preparador/temas.js', 'tools/preparador/importar.js', 'tools/preparador/sw-stream.js', 'tools/preparador/version.json', 'tools/apikey.mjs',
   'js/tg.bundle.js', 'js/telegram.js', 'js/library.js', 'js/config.js', 'images/logo.png', 'Preparar videos.cmd', 'tools/preparador/logo.ico', 'tools/preparador/desinstalar-preparador.cmd'];
 const zip = join(out, `preparador-${version}.zip`);
 /* los .cmd siempre con saltos de línea de Windows: con saltos de Unix, cmd los lee corridos y no funcionan */
@@ -119,14 +123,33 @@ console.log(`\nListo en dist/versiones/${version}/:`);
 for (const k of ['web', 'wgt', 'apk', 'preparador', 'instalador']) console.log(`  ${actual[k].archivo}  ${(actual[k].bytes / 1048576).toFixed(1)} MB`);
 console.log(`  programa mínimo: TV ${nativo.tv} · celular ${nativo.android}`);
 
-/* 6. subir al VPS: primero los archivos y al final actual.json (así nadie ve una versión a medio subir) */
+/* 6a. publicar en el servidor de la casa (Docker en este Mac, local/README.md): local/versiones es /versiones del contenedor
+ * «homeflix». Igual que en el VPS: primero los archivos y al final actual.json. */
+if (flag('local')) {
+  const destino = join(root, 'local', 'versiones');
+  mkdirSync(join(destino, version), { recursive: true });
+  for (const f of readdirSync(out)) copyFileSync(join(out, f), join(destino, version, f));
+  copyFileSync(join(root, 'dist', 'versiones', 'actual.json'), join(destino, 'actual.json'));
+  console.log(`\nPublicada en el servidor de la casa: local/versiones/${version} (las apps la ven en <servidor>/actualizaciones/v1)`);
+} else
+/* 6b. subir al VPS (ya no existe desde 2026-11; queda por si vuelve): primero los archivos y al final actual.json */
 if (flag('subir')) {
   const ssh = ['-i', VPS.key, '-o', 'BatchMode=yes'];
-  run('ssh', [...ssh, VPS.host, `mkdir -p ${VPS.dir}`]);
-  run('scp', [...ssh, '-r', out, `${VPS.host}:${VPS.dir}/`]);
-  run('scp', [...ssh, join(root, 'dist', 'versiones', 'actual.json'), `${VPS.host}:${VPS.dir}/actual.json`]);
+  if (COLAB) {
+    /* colaborador: sin consola en el VPS; solo las órdenes de homeflix-colab (ota-subir y ota-actual), con los archivos por la entrada como .tar.gz.
+     * El servidor revisa nombres, tamaños y sha256 antes de cambiar nada. --forzar permite volver a subir la versión que ya es la vigente. */
+    const pack = spawnSync(TAR, ['-czf', '-', '-C', out, '.'], { maxBuffer: 1 << 30 });
+    if (pack.status !== 0) throw new Error('No pude empaquetar la versión');
+    const orden = (o, datos) => { const r = spawnSync('ssh', [...ssh, VPS.host, ...o], { input: datos, stdio: ['pipe', 'inherit', 'inherit'] }); if (r.status !== 0) throw new Error(`Falló: ssh ${o.join(' ')}`); };
+    orden(['ota-subir', version, ...(flag('forzar') ? ['forzar'] : [])], pack.stdout);
+    orden(['ota-actual'], readFileSync(join(root, 'dist', 'versiones', 'actual.json')));
+  } else {
+    run('ssh', [...ssh, VPS.host, `mkdir -p ${VPS.dir}`]);
+    run('scp', [...ssh, '-r', out, `${VPS.host}:${VPS.dir}/`]);
+    run('scp', [...ssh, join(root, 'dist', 'versiones', 'actual.json'), `${VPS.host}:${VPS.dir}/actual.json`]);
+  }
   console.log(`\nPublicada: https://scalvache.shop/productos/HomeFlix/actualizaciones/v1 → ${version}`);
   console.log(`Instalador del preparador: https://scalvache.shop/productos/HomeFlix/actualizaciones/archivos/${version}/instalar-preparador.cmd`);
 } else {
-  console.log('\nNo se subió nada. Para publicarla: agrega --subir');
+  console.log('\nNo se subió nada. Para publicarla en el servidor de la casa: agrega --local');
 }

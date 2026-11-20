@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch --env-file-if-exists=.env src/index.js",
-    "test": "node --test test/app.test.js",
+    "test": "node --test test/app.test.js test/anime.test.js test/reco.test.js",
     "respaldo": "node scripts/respaldo.js"
   },
   "dependencies": {

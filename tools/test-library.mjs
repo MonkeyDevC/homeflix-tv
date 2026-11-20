@@ -489,3 +489,22 @@ console.log(`OK: ${cases.length} comentarios, armado de la biblioteca, infantil,
   assert.equal(L.subFileLang('Avengers.Age.of.Ultron.2015.1080p.BluRay.x264.YIFY-en.srt'), 'eng');
 }
 
+
+// Canal «Anime»: el perfil «Anime» se crea una vez, con su canal fijo activo; no pisa lo del usuario
+{
+  store.clear();
+  L.setAccount('4242');
+  assert.equal(L.ensureAnimeProfile(), true, 'se crea la primera vez');
+  assert.deepEqual(L.profiles().map((p) => p.name), ['Principal', 'Kids', 'Anime']);
+  assert.deepEqual(L.enabledSources('anime'), { anime: 'Anime' }, 'con el canal fijo «Anime» activo');
+  assert.equal(L.ensureAnimeProfile(), false, 'no se repite');
+  assert.equal(L.deleteProfile('anime'), true);
+  assert.equal(L.ensureAnimeProfile(), false, 'si el usuario lo borró, no vuelve');
+  L.setAccount('4343');
+  L.saveProfile({ name: 'Uno' }); L.saveProfile({ name: 'Dos' }); L.saveProfile({ name: 'Tres' });
+  assert.equal(L.profiles().length, 5);
+  assert.equal(L.ensureAnimeProfile(), false, 'sin lugar (5 perfiles) no se crea');
+  L.setAccount('4444');
+  L.saveProfile({ name: 'Anime' });
+  assert.equal(L.ensureAnimeProfile(), false, 'si ya hay uno llamado Anime, no se crea otro');
+}

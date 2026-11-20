@@ -37,6 +37,16 @@
         "--puerto=5181"
       ],
       "port": 5181
+    },
+    {
+      "name": "preparador-prueba",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/preparador/server.mjs",
+        "--no-open",
+        "--puerto=5191"
+      ],
+      "port": 5191
     }
   ]
 }

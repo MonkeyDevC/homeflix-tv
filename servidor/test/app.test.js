@@ -193,3 +193,84 @@ test('actualizaciones: la versión vigente y sus archivos', async () => {
   }
 });
 
+
+/* Identidad del dispositivo (base de la consola): tipo + plataforma + interfaz + canal + navegador + versión + modelo. */
+test('la identidad del dispositivo se guarda, no la pisan las apps viejas y se reparte en «Ver en la TV»', async () => {
+  const { base, cerrar } = await levantar();
+  try {
+    const pc = { id: 'pc-1', tipo: 'pc', nombre: 'Chrome en Windows', plataforma: 'windows', interfaz: 'pc', canal: 'navegador', navegador: 'Chrome 131', app: '1.1.92', modelo: '' };
+    await put(base, LLAVE, { version: 0, doc: doc(), cuenta: { id: '777', nombre: 'David' }, dispositivo: pc });
+    // una app vieja (solo manda tipo y nombre por cabeceras) no borra lo que ya se sabía
+    await fetch(`${base}${PREFIJO}/api/v1/sync`, { headers: { authorization: `Bearer ${LLAVE}`, 'x-homeflix-dispositivo': 'pc-1', 'x-homeflix-tipo': 'pc' } });
+    const h = { 'x-homeflix-admin': ADMIN };
+    let lista = await (await fetch(`${base}/interno/v1/cuentas`, { headers: h })).json();
+    let d = lista.cuentas[0].dispositivos[0];
+    assert.equal(d.tipo, 'pc');
+    assert.equal(d.plataforma, 'windows');
+    assert.equal(d.interfaz, 'pc');
+    assert.equal(d.navegador, 'Chrome 131');
+    assert.equal(d.app, '1.1.92');
+    assert.ok(d.creado > 0 && d.vista >= d.creado);
+    // una TV escucha con la identidad en cabeceras + x-homeflix-info; el computador la ve en la lista
+    const tvInfo = { plataforma: 'tizen', interfaz: 'tv', canal: 'tizen', app: '1.1.90', modelo: 'QN55Q65B' };
+    const ctrl = new AbortController();
+    const res = await fetch(`${base}${PREFIJO}/api/v1/remoto/escuchar`, {
+      headers: { authorization: `Bearer ${LLAVE}`, 'x-homeflix-dispositivo': 'tv-1', 'x-homeflix-tipo': 'tv', 'x-homeflix-nombre': encodeURIComponent('TV Samsung QN55Q65B'), 'x-homeflix-info': encodeURIComponent(JSON.stringify(tvInfo)) },
+      signal: ctrl.signal,
+    });
+    assert.equal(res.status, 200);
+    const vistos = await remotoLista(base, LLAVE, 'pc-1');
+    assert.equal(vistos.length, 1);
+    assert.equal(vistos[0].tipo, 'tv');
+    assert.equal(vistos[0].plataforma, 'tizen');
+    assert.equal(vistos[0].modelo, 'QN55Q65B');
+    assert.equal(vistos[0].app, '1.1.90');
+    // escuchar también la deja anotada en la cuenta (aunque nunca guarde datos)
+    lista = await (await fetch(`${base}/interno/v1/cuentas`, { headers: h })).json();
+    const tv = lista.cuentas[0].dispositivos.find((x) => x.id === 'tv-1');
+    assert.equal(tv.canal, 'tizen');
+    const res2 = await (await fetch(`${base}/interno/v1/resumen`, { headers: h })).json();
+    assert.ok(res2.porPlataforma.some((p) => p.plataforma === 'windows'));
+    assert.ok(res2.porVersion.some((p) => p.app === '1.1.90'));
+    ctrl.abort();
+  } finally { await cerrar(); }
+});
+
+test('una base de datos anterior (sin las columnas nuevas) se actualiza sola', async () => {
+  const { default: Database } = await import('better-sqlite3');
+  const { abrir } = await import('../src/base.js');
+  const dir = mkdtempSync(join(tmpdir(), 'hf-mig-'));
+  try {
+    const viejo = new Database(join(dir, 'homeflix.db'));
+    viejo.exec(`CREATE TABLE cuentas (id TEXT PRIMARY KEY, creada INTEGER NOT NULL, vista INTEGER NOT NULL, tg_id TEXT NOT NULL DEFAULT '', tg_nombre TEXT NOT NULL DEFAULT '', tg_usuario TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL DEFAULT 0, doc TEXT NOT NULL DEFAULT '{}', bytes INTEGER NOT NULL DEFAULT 0, bloqueada INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE dispositivos (cuenta TEXT NOT NULL REFERENCES cuentas(id) ON DELETE CASCADE, id TEXT NOT NULL, tipo TEXT NOT NULL DEFAULT '', nombre TEXT NOT NULL DEFAULT '', vista INTEGER NOT NULL, PRIMARY KEY (cuenta, id));
+      INSERT INTO cuentas (id, creada, vista) VALUES ('c1', 1, 1);
+      INSERT INTO dispositivos (cuenta, id, tipo, nombre, vista) VALUES ('c1', 'd1', 'tv', 'TV 55', 123);`);
+    viejo.close();
+    const db = abrir(dir);
+    const d = db.prepare('SELECT * FROM dispositivos').get();
+    assert.equal(d.tipo, 'tv');
+    assert.equal(d.plataforma, '');
+    assert.equal(d.creado, 123, 'lo que ya existía conserva su fecha como «creado»');
+    db.close();
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('la identidad también llega en la dirección (?i=): un servidor viejo la ignoraría sin rechazar la petición', async () => {
+  const { base, cerrar } = await levantar();
+  try {
+    await put(base, LLAVE, { version: 0, doc: doc(), cuenta: { id: '777' }, dispositivo: { id: 'cel', tipo: 'android' } });
+    const info = encodeURIComponent(JSON.stringify({ plataforma: 'windows', interfaz: 'pc', canal: 'navegador', navegador: 'Chrome 131', app: '1.1.92' }));
+    const ctrl = new AbortController();
+    const res = await fetch(`${base}${PREFIJO}/api/v1/remoto/escuchar?i=${info}`, { headers: { authorization: `Bearer ${LLAVE}`, 'x-homeflix-dispositivo': 'pc-9', 'x-homeflix-tipo': 'pc', 'x-homeflix-nombre': encodeURIComponent('Chrome en Windows') }, signal: ctrl.signal });
+    assert.equal(res.status, 200);
+    const lista = await remotoLista(base, LLAVE, 'cel');
+    assert.equal(lista[0].tipo, 'pc');
+    assert.equal(lista[0].plataforma, 'windows');
+    assert.equal(lista[0].navegador, 'Chrome 131');
+    ctrl.abort();
+    // JSON roto o enorme: se ignora, no tumba nada
+    const mala = await fetch(`${base}${PREFIJO}/api/v1/remoto/dispositivos?i=%7Bmal`, { headers: { authorization: `Bearer ${LLAVE}`, 'x-homeflix-dispositivo': 'cel' } });
+    assert.equal(mala.status, 200);
+  } finally { await cerrar(); }
+});

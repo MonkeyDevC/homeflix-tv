@@ -27,11 +27,11 @@
 
   /* ---------- encabezado: marca · Inicio + pestañas · tarjeta gráfica y cuenta ---------- */
   .hdr { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 20px; padding: 10px 24px; background: var(--bg2); border-bottom: 1px solid var(--line); }
-  .brand { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; }
-  .brand img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-  .brand b { font-size: 17px; font-weight: 800; white-space: nowrap; }
+  .brand { display: flex; align-items: center; gap: 13px; flex: 1 1 0; min-width: 0; }
+  .brand img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px rgba(230,193,147,.35), 0 4px 14px rgba(0,0,0,.45); }
+  .brand b { font-size: 22px; font-weight: 800; letter-spacing: -.3px; white-space: nowrap; }
   .brand b span { color: var(--gold-t); }
-  .brand small { color: var(--dim); font-size: 13px; white-space: nowrap; }
+  .brand small { color: var(--dim); font-size: 13.5px; white-space: nowrap; }
   .hdr .right { flex: 1 1 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
   .navwrap { display: flex; align-items: center; gap: 8px; }
   .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 24px; background: var(--panel); border: 1px solid var(--line); }
@@ -52,7 +52,7 @@
   .badge.cpu i { background: var(--warn); }
   button.badge.upd { cursor: pointer; color: var(--gold-1); border-color: var(--acc-line); background: var(--acc-soft); font-weight: 700; }
   .updscrim { position: fixed; inset: 0; z-index: 90; background: rgba(5,6,7,.8); display: grid; place-items: center; }
-  .qview { position: sticky; top: calc(var(--hdrh, 68px) + 6px); z-index: 15; display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--acc-soft); border: 1px solid var(--acc-line); font-size: 13.5px; }
+  .qview { position: sticky; top: calc(var(--hdrh, 68px) + 6px); z-index: 15; display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: linear-gradient(var(--acc-soft), var(--acc-soft)), var(--bg2); border: 1px solid var(--acc-line); font-size: 13.5px; }
   .qview b { color: var(--gold-1); }
   .qview .grow { flex: 1; min-width: 0; }
   .qview .bar { height: 5px; margin-top: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -71,6 +71,7 @@
   .ti-matches button.on { border-color: var(--gold-1); color: var(--gold-1); }
   .ti-grid { flex: 1 1 auto; min-height: 0; margin-top: 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 10px; padding: 2px; }
   .ti-grid button { position: relative; display: block; width: 100%; height: auto; min-height: 0; padding: 0; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #111 center / cover no-repeat; border: 2px solid transparent; }
+  .ti-grid.v { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
   .ti-grid button:hover, .ti-grid button:focus-visible { border-color: var(--gold-1); }
   .ti-grid button .tg { position: absolute; left: 6px; bottom: 6px; display: flex; gap: 4px; }
   .ti-grid button .tg span { padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,.72); color: #fff; font-size: 11px; font-weight: 700; }
@@ -128,6 +129,23 @@
   .dot.done { background: var(--ok); box-shadow: 0 0 0 4px rgba(110,231,160,.14); }
   footer .sum { color: var(--muted); font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   footer .btns, footer .grp { display: flex; gap: 10px; align-items: center; flex: none; }
+  footer .grp { background: none; padding: 0; border-radius: 0; }
+  /* el botón principal siempre queda en el mismo lugar (a la derecha) y con el mismo ancho mínimo */
+  footer .btns > .primary, footer .grp > .primary { min-width: 200px; }
+  .stepchip { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 14px; background: var(--acc-soft); border: 1px solid var(--acc-line); color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .stepchip b { color: var(--gold-1); }
+  /* «Revisa antes de enviar» (paso 3): lo que va a salir, con lo dudoso marcado */
+  .review h2 .hint { flex: 1; }
+  .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 18px; margin-top: 12px; }
+  .rv-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 10px; background: var(--panel2); border: 1px solid transparent; min-width: 0; }
+  .rv-row small { color: var(--dim); font-size: 11.5px; letter-spacing: .02em; text-transform: uppercase; }
+  .rv-row span { color: var(--text); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rv-row.warn { border-color: rgba(251,146,60,.5); }
+  .rv-row.warn span { color: var(--warn); }
+  .rv-row.bad { border-color: rgba(248,113,113,.6); }
+  .rv-row.bad span { color: var(--bad); }
+  .rv-row button { align-self: flex-start; height: auto; padding: 0; border: none; background: none; color: var(--gold-1); font-size: 12px; font-weight: 600; text-decoration: underline; }
+  .rv-dest { margin-top: 12px; color: var(--muted); font-size: 13.5px; }
 
   /* ---------- piezas comunes ---------- */
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; min-width: 0; }
@@ -172,6 +190,49 @@
   .seg button.on { background: linear-gradient(180deg, var(--gold-1), var(--acc2)); color: var(--on-acc); }
   .check { display: flex; align-items: center; gap: 9px; font-size: 13.5px; min-height: 28px; color: var(--text); }
   .check input { width: 17px; height: 17px; accent-color: var(--acc2); flex: none; }
+  /* Casillas (checkbox) con el estándar de beUI (beui.dev/components/motion/checkbox): cuadro de 20 px, esquinas de 6, borde de 2 que se ilumina al
+   * pasar el cursor, relleno dorado al marcar, palomita que SE DIBUJA (0,3 s) y se desvanece con desenfoque al quitarla, raya para «parcial»,
+   * rebote al presionar (0,92), aro de enfoque con separación, atenuada (60 %) si está desactivada y sin animación si el sistema pide menos movimiento.
+   * Aplica a todas las casillas (los interruptores «.swt» tienen su propio diseño). */
+  /* Tooltips con el estilo del popover «Hover me» de beUI (beui.dev/components/motion/popover): globo oscuro de esquinas amplias que brota del elemento con un
+   * rebote suave (escala + desenfoque), se abre tras una pausa corta y deja un margen de gracia para pasar el cursor. Reemplaza al «title» nativo de toda la app. */
+  .hftip { position: fixed; left: 0; top: 0; z-index: 9999; max-width: min(92vw, 20rem); padding: 11px 15px; border-radius: 16px; background: #1d1e21; color: #f0f3f6;
+    border: 1px solid rgba(255,255,255,.07); box-shadow: 0 14px 38px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35); font-size: 13px; line-height: 1.45; font-weight: 500; white-space: pre-line; pointer-events: none;
+    opacity: 0; filter: blur(4px); transform: translateY(var(--tdy, 6px)) scale(.86); transform-origin: var(--tox, 50%) var(--toy, 100%);
+    transition: opacity .16s ease-out, filter .16s ease-out, transform .26s cubic-bezier(.34, 1.45, .64, 1); }
+  .hftip.on { opacity: 1; filter: none; transform: none; }
+  .hftip.cl { pointer-events: auto; }
+  @media (prefers-reduced-motion: reduce) { .hftip { transition: opacity .01s; filter: none; transform: none; } }
+  input[type=checkbox]:not(.swt > input) {
+    -webkit-appearance: none; appearance: none;
+    display: inline-grid; place-items: center; flex: none; box-sizing: border-box;
+    width: 20px; height: 20px; margin: 0; padding: 0; vertical-align: middle; cursor: pointer;
+    border: 2px solid color-mix(in srgb, var(--muted) 50%, transparent); border-radius: 6px; background: var(--bg);
+    transition: background-color .2s, border-color .2s, transform .24s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  input[type=checkbox]:not(.swt > input):hover:not(:disabled) { border-color: var(--muted); }
+  input[type=checkbox]:not(.swt > input):checked, input[type=checkbox]:not(.swt > input):indeterminate { border-color: var(--acc); background: var(--acc); }
+  input[type=checkbox]:not(.swt > input):active:not(:disabled) { transform: scale(.92); }
+  input[type=checkbox]:not(.swt > input):focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+  input[type=checkbox]:not(.swt > input):disabled { opacity: .6; cursor: not-allowed; }
+  /* la palomita: dos trazos (el corto, luego el largo) que se revelan al marcar */
+  input[type=checkbox]:not(.swt > input)::before {
+    content: ""; display: block; width: 5px; height: 10px; margin-top: -2px; box-sizing: content-box;
+    border: solid var(--on-acc); border-width: 0 2.5px 2.5px 0; border-radius: 1px;
+    opacity: 0; filter: blur(4px); transform: rotate(45deg) scale(.5);
+    transition: opacity .16s ease-out, filter .16s ease-out, transform .16s ease-out;
+  }
+  input[type=checkbox]:not(.swt > input):checked::before { opacity: 1; filter: blur(0); transform: rotate(45deg) scale(1); animation: hfCheckDraw .3s cubic-bezier(.22, 1, .36, 1) .04s both; }
+  /* parcial: una raya que se extiende de izquierda a derecha */
+  input[type=checkbox]:not(.swt > input):indeterminate::before { width: 10px; height: 0; margin-top: 0; border-width: 0 0 2.5px 0; opacity: 1; filter: blur(0); transform: none; animation: hfDashDraw .2s cubic-bezier(.22, 1, .36, 1) .04s both; }
+  @keyframes hfCheckDraw { 0% { clip-path: inset(calc(100% - 3px) 100% 0 0); } 40% { clip-path: inset(calc(100% - 3px) 0 0 0); } 100% { clip-path: inset(0 0 0 0); } }
+  @keyframes hfDashDraw { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 0 0 0); } }
+  @media (prefers-reduced-motion: reduce) {
+    input[type=checkbox]:not(.swt > input), input[type=checkbox]:not(.swt > input)::before { transition: none; animation: none !important; filter: none; }
+    input[type=checkbox]:not(.swt > input):active:not(:disabled) { transform: none; }
+  }
+  .check { gap: 11px; }
+
   .check small { color: var(--dim); }
   .pill { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11.5px; font-weight: 700; }
   .pill.good, .pill.buena, .pill.original { background: rgba(110,231,160,.12); color: var(--ok); }
@@ -202,12 +263,15 @@
   .rcards > button b { order: 0; }
   .rcards > button small { order: 2; }
   .sub3 { margin: 14px 0 8px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
-  details.adv { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 4px; }
-  details.adv summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; min-height: 40px; font-weight: 700; }
+  details.adv { margin-top: 14px; }
+  details.adv summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: var(--panel2); border: 1.5px solid var(--line2); font-weight: 700; transition: border-color .15s, background .15s; }
+  details.adv summary:hover, details.adv summary:focus-visible { border-color: var(--acc); background: rgba(230,193,147,.06); outline: none; }
   details.adv summary::-webkit-details-marker { display: none; }
-  details.adv summary::before { content: "›"; color: var(--gold-t); font-size: 18px; transition: transform .15s; }
-  details.adv[open] summary::before { transform: rotate(90deg); }
+  details.adv summary .gear { width: 18px; height: 18px; flex: none; color: var(--gold-t); }
+  details.adv summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; flex: none; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+  details.adv[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
   details.adv summary small { color: var(--dim); font-weight: 400; }
+  details.adv[open] summary { border-color: var(--acc); }
 
   /* ---------- 1 · archivo y metadatos ---------- */
   .s1 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -218,6 +282,43 @@
   .tracks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
   .tracks > div { background: var(--panel2); border-radius: 10px; padding: 10px 12px; }
   .tracks h3 { margin: 0 0 4px; font-size: 12px; color: var(--dim); font-weight: 600; }
+  /* paso 1: todo en una sola pantalla (izquierda: archivo, pistas y comentario; derecha: ficha de TMDB y datos) */
+  .s1u { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; min-height: 100%; }
+  .s1u .stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .s1u .card { display: flex; flex-direction: column; }
+  .s1u .cfile .info { margin-top: 12px; }
+  .s1u .info div { padding: 7px 11px; }
+  .s1u .tracks { margin-top: 10px; }
+  .s1u .tracks > div { padding: 8px 12px; }
+  .s1u .ccap { flex: 1 1 auto; }
+  .s1u .ccap .caption { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
+  .xhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .xhead b { font-size: 13px; cursor: help; }
+  .xbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .qhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .qhead h2 { margin: 0; }
+  .s1u .tmdb { margin-top: 10px; padding: 10px 12px; }
+  .s1u .tmdb-list { margin-top: 8px; gap: 6px; }
+  .s1u .tmdb-c { width: 78px; padding: 3px; }
+  .s1u .tmdb-c i { width: 72px; height: 104px; }
+  .s1u .tmdb-c b { font-size: 11.5px; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .s1u .tmdb-pick { margin-top: 8px; font-size: 12.5px; line-height: 1.5; }
+  .s1u .tmdb-pick .pill { margin: 0 4px 3px 0; padding: 0 8px; font-size: 11.5px; }
+  .s1u .tmdb-credit { margin-top: 6px; font-size: 10.5px; }
+  .s1u .cdata { flex: 1 1 auto; }
+  .s1u .cdata .field { margin-top: 10px; }
+  .s1u .cdata .fdesc { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .s1u .cdata .fdesc textarea { flex: 1 1 auto; min-height: 84px; resize: vertical; }
+  .gcat { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: end; }
+  .gcat .kidsck { margin: 0 0 4px; }
+  @media (max-width: 1100px) { .s1u { grid-template-columns: minmax(0, 1fr); } }
+  /* con pantalla de escritorio: sin scroll general de la página (si algo no cupiera, se desplaza el paso por dentro) */
+  @media (min-width: 1101px) and (min-height: 560px) {
+    body.s1-on:not(.lib-on) { overflow: hidden; padding-bottom: 0; }
+    body.s1-on:not(.lib-on) main { height: calc(100dvh - var(--hdrh, 68px) - var(--foot)); box-sizing: border-box; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+    body.s1-on:not(.lib-on) .panel[data-panel="1"].on { min-height: 100%; display: flex; flex-direction: column; }
+    body.s1-on:not(.lib-on) .s1u { flex: 1 1 auto; }
+  }
   .xtra { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line2); }
   .xtra .row { flex-wrap: wrap; }
   .xtra .xi { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
@@ -230,7 +331,17 @@
   .g3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 10px; }
 
   /* ---------- 2 · motor y codificación ---------- */
-  .s2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .s2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  /* las dos tarjetas miden lo mismo: lo que sobra abajo lo ocupan los ajustes avanzados (izquierda) y el resumen de partes (derecha) */
+  .s2 .card { display: flex; flex-direction: column; }
+  .s2 .rcards > button { min-height: 52px; padding: 8px 12px; }
+  .s2 .sub3:first-of-type { margin-top: 6px; }
+  .s2 details.adv { margin-top: auto; padding-top: 14px; }
+  /* resumen de partes: aparece solo con un video elegido; con las calidades marcadas, dice en cuántas partes queda cada una */
+  .s2 .brief { margin-top: auto; display: flex; gap: 10px; align-items: flex-start; }
+  .s2 #format { margin-bottom: 16px; } /* separación mínima: si la columna no sobra altura, el aviso no queda pegado al formato */
+  .s2 .brief::before { content: "i"; flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--acc); color: #1a1208; font: 800 12px/20px var(--font, inherit); text-align: center; margin-top: 1px; }
+  .s2 .brief > span { min-width: 0; }
 
   /* ---------- 3 · calidades de salida ---------- */
   .s3 { display: grid; gap: 16px; }
@@ -243,6 +354,13 @@
   .qc .c { color: var(--dim); font-size: 12px; }
   .qc .m { margin-top: 10px; font-size: 12.5px; color: var(--muted); display: grid; gap: 4px; justify-items: start; }
   .qc .parts { color: var(--gold-t); font-weight: 700; }
+  /* número protagonista: cuántas partes (o «1 archivo»), con el peso debajo; las etiquetas, como insignias de color */
+  .qc .qbig { display: flex; align-items: baseline; gap: 6px; line-height: 1; margin-top: 2px; }
+  .qc .qbig b { font-size: 30px; font-weight: 900; color: var(--gold-t); letter-spacing: -.5px; }
+  .qc .qbig span { font-size: 14px; font-weight: 700; color: var(--text); }
+  .qc .qsub { font-size: 13px; color: var(--text); }
+  .qc .qtot { font-size: 12px; color: var(--dim); }
+  .qc .qbadges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .qc > input { position: absolute; right: 14px; top: 16px; width: 18px; height: 18px; accent-color: var(--acc2); }
   .qs { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); }
   .qs .lab { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
@@ -253,13 +371,67 @@
   .qs.err .lab b { color: var(--bad); }
   .qs.err .bar i { background: var(--bad); width: 100%; }
   .stats { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
+  /* proceso compacto; mientras se procesa, el borde se enciende y el título dice «en curso» */
+  #progSec { padding: 12px 16px; }
+  #progSec h2 { margin: 0; }
+  #progSec .stats { margin-top: 8px; }
+  #progSec .stats div { padding: 7px 12px; }
+  #progSec.live { border-color: var(--acc); box-shadow: 0 0 22px rgba(230,193,147,.1); }
+  #progSec.live h2::after { content: "· en curso"; margin-left: 8px; color: var(--gold-t); font-weight: 600; font-size: 13px; }
+
+  /* «Revisa antes de enviar» plegado en una sola línea: estado, datos clave y a dónde va; se abre para ver y corregir cada dato */
+  .review.card { padding: 0; }
+  .rvd > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 10px 16px; min-height: 52px; }
+  .rvd > summary::-webkit-details-marker { display: none; }
+  .rvd > summary::after { content: ""; flex: none; width: 8px; height: 8px; margin-left: 4px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+  .rvd[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+  .rvd > summary:hover { background: rgba(255,255,255,.02); }
+  .rv-title { display: flex; align-items: center; gap: 8px; font-weight: 800; white-space: nowrap; }
+  .rv-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(110,231,160,.15); }
+  .rv-dot.warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(251,146,60,.18); }
+  .rv-dot.bad { background: var(--bad); box-shadow: 0 0 0 3px rgba(248,113,113,.18); }
+  .rv-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; flex: 1; }
+  .rv-chip { background: var(--panel2); border: 1px solid transparent; border-radius: 999px; padding: 3px 11px; font-size: 12.5px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rv-chip.warn { border-color: rgba(251,146,60,.5); color: var(--warn); }
+  .rv-chip.bad { border-color: rgba(248,113,113,.6); color: var(--bad); }
+  .rv-short { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .rv-body { padding: 0 16px 14px; border-top: 1px solid var(--line); }
+
+  /* avisos del plan: un solo cuadro con una fila por aviso, cada una con su ícono y su color */
+  .callout { border-radius: 14px; border: 1px solid var(--line2); background: var(--panel); overflow: hidden; }
+  .callout.warn { border-color: rgba(251,146,60,.4); }
+  .callout.bad { border-color: rgba(248,113,113,.45); }
+  .co-row { display: flex; gap: 12px; align-items: flex-start; padding: 11px 16px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .co-row + .co-row { border-top: 1px solid var(--line); }
+  .co-row b { color: var(--text); }
+  .co-ic { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 inherit; margin-top: 1px; }
+  .co-row.tip .co-ic { background: var(--acc); color: #1a1208; }
+  .co-row.ok .co-ic { background: rgba(110,231,160,.18); color: var(--ok); }
+  .co-row.warn .co-ic { background: rgba(251,146,60,.2); color: var(--warn); }
+  .co-row.bad .co-ic { background: rgba(248,113,113,.2); color: var(--bad); }
   .stats div { background: var(--panel2); border-radius: 10px; padding: 10px 14px; min-width: 0; }
   .stats b { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stats span { color: var(--dim); font-size: 12px; }
 
   /* ---------- 4 · publicación ---------- */
   .s4 { display: grid; gap: 16px; }
-  .split4 { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  .split4 { display: grid; grid-template-columns: 430px minmax(0, 1fr); gap: 16px; align-items: start; }
+  /* destino arriba, en una barra de dos columnas: chat de Telegram a la izquierda, carpeta a la derecha */
+  .destbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; padding: 14px 18px; }
+  .destbar h2 { margin-bottom: 6px; }
+  .destbar .dest-col { min-width: 0; }
+  .destbar .dest-col + .dest-col { border-left: 1px solid var(--line); padding-left: 28px; }
+  .destbar .tg-acc { margin-top: 6px; }
+  .destbar .row { margin-top: 6px; }
+  /* la columna derecha se queda a la vista (simulador de la TV + lo que se va a publicar) mientras se elige en la izquierda */
+  .rcol { position: sticky; top: calc(var(--hdrh, 68px) + 12px); max-height: calc(100dvh - var(--hdrh, 68px) - var(--foot) - 28px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+  /* galería plegable: el título lleva un contador y el detalle solo se ve al abrirla */
+  details.galcard > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 28px; }
+  details.galcard > summary::-webkit-details-marker { display: none; }
+  details.galcard > summary h2 { margin: 0; }
+  details.galcard > summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; flex: none; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+  details.galcard[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+  details.galcard > .hint { margin-top: 8px; }
   .tg-acc { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
   .tg-acc .who { color: var(--gold-t); font-weight: 700; }
   .tgdot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex: none; }
@@ -267,6 +439,24 @@
   .imgcard { flex: 1; display: flex; flex-direction: column; }
   .imgrows { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-content: center; margin-top: 12px; }
   .imgcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .galcard { margin-top: 0; }
+  .galgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; margin-top: 10px; }
+  .galth { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; background: #22262c center / cover no-repeat; border: 1px solid var(--line); overflow: hidden; }
+  .galth b { position: absolute; left: 5px; bottom: 4px; padding: 1px 7px; border-radius: 8px; background: rgba(11,12,14,.85); font-size: 11px; }
+  .galth button { position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; background: rgba(11,12,14,.85); border: 0; color: #fff; font-size: 13px; line-height: 1; }
+  .galempty { grid-column: 1 / -1; color: var(--dim); font-size: 12px; padding: 14px 4px; }
+  .ti-grid button.added { outline: 3px solid var(--ok); outline-offset: -3px; }
+  .fmtsw { display: inline-flex; gap: 4px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.06); margin-left: 12px; vertical-align: middle; }
+  .fmtsw button { height: 28px; padding: 0 14px; border-radius: 999px; border: 0; background: transparent; color: var(--dim); font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+  .fmtsw button.on { background: linear-gradient(180deg, var(--gold-1), var(--gold-2, #c99a66)); color: #2a1d0e; }
+  .fmtsw button i { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); display: none; }
+  .fmtsw button.miss i { display: inline-block; }
+  .imgrows[data-fmt="h"] .imgcol.fv, .imgrows[data-fmt="v"] .imgcol.fh, .imgrows:not([data-fmt="c"]) .imgcol.fc, .imgrows[data-fmt="c"] .imgcol:not(.fc) { display: none; }
+  .imgrows[data-fmt="c"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .imgrows[data-fmt="v"] { grid-template-columns: minmax(0, 190px) minmax(0, 1fr); align-items: start; }
+  .imgrows[data-fmt="v"] .imgcol.fv { order: -1; }
+  .imgrows[data-fmt="v"] .imgcol.fb { max-width: 460px; }
+  .imgrows[data-fmt="v"] .imgcol.fv .zone { aspect-ratio: 2 / 3; }
   .zone { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 2.3 / 1; border-radius: 12px; position: relative; overflow: hidden; cursor: pointer; text-align: center; padding: 8px;
     background: #2a2e35 center / cover no-repeat; border: 1.5px dashed rgba(230,193,147,.45); color: var(--dim); font-size: 11.5px; }
   .zone { height: auto; white-space: normal; font-weight: 400; }
@@ -292,6 +482,45 @@
   .thgrid span.pend { background: transparent; border: 1px dashed var(--line); color: transparent; text-shadow: none; }
   .thgrid span.more { background: var(--panel3); color: var(--gold-t); font-size: 11px; font-weight: 800; align-items: center; justify-content: center; text-shadow: none; }
   .thumbs .bar { margin-top: 8px; height: 4px; }
+  /* interruptor «Ver como»: TV · Tablet · Celular */
+  .hdsw { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hdsw .hint { flex: 1; min-width: 0; }
+  .vsw { display: inline-flex; gap: 4px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.06); flex: none; }
+  .vsw button { height: 28px; padding: 0 14px; border-radius: 999px; border: 0; background: transparent; color: var(--dim); font-size: 12.5px; font-weight: 700; }
+  .vsw button.on { background: linear-gradient(180deg, var(--gold-1), var(--gold-2, #c99a66)); color: #2a1d0e; }
+  /* vista previa en celular y tablet: la misma tarjeta del destacado de la app móvil (mobile/m.css), dentro de un marco, a escala */
+  .tvprev .devprev { display: none; justify-content: center; align-items: flex-start; padding: 16px; border-radius: 10px; border: 1px solid var(--line2); background: radial-gradient(120% 90% at 50% 0, #1d2026 0, #0d0e10 70%); min-width: 0; }
+  .tvprev:not([data-pv="tv"]) .devprev { display: flex; }
+  .tvprev:not([data-pv="tv"]) .tv { display: none; }
+  .pvf { border: 6px solid #2f3238; border-radius: 30px; background: #0b0c0e; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+  .pvf.tb { border-radius: 20px; }
+  .pvi { position: relative; overflow: hidden; background: #0b0c0e; color: #f3f4f6; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+  .pvi .top { display: flex; align-items: center; gap: 10px; padding: 14px 18px 8px; font-weight: 800; font-size: 20px; }
+  .pvi .top img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+  .pvi .top span { color: var(--gold-t); }
+  .pvi .top i { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: #2b2e34; }
+  .pvi .pill-c { display: inline-block; margin: 2px 18px 10px; padding: 7px 16px; border: 1.5px solid #3a3d44; border-radius: 20px; font-size: 14px; font-weight: 600; }
+  .pvi .hero { position: relative; margin: 4px 16px 6px; border-radius: 14px; overflow: hidden; background: #1b1d21; display: flex; flex-direction: column; isolation: isolate; }
+  .pvi .hero .amb { position: absolute; inset: -40px; z-index: -1; background: #1b1d21 center / cover no-repeat; filter: blur(30px) saturate(1.3); opacity: .55; }
+  .pvi .hero .amb::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,12,14,.2), rgba(11,12,14,.85) 75%); }
+  .pvi .hero .art { position: relative; aspect-ratio: 16 / 9; background: #1b1d21 center / cover no-repeat; -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent); mask-image: linear-gradient(180deg, #000 72%, transparent); margin-bottom: -16px; }
+  .pvi .hero .copy { position: relative; padding: 4px 18px 18px; text-align: center; }
+  .pvi .hero h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.05; font-weight: 800; letter-spacing: -.5px; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+  .pvi .hero h1.long { font-size: 24px; }
+  .pvi .hero .tags { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; color: #b9bcc0; margin-bottom: 14px; }
+  .pvi .hero .tags span + span::before { content: "•"; margin-right: 10px; color: #8a8e94; }
+  .pvi .hero .btns { display: flex; gap: 10px; }
+  .pvi .hero .btns span { flex: 1; height: 46px; border-radius: 23px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; background: rgba(255,255,255,.12); }
+  .pvi .hero .btns span.p { background: linear-gradient(180deg, var(--gold-1), var(--gold-2, #c99a66)); color: #2a1d0e; }
+  .pvi .dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0 2px; }
+  .pvi .dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.3); }
+  .pvi .dots i.on { width: 18px; background: var(--gold-1); }
+  .pvi .rowt { margin: 14px 18px 8px; font-size: 18px; font-weight: 800; }
+  .pvi .rowt small { margin-left: 8px; color: #8a8e94; font-weight: 400; font-size: 12px; }
+  .pvi .cs { display: flex; gap: 10px; padding: 0 18px; }
+  .pvi .cs div { flex: none; width: 150px; aspect-ratio: 16 / 9; border-radius: 10px; background: #1b1d21 center / cover no-repeat; }
+  .pvi .cs div.ghost { opacity: .5; }
+
   /* vista previa de la TV (mismas proporciones que la app a 1920×1080) */
   .tv { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #131518; container-type: inline-size; border: 1px solid var(--line2); }
   .tv .art { position: absolute; top: 0; right: 0; width: 70%; height: 72%; background: #262a31 center / cover no-repeat; }
@@ -364,13 +593,15 @@
   @media (max-width: 1100px) {
     .brand small, .hdr .right .badge { display: none; }
     .tab .lbl { display: none; }
-    .s1, .s2, .split4, .tvprev { grid-template-columns: minmax(0, 1fr); }
+    .s1, .s2, .split4, .tvprev, .destbar { grid-template-columns: minmax(0, 1fr); }
+    .destbar .dest-col + .dest-col { border-left: 0; padding-left: 0; margin-top: 12px; }
+    .rcol { position: static; max-height: none; overflow: visible; }
     .q, .info, .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 <link rel="stylesheet" href="/biblioteca.css">
 </head>
-<body>
+<body class="s1-on">
 <header class="hdr">
   <div class="brand"><img src="/logo.png" alt=""><b>Home<span>Flix</span></b><small>Preparador</small></div>
   <div class="navwrap">
@@ -396,11 +627,12 @@
 <main>
   <!-- ===== 1 · Archivo y metadatos ===== -->
   <div class="panel on" data-panel="1">
-    <div class="s1">
-      <div class="stack">
-        <section class="card">
+    <div class="s1u">
+      <!-- Entrada: el archivo, sus pistas y el comentario que saldrá en Telegram -->
+      <div class="stack s1l">
+        <section class="card cfile">
           <h2>Video original <span class="hint">· la mejor calidad que tengas</span></h2>
-          <div class="row" style="margin-top:12px">
+          <div class="row" style="margin-top:10px">
             <label for="file" class="sr">Ruta del video</label>
             <input type="text" id="file" class="grow" placeholder="Ruta del video, o elígelo con el botón">
             <button id="pickFile">Elegir video…</button>
@@ -415,7 +647,7 @@
           </div>
           <div id="srcErr" class="note bad hidden"></div>
         </section>
-        <section class="card">
+        <section class="card ccap">
           <h2>Comentario para Telegram <span class="hint">· el mismo en todas las versiones</span></h2>
           <div class="caption none" id="caption">Escribe el nombre para armarlo</div>
           <div class="row" style="margin-top:10px; justify-content:space-between">
@@ -425,28 +657,37 @@
         </section>
       </div>
 
-      <section class="card">
-        <h2>¿Qué es?</h2>
-        <div class="seg" id="type" style="margin-top:12px"><button data-v="movie" class="on">Película</button><button data-v="series">Capítulo de serie</button></div>
-        <div class="tmdb" id="tmdbBox">
-          <div class="tmdb-head"><b>Ficha de TMDB</b><span class="hint" id="tmdbHint">Al elegir el video la busco sola por el nombre del archivo.</span><button type="button" id="tmdbSearch">Buscar</button></div>
-          <div class="tmdb-list" id="tmdbList"></div>
-          <div class="tmdb-pick hidden" id="tmdbPick"></div>
-          <div class="tmdb-credit">Datos e imágenes de TMDB (themoviedb.org). Esta herramienta usa la API de TMDB pero no está respaldada ni certificada por TMDB.</div>
-        </div>
-        <div class="g2">
-          <div class="field"><label for="name" id="nameLabel">Nombre de la película</label><input type="text" id="name" placeholder="Toy Story 5"></div>
-          <div class="field" id="yearBox"><label for="year">Año</label><input type="number" id="year" min="1900" max="2100" placeholder="2026"></div>
-        </div>
-        <div class="g3 hidden" id="seriesBox">
-          <div class="field"><label for="season">Temporada</label><input type="number" id="season" min="1" value="1"></div>
-          <div class="field"><label for="episode">Capítulo</label><input type="number" id="episode" min="1" value="1"></div>
-          <div class="field"><label for="episodeTitle">Nombre del capítulo</label><input type="text" id="episodeTitle" placeholder="Opcional"></div>
-        </div>
-        <div class="field"><label for="categories">Categoría <span class="hint">· una sola: es la fila donde sale en la app. Marvel va siempre en Marvel; lo infantil, marca la casilla de abajo</span></label><select id="categories"><option value="">Sin categoría</option></select></div>
-        <div class="field"><label for="description">Descripción <span class="hint">· opcional, sale en la ficha</span></label><textarea id="description" rows="5" placeholder="De qué trata…"></textarea></div>
-        <label class="check" style="margin-top:12px"><input type="checkbox" id="kids"> Infantil <small>— la verá el perfil infantil</small></label>
-      </section>
+      <!-- Enriquecimiento: la ficha de TMDB y los datos que se publican -->
+      <div class="stack s1r">
+        <section class="card ctmdb">
+          <div class="qhead"><h2>¿Qué es?</h2>
+            <div class="seg" id="type"><button data-v="movie" class="on">Película</button><button data-v="series">Capítulo de serie</button></div>
+          </div>
+          <div class="tmdb" id="tmdbBox">
+            <div class="tmdb-head"><b>Ficha de TMDB</b><span class="hint" id="tmdbHint">Al elegir el video la busco sola por el nombre del archivo.</span><button type="button" id="tmdbSearch">Buscar</button></div>
+            <div class="tmdb-list" id="tmdbList"></div>
+            <div class="tmdb-pick hidden" id="tmdbPick"></div>
+            <div class="tmdb-credit">Datos e imágenes de TMDB (themoviedb.org). Esta herramienta usa la API de TMDB pero no está respaldada ni certificada por TMDB.</div>
+          </div>
+        </section>
+        <section class="card cdata">
+          <h2>Datos <span class="hint">· se llenan solos con la ficha; corrígelos si hace falta</span></h2>
+          <div class="g2">
+            <div class="field"><label for="name" id="nameLabel">Nombre de la película</label><input type="text" id="name" placeholder="Toy Story 5"></div>
+            <div class="field" id="yearBox"><label for="year">Año</label><input type="number" id="year" min="1900" max="2100" placeholder="2026"></div>
+          </div>
+          <div class="g3 hidden" id="seriesBox">
+            <div class="field"><label for="season">Temporada</label><input type="number" id="season" min="1" value="1"></div>
+            <div class="field"><label for="episode">Capítulo</label><input type="number" id="episode" min="1" value="1"></div>
+            <div class="field"><label for="episodeTitle">Nombre del capítulo</label><input type="text" id="episodeTitle" placeholder="Opcional"></div>
+          </div>
+          <div class="gcat">
+            <div class="field"><label for="categories">Categoría <span class="hint" title="Una sola: es la fila donde sale en la app. Marvel va siempre en Marvel; lo infantil, marca la casilla">· una sola</span></label><select id="categories"><option value="">Sin categoría</option></select></div>
+            <label class="check kidsck"><input type="checkbox" id="kids"> Infantil <small>— lo verá el perfil infantil</small></label>
+          </div>
+          <div class="field fdesc"><label for="description">Descripción <span class="hint">· opcional, sale en la ficha</span></label><textarea id="description" rows="4" placeholder="De qué trata…"></textarea></div>
+        </section>
+      </div>
     </div>
   </div>
 
@@ -473,7 +714,7 @@
           <button data-v="no"><b>Bajar la calidad</b><small>Un solo archivo, con menos bitrate</small></button>
         </div>
         <details class="adv" id="advBox">
-          <summary>Ajustes avanzados de codificación <small>· hardware y prueba rápida</small></summary>
+          <summary><svg class="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg><span>Ajustes avanzados de codificación</span><small>hardware y prueba rápida</small></summary>
           <div class="rcards" id="encoder" style="margin-top:6px">
             <button data-v="gpu" class="on"><b>Tarjeta gráfica</b><small>NVIDIA NVENC · mucho más rápido</small></button>
             <button data-v="cpu"><b>Procesador</b><small>Más lento; si no hay tarjeta NVIDIA</small></button>
@@ -500,7 +741,7 @@
           <button data-v="mp4" class="on"><b>MP4</b><span class="tag">RECOMENDADO</span><small>Se reproduce con streaming en Telegram</small></button>
           <button data-v="mkv"><b>MKV</b><small>Admite subtítulos en imagen (PGS)</small></button>
         </div>
-        <div class="note gold" id="planBrief">Elige el video en la pestaña 1 para ver en cuántas partes queda cada calidad.</div>
+        <div class="note gold brief hidden" id="planBrief"><span></span></div>
       </section>
     </div>
   </div>
@@ -508,6 +749,7 @@
   <!-- ===== 3 · Calidades de salida ===== -->
   <div class="panel" data-panel="3">
     <div class="s3">
+      <section class="card review hidden" id="review"></section>
       <section class="card">
         <h2>Calidades de salida <span class="hint">· marca las versiones que quieres crear; las cifras salen de la duración real del video</span></h2>
         <div class="q" id="quals"></div>
@@ -531,46 +773,74 @@
   <!-- ===== 4 · Publicación ===== -->
   <div class="panel" data-panel="4" id="pubSec">
     <div class="s4">
+      <section class="card destbar">
+        <div class="dest-col">
+          <h2>Dónde se publica</h2>
+          <div class="tg-acc"><span class="tgdot" id="tgDot"></span><span id="tgStatus" class="grow">Elige el chat en Inicio.</span><button id="tgChange" class="ghost sm">Cambiar</button></div>
+          <div class="hint" id="topicNote" style="margin-top:6px">Es el chat que elegiste al entrar. La sesión de Telegram se maneja desde Inicio.</div>
+        </div>
+        <div class="dest-col">
+          <h2>Carpeta a publicar</h2>
+          <div class="row">
+            <label for="pubDir" class="sr">Carpeta a publicar</label>
+            <input type="text" id="pubDir" class="grow" placeholder="La carpeta donde quedaron las versiones">
+            <button id="pickPub">Elegir…</button>
+            <button id="loadPub" class="ghost" title="Volver a leer la carpeta">↻</button>
+          </div>
+        </div>
+      </section>
       <div class="split4">
         <div class="stack">
-          <section class="card">
-            <h2>Dónde se publica</h2>
-            <div class="tg-acc"><span class="tgdot" id="tgDot"></span><span id="tgStatus" class="grow">Elige el chat en Inicio.</span><button id="tgChange" class="ghost sm">Cambiar</button></div>
-            <div class="hint" style="margin-top:6px">Es el chat que elegiste al entrar. La sesión de Telegram se maneja desde Inicio.</div>
-          </section>
-          <section class="card">
-            <h2>Carpeta a publicar</h2>
-            <div class="row" style="margin-top:10px">
-              <label for="pubDir" class="sr">Carpeta a publicar</label>
-              <input type="text" id="pubDir" class="grow" placeholder="La carpeta donde quedaron las versiones">
-              <button id="pickPub">Elegir…</button>
-              <button id="loadPub" class="ghost" title="Volver a leer la carpeta">↻</button>
-            </div>
-          </section>
           <section class="card imgcard">
-            <h2>Portada y banner</h2>
-            <div class="hint">«Elegir…» busca en TMDB. Para una propia, suéltala sobre la foto (o tócala para buscarla en el equipo). Horizontal 16:9.</div>
-            <div class="imgrows">
-              <div class="imgcol imgc">
+            <h2>Portada y banner<span class="fmtsw" role="group" aria-label="Formato de las imágenes"><button type="button" class="on miss" data-fmt="h" id="fmt-h">Horizontal<i></i></button><button type="button" class="miss" data-fmt="v" id="fmt-v">Vertical<i></i></button><button type="button" class="miss hidden" data-fmt="c" id="fmt-c" title="Imagen de cada capítulo de la serie">Capítulos<i></i></button></span></h2>
+            <div class="hint" id="fmtHint">«Elegir…» busca en TMDB; para una propia, suéltala sobre la foto. El punto naranja marca el formato que aún no tiene imagen.</div>
+            <div class="imgrows" id="imgrows" data-fmt="h">
+              <div class="imgcol imgc fh">
                 <button class="zone pickImg dropImg" data-img="portada" id="pic-portada" type="button" title="Suelta aquí una imagen, o tócala para buscarla en el equipo"><span class="zchip"><i></i>Elegida</span><span class="ph">Sin portada: la app usa un cuadro del video</span><span class="zdrop">Suelta la imagen aquí</span></button>
                 <div class="imgmeta"><b>Portada</b><small>1280×720</small></div>
                 <div class="meta" id="meta-portada"></div>
                 <div class="imgacts"><button class="sm tmdbImg" data-img="portada" type="button" title="Elegir entre las imágenes de TMDB de esta película">Elegir…</button><button class="sm ghost clearImg hidden" data-clear="portada" type="button">Quitar</button></div>
               </div>
-              <div class="imgcol imgc">
+              <div class="imgcol imgc fb">
                 <button class="zone pickImg dropImg" data-img="banner" id="pic-banner" type="button" title="Suelta aquí una imagen, o tócala para buscarla en el equipo"><span class="zchip"><i></i>Elegida</span><span class="ph">Sin banner: la app usa la portada</span><span class="zdrop">Suelta la imagen aquí</span></button>
                 <div class="imgmeta"><b>Banner</b><small>1920×1080</small></div>
                 <div class="meta" id="meta-banner"></div>
                 <div class="imgacts"><button class="sm tmdbImg" data-img="banner" type="button" title="Elegir entre las imágenes de TMDB de esta película">Elegir…</button><button class="sm ghost clearImg hidden" data-clear="banner" type="button">Quitar</button></div>
               </div>
+              <div class="imgcol imgc fv">
+                <button class="zone pickImg dropImg" data-img="vertical" id="pic-vertical" type="button" title="Suelta aquí una imagen, o tócala para buscarla en el equipo"><span class="zchip"><i></i>Elegida</span><span class="ph">Sin portada vertical: la app usa la horizontal</span><span class="zdrop">Suelta la imagen aquí</span></button>
+                <div class="imgmeta"><b>Portada vertical</b><small>800×1200</small></div>
+                <div class="meta" id="meta-vertical"></div>
+                <div class="imgacts"><button class="sm tmdbImg" data-img="vertical" type="button" title="Elegir entre los pósters de TMDB de esta película">Elegir…</button><button class="sm ghost clearImg hidden" data-clear="vertical" type="button">Quitar</button></div>
+              </div>
+              <div class="imgcol imgc fc">
+                <button class="zone pickImg dropImg" data-img="capitulo" id="pic-capitulo" type="button" title="Suelta aquí una imagen, o tócala para buscarla en el equipo"><span class="zchip"><i></i>Elegida</span><span class="ph">Sin imagen propia de este capítulo</span><span class="zdrop">Suelta la imagen aquí</span></button>
+                <div class="imgmeta"><b>De este capítulo</b><small>1280×720</small></div>
+                <div class="meta" id="meta-capitulo"></div>
+                <div class="imgacts"><button class="sm tmdbImg" data-img="capitulo" type="button" title="Elegir entre las imágenes de este capítulo en TMDB">Elegir…</button><button class="sm ghost clearImg hidden" data-clear="capitulo" type="button">Quitar</button></div>
+              </div>
+              <div class="imgcol imgc fc">
+                <button class="zone pickImg dropImg" data-img="capitulos" id="pic-capitulos" type="button" title="Suelta aquí una imagen, o tócala para buscarla en el equipo"><span class="zchip"><i></i>Elegida</span><span class="ph">Sin imagen común: cada capítulo usa un cuadro de su video</span><span class="zdrop">Suelta la imagen aquí</span></button>
+                <div class="imgmeta"><b>Común a todos los capítulos</b><small>1280×720</small></div>
+                <div class="meta" id="meta-capitulos"></div>
+                <div class="imgacts"><button class="sm tmdbImg" data-img="capitulos" type="button" title="Elegir entre las imágenes de la serie en TMDB">Elegir…</button><button class="sm ghost clearImg hidden" data-clear="capitulos" type="button">Quitar</button></div>
+              </div>
             </div>
           </section>
+          <details class="card galcard" id="galBox">
+            <summary><h2>Galería de escenas</h2><span class="pill gold" id="galCount">0</span></summary>
+            <div class="hint">Fotos de distintas escenas: en el celular (vista vertical) se abren con el botón «Galería» del título. Cada una se publica con #galeria1, #galeria2… «Elegir de TMDB…» deja tocar varias; también puedes agregar las tuyas.</div>
+            <div class="imgacts" style="margin-top:10px;max-width:420px"><button class="sm tmdbImg" data-img="galeria" type="button" title="Elegir varias escenas de TMDB">Elegir de TMDB…</button><button class="sm ghost" id="galPick" type="button">Agregar una mía…</button></div>
+            <div class="galgrid" id="galGrid"></div>
+          </details>
         </div>
 
+        <div class="stack rcol">
         <section class="card">
-          <h2>Así se verá en la TV <span class="hint">· en vivo con los datos de la pestaña 1</span></h2>
-          <div class="tvprev">
+          <h2 class="hdsw">Así se verá <span class="hint">· en vivo con los datos de la pestaña 1</span><span class="vsw" id="pvsw" role="group" aria-label="Ver como"><button type="button" class="on" data-pv="tv">TV</button><button type="button" data-pv="tab">Tablet</button><button type="button" data-pv="cel">Celular</button></span></h2>
+          <div class="tvprev" id="tvprev" data-pv="tv">
             <div class="tv" id="tv"></div>
+            <div class="devprev" id="devprev"></div>
             <div class="cardprev">
               <div id="cardprev"></div>
               <div class="thumbs" id="thumbsBox">
@@ -583,23 +853,27 @@
             </div>
           </div>
         </section>
+        <section class="card">
+          <h2>Qué se va a publicar <span class="hint" id="pubHint">· los videos llevan el comentario de la pestaña 1</span></h2>
+          <div class="groups" id="pubFiles"><div class="empty">Lee la carpeta de las versiones para ver los archivos.</div></div>
+        </section>
+        </div>
       </div>
-
-      <section class="card">
-        <h2>Qué se va a publicar <span class="hint" id="pubHint">· los videos llevan el comentario de la pestaña 1</span></h2>
-        <div class="groups" id="pubFiles"><div class="empty">Lee la carpeta de las versiones para ver los archivos.</div></div>
-      </section>
     </div>
   </div>
 </main>
 
 <!-- ===== barra de acciones ===== -->
 <footer class="actions">
-  <div class="status"><span class="dot" id="footDot"></span><span class="sum" id="sum">Elige el video original para empezar.</span><span class="sum hidden" id="pubSum"></span></div>
+  <div class="status"><span class="dot" id="footDot"></span><span class="stepchip" id="stepChip"><b>Paso 1 de 4</b> Archivo y metadatos</span><span class="sum" id="sum">Elige el video original para empezar.</span><span class="sum hidden" id="pubSum"></span></div>
+  <!-- Un solo camino: «Atrás» y UN botón principal que cambia con el paso (Siguiente → Siguiente → Crear versiones / Agregar a la cola → Publicar).
+       «Crear versiones» y «Agregar a la cola» son la misma acción: el nombre depende de si ya hay películas en la cola. -->
   <div class="btns">
-    <button class="ghost hidden" id="nextTab">Siguiente →</button>
-    <span class="grp" id="mkBtns"><button class="ghost" id="enqueue" disabled title="Se renderiza después de las que ya están en la cola">＋ A la cola</button><button class="primary" id="start" disabled>Crear versiones</button><button class="danger hidden" id="cancel">Cancelar</button></span>
-    <span class="grp hidden" id="pubBtns"><button class="primary" id="pubStart" disabled>Publicar</button><button class="danger hidden" id="pubCancel">Detener</button></span>
+    <button class="ghost hidden" id="prevTab">← Atrás</button>
+    <button class="danger hidden" id="cancel">Cancelar</button>
+    <button class="primary" id="nextTab" disabled>Siguiente: Motor →</button>
+    <button class="primary hidden" id="start" disabled>Crear versiones</button>
+    <span class="grp hidden" id="pubBtns"><button class="danger hidden" id="pubCancel">Detener</button><button class="primary" id="pubStart" disabled>Publicar</button></span>
   </div>
 </footer>
 
@@ -620,8 +894,13 @@
   var ready = false; // updateTabs espera a que todo esté definido
 
   function api(path, body) {
-    return fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw new Error(j.error || "Error"); } return j; }); });
+    /* las búsquedas en TMDB no esperan para siempre: si no responden, el formulario sigue disponible para llenarlo a mano */
+    var ms = /^\/api\/(tmdb|buscar-imagenes|imagen-url)/.test(path) ? 40000 : 0;
+    var ctl = ms && typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, ms) : 0;
+    return fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: ctl ? ctl.signal : undefined })
+      .then(function (r) { clearTimeout(timer); return r.json().then(function (j) { if (!r.ok) { throw new Error(j.error || "Error"); } return j; }); },
+        function (e) { clearTimeout(timer); throw new Error(e && e.name === "AbortError" ? "No respondió a tiempo. Llena los datos a mano o prueba de nuevo." : (e && e.message) || "Sin conexión"); });
   }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : Math.round(b / 1048576) + " MB"; }
@@ -666,14 +945,19 @@
   }
 
   /* ---------- 1. Original ---------- */
-  function loadSource(path) {
+  function loadSource(path, fromLib) {
     if (!path) { return; }
     $("srcErr").classList.add("hidden");
     $("sum").textContent = "Leyendo el video…";
+    var gen = S.formGen || 0;
     return api("/api/probe", { path: path }).then(function (r) {
+      if ((S.formGen || 0) !== gen) { return; } // mientras tanto se vació el formulario: esta respuesta ya no es de esta pantalla
       var s = r.src;
+      /* desde la biblioteca (agregar calidades a una película que ya está) no tiene sentido avisar que ya existe */
+      S.dupSkip = !!fromLib;
       /* otro video: otra película (se vuelven a llenar nombre, ficha y demás desde el archivo y TMDB) */
       if (S.src && S.src.file !== s.file && !S.viewing) {
+        S.dupOk = "";
         ["name", "year", "description"].forEach(function (id) { $(id).value = ""; });
         setCategory({});
         $("kids").checked = false;
@@ -692,9 +976,17 @@
         PUB.img = {};
         delete PUB.state["img-portada"];
         delete PUB.state["img-banner"];
+        delete PUB.state["img-vertical"];
+        delete PUB.state["img-capitulo"];
+        delete PUB.state["img-capitulos"];
         renderImages();
       }
       S.src = s;
+      /* sin ninguna calidad marcada que este video permita, «＋ A la cola» y «Crear versiones» quedaban apagados con «Marca al menos una calidad»
+       * (pasaba cuando lo marcado venía de otra película o de lo que «faltaba» en una ficha): se marcan las que sí caben */
+      if (!fromLib && !s.rungs.some(function (r) { return r.possible && S.quals[r.id]; })) {
+        s.rungs.forEach(function (r) { if (r.possible && S.quals.hasOwnProperty(r.id)) { S.quals[r.id] = true; } });
+      }
       $("file").value = s.file;
       if (!S.outTouched || !$("outDir").value) { $("outDir").value = r.outDir; }
       S.audioTracks = s.audios.map(function (a) { return a.index; });
@@ -714,7 +1006,9 @@
       $("srcBox").classList.remove("hidden");
       renderCaption();
       refreshPlan();
+      checkYaEsta(); // ¿ya está en el catálogo o en la cola? (con el nombre que se dedujo del archivo; se vuelve a revisar al llegar la ficha de TMDB)
     }, function (e) {
+      if ((S.formGen || 0) !== gen) { return; }
       S.src = null;
       $("srcBox").classList.add("hidden");
       $("srcErr").textContent = e.message;
@@ -746,8 +1040,9 @@
     var xs = S.extraSub;
     var xe = S.extraSubEn;
     var name = function (p) { return String(p || "").split(/[\\/]/).pop(); };
-    $("xtra").innerHTML = '<div class="row"><span class="hint grow">De otro archivo · el audio en español va primero y queda como predeterminado. Los subtítulos (estos y los del original) salen aparte, un .srt por idioma, y sirven para todas las calidades</span>' +
-      (xa ? "" : '<button class="sm" id="xaAdd" type="button">＋ Audio en español…</button>') + (xs ? "" : '<button class="sm" id="xsAdd" type="button">＋ Subtítulos .srt…</button>') + (xe ? "" : '<button class="sm" id="xeAdd" type="button" title="Por ejemplo, la traducción al inglés de los subtítulos en español">＋ Subtítulos en inglés .srt…</button>') + "</div>" +
+    var btns = (xa ? "" : '<button class="sm" id="xaAdd" type="button">＋ Audio en español</button>') + (xs ? "" : '<button class="sm" id="xsAdd" type="button">＋ Subtítulos .srt</button>') +
+      (xe ? "" : '<button class="sm" id="xeAdd" type="button" title="Por ejemplo, la traducción al inglés de los subtítulos en español">＋ Subtítulos en inglés</button>');
+    $("xtra").innerHTML = '<div class="xhead"><b title="El audio en español va primero y queda como predeterminado. Los subtítulos (estos y los del original) salen aparte, un .srt por idioma, y sirven para todas las calidades.">De otro archivo</b><div class="xbtns">' + btns + "</div></div>" +
       (xa ? '<div class="xi"><span class="pill gold">Audio</span><b title="' + esc(xa.path) + '">' + esc(name(xa.path)) + "</b>" +
         (xa.tracks && xa.tracks.length > 1 ? '<select id="xaTrack" aria-label="Pista con el español">' + xa.tracks.map(function (t) {
           return '<option value="' + t.n + '"' + (Number(xa.track) === t.n ? " selected" : "") + ">" + esc([t.lang ? t.lang.toUpperCase() : "Pista " + (t.n + 1), t.codec.toUpperCase(), t.channels ? t.channels + " canales" : "", t.title].filter(Boolean).join(" · ")) + "</option>";
@@ -828,8 +1123,10 @@
     if (!q) { $("tmdbHint").textContent = "Escribe el nombre y pulsa Buscar."; return; }
     TM.busy = true;
     $("tmdbHint").textContent = "Buscando «" + q + "» en TMDB…";
+    var gen = S.formGen || 0;
     api("/api/tmdb/buscar", { q: q, year: $("year").value, media: S.type === "series" ? "tv" : "movie" }).then(function (r) {
       TM.busy = false;
+      if ((S.formGen || 0) !== gen) { return; } // se vació el formulario mientras buscaba
       TM.list = r.results || [];
       $("tmdbHint").textContent = TM.list.length ? "¿Es alguna de estas? Toca la correcta para llenar los datos." : "No la encontré: revisa el nombre (o llena los datos a mano).";
       renderTmdbList();
@@ -861,7 +1158,9 @@
   }
   function tmdbApply(x) {
     $("tmdbHint").textContent = "Trayendo la ficha de «" + x.title + "»…";
+    var gen = S.formGen || 0;
     api("/api/tmdb/ficha", { id: x.id, media: x.media }).then(function (f) {
+      if ((S.formGen || 0) !== gen) { return; } // se vació el formulario (p. ej. se mandó a la cola) mientras llegaba la ficha
       TM.ficha = f;
       S.tmdb = { type: f.media === "tv" ? "tv" : "movie", id: f.id };
       $("name").value = f.title;
@@ -883,8 +1182,9 @@
       tmdbCheckRuntime();
       renderCaption();
       refreshPlan();
+      checkYaEsta(); // con el título y el año de la ficha (en español) se ve mejor si ya está en el catálogo
       /* portada y banner de TMDB, si todavía no hay */
-      [["portada", f.poster], ["banner", f.backdrop]].forEach(function (pair) {
+      [["portada", f.poster], ["banner", f.backdrop], ["vertical", f.vertical]].forEach(function (pair) {
         if (!pair[1] || PUB.img[pair[0]]) { return; }
         api("/api/imagen-url", { url: pair[1].url, kind: pair[0] }).then(function (info) {
           if (PUB.img[pair[0]]) { return; }
@@ -944,7 +1244,7 @@
   }
   function catTags(text) {
     return String(text || "").split(",").map(function (c) { return c.replace(/#/g, "").trim().replace(/\s+/g, "_"); })
-      .filter(function (c) { return c && !/^(infantil|kids|ni[ñn]os|portada|poster|banner|fondo)$/i.test(c); })
+      .filter(function (c) { return c && !/^(infantil|kids|ni[ñn]os|portada|poster|banner|fondo|vertical|retrato)$/i.test(c); })
       .map(function (c) { return " #" + c; }).join("");
   }
   ["name", "year", "season", "episode", "episodeTitle", "description", "kids", "categories"].forEach(function (id) {
@@ -957,6 +1257,7 @@
     $("yearBox").classList.toggle("hidden", series);
     $("nameLabel").textContent = series ? "Nombre de la serie" : "Nombre de la película";
     renderCaption();
+    renderImages();
   });
   $("copyCaption").addEventListener("click", function () {
     var b = this;
@@ -989,7 +1290,11 @@
   function updateEncBadge() {
     var gpu = S.encoder === "gpu" && S.gpu;
     $("encBadge").className = "badge" + (gpu ? "" : " cpu");
-    $("encBadge").innerHTML = "<i></i>" + (gpu ? "NVIDIA lista" : S.encoder === "gpu" ? "Sin NVIDIA: usará el procesador" : "Procesador");
+    /* con NVIDIA: el modelo de la tarjeta que quedó lista («RTX 3050»); el nombre completo, la memoria y el controlador, al pasar el cursor */
+    var gi = S.gpuInfo;
+    var corto = gi && gi.name ? gi.name.replace(/NVIDIA|GeForce|Laptop GPU|Max-Q|with Max-Q Design|Graphics/gi, " ").replace(/ +/g, " ").trim() : "";
+    $("encBadge").innerHTML = "<i></i>" + (gpu ? (corto ? esc(corto) + " lista" : "NVIDIA lista") : S.encoder === "gpu" ? "Sin NVIDIA: usará el procesador" : "Procesador");
+    $("encBadge").title = gpu && gi && gi.name ? gi.name + (gi.memMB ? " · " + Math.round(gi.memMB / 1024) + " GB" : "") + (gi.driver ? " · controlador " + gi.driver : "") + " · se usa para crear las calidades" : "";
   }
 
   /* ---------- 5. Calidades ---------- */
@@ -1011,7 +1316,11 @@
       var p = S.plan.filter(function (x) { return x.id === id; })[0];
       var on = possible && S.quals[id];
       var meta = !S.src ? "Elige el video" : !possible ? "El original es de menos resolución" :
-        p ? (p.copy ? "<b>Copia directa</b> (sin recodificar, tarda minutos) · " : "") + mbps(p.kbps) + " · ~" + mb(p.bytes) + (p.parts > 1 ? '<br><b class="parts">' + p.parts + " partes</b> de ~" + mb(p.partBytes) + " (" + clock(p.partSeconds) + ")" : "") + '<br><span class="pill ' + p.rating + '">' + (p.rating === "original" ? "Igual que el original" : p.rating === "buena" ? "Se verá bien" : p.rating === "aceptable" ? "Aceptable" : "Calidad baja") + "</span>" : "";
+        p ? '<div class="qbig"><b>' + (p.parts > 1 ? p.parts : 1) + "</b><span>" + (p.parts > 1 ? "partes" : "archivo") + "</span></div>" +
+          (p.parts > 1 ? '<div class="qsub">~' + mb(p.partBytes) + " cada una · " + clock(p.partSeconds) + '</div><div class="qtot">Total ~' + mb(p.bytes) + " · " + mbps(p.kbps) + "</div>" :
+            '<div class="qsub">~' + mb(p.bytes) + '</div><div class="qtot">' + mbps(p.kbps) + "</div>") +
+          '<div class="qbadges">' + (p.copy ? '<span class="pill gold" title="Sin recodificar: se copia el video tal cual; tarda unos minutos">Copia directa</span>' : "") +
+          '<span class="pill ' + p.rating + '">' + (p.rating === "original" ? "Igual que el original" : p.rating === "buena" ? "Se verá bien" : p.rating === "aceptable" ? "Aceptable" : "Calidad baja") + "</span></div>" : "";
       return '<div class="qc' + (on ? " on" : "") + (possible ? "" : " off") + '" data-q="' + id + '"><input type="checkbox"' + (on ? " checked" : "") + (possible ? "" : " disabled") + ">" +
         '<div class="t">' + NAMES[id] + '</div><div class="c">' + CODEC[id] + (id === "2160" ? " · " + (S.split === "yes" ? S.k4 + " Mbps" : "lo más cerca del tope") : "") + '</div><div class="m">' + meta + "</div>" + (on ? qState(id) : "") + "</div>";
     }).join("");
@@ -1053,42 +1362,134 @@
     var brief = $("planBrief");
     if (brief) {
       var all = S.plan.filter(function (p) { return S.quals[p.id]; });
-      brief.innerHTML = !S.src ? "Elige el video en la pestaña 1 para ver en cuántas partes queda cada calidad." : !all.length ? "Marca al menos una calidad en la pestaña 3." :
+      brief.classList.toggle("hidden", !S.src);
+      brief.querySelector("span").innerHTML = !S.src ? "" : !all.length ? "Marca al menos una calidad en la pestaña 3." :
         "Con estas opciones: " + all.map(function (p, i) {
           return (i && i === all.length - 1 ? " y " : i ? ", " : "") + "<b>" + p.name + "</b> " + (p.parts > 1 ? "en " + p.parts + " partes de ~" + mb(p.partBytes) : "en un archivo");
         }).join("") + ". El detalle está en la pestaña 3.";
     }
     if (!S.src || !chosen.length) { el.innerHTML = ""; return; }
+    var rowsN = [];
+    var worst = "";
+    var co = function (lvl, text) { rowsN.push('<div class="co-row ' + lvl + '"><span class="co-ic">' + (lvl === "tip" ? "i" : lvl === "ok" ? "✓" : "!") + "</span><div>" + text + "</div></div>"); };
     if (split.length) {
-      html += '<div class="note gold"><b>' + split.map(function (p) { return p.name + " en " + p.parts + " partes"; }).join(", ") + ".</b> " +
+      co("tip", "<b>" + split.map(function (p) { return p.name + " en " + p.parts + " partes"; }).join(", ") + ".</b> " +
         "Así no se baja la calidad para caber en " + lim + " GB. Sube todas las partes con el mismo comentario y sin cambiarles el nombre: " +
-        "la TV las reproduce seguidas como una sola película (al pasar de una parte a otra hay una pausa de un par de segundos).</div>";
+        "la TV las reproduce seguidas como una sola película (al pasar de una parte a otra hay una pausa de un par de segundos).");
     }
     if (k4 && S.quals["2160"] && k4.rating !== "buena") {
-      html += '<div class="note ' + (k4.rating === "baja" ? "bad" : "warn") + '"><b>El 4K quedará en ' + mbps(k4.kbps) + ".</b> Para que un 4K se vea bien hacen falta unos 12 Mbps; en " + clock(S.src.duration) +
+      worst = k4.rating === "baja" ? "bad" : "warn";
+      co(worst, "<b>El 4K quedará en " + mbps(k4.kbps) + ".</b> Para que un 4K se vea bien hacen falta unos 12 Mbps; en " + clock(S.src.duration) +
         " de video, un solo archivo de " + lim + " GB no da para más. " +
         (S.split !== "yes" ? "Elige «Dividir en partes» para conservar la calidad. " : "") +
-        "En películas largas, el 1080p suele verse mejor que un 4K tan comprimido.</div>";
+        "En películas largas, el 1080p suele verse mejor que un 4K tan comprimido.");
     } else if (k4 && S.quals["2160"] && k4.parts === 1) {
-      html += '<div class="note ok">El 4K queda en ' + mbps(k4.kbps) + " (~" + mb(k4.bytes) + "): se verá bien.</div>";
+      co("ok", "El 4K queda en " + mbps(k4.kbps) + " (~" + mb(k4.bytes) + "): se verá bien.");
     }
+    html = rowsN.length ? '<div class="callout' + (worst ? " " + worst : "") + '">' + rowsN.join("") + "</div>" : "";
     el.innerHTML = html;
   }
 
   function updateStart() {
     var chosen = Object.keys(S.quals).filter(function (k) { return S.quals[k] && S.src && S.src.rungs.some(function (r) { return r.id === k && r.possible; }); });
     var ready = !!S.src && chosen.length > 0 && !S.viewing;
-    $("start").disabled = !ready;
-    $("enqueue").disabled = !ready;
-    $("start").textContent = S.busy ? "Crear después de la actual" : "Crear versiones";
+    var hayCola = !!(window.COLA && COLA.pending && COLA.pending() > 0);
+    /* Un solo botón de envío, en el paso 3: sin cola se llama «Crear versiones» (empieza esta película) y con cola «＋ Agregar a la cola»
+     * (queda al final). Es la misma acción; solo cambia el nombre para que se entienda qué pasa. Sin nombre de película no se envía:
+     * la cola publica sola con ese comentario y saldría con datos inciertos. Mientras el servidor contesta se apaga: un segundo clic
+     * ya no puede mandar la película otra vez. */
+    $("start").disabled = !ready || !S.caption || !!S.sending;
+    $("start").textContent = S.sending ? "Enviando…" : hayCola ? "＋ Agregar a la cola" : "Crear versiones";
+    $("start").title = hayCola ? "Hay películas en la cola: esta se crea cuando les llegue el turno" : "Empieza a crear las versiones de esta película";
     updateTabs();
     if (S.busy && !S.src) { return; }
-    if (!S.src) { $("sum").textContent = "Elige el video original para empezar."; return; }
-    if (!chosen.length) { $("sum").textContent = "Marca al menos una calidad."; return; }
+    if (!S.src) { $("sum").textContent = S.notice && S.notice.until > Date.now() ? S.notice.text : "Elige el video original para empezar."; return; }
+    S.notice = null;
+    if (!chosen.length) { $("sum").textContent = "Marca al menos una calidad (paso 3)."; return; }
+    if (!S.caption && !S.viewing) { $("sum").textContent = "Falta el nombre de la película: ponlo en el paso 1."; return; }
     var total = S.plan.filter(function (p) { return S.quals[p.id]; }).reduce(function (n, p) { return n + p.bytes; }, 0);
     var nfiles = S.plan.filter(function (p) { return S.quals[p.id]; }).reduce(function (n, p) { return n + p.parts; }, 0);
     $("sum").textContent = chosen.length + (chosen.length === 1 ? " versión" : " versiones") + (nfiles > chosen.length ? " (" + nfiles + " archivos)" : "") + " · unos " + mb(total) + " en total" +
-      ($("test").checked ? " · PRUEBA de " + (Number($("testSec").value) || 60) + " s" : "") + (S.caption ? "" : " · falta el nombre (el comentario lo puedes poner luego)");
+      ($("test").checked ? " · PRUEBA de " + (Number($("testSec").value) || 60) + " s" : "");
+  }
+
+  /* ---------- Aviso: esa película ya está en el catálogo (o en la cola) ----------
+   * Al cargar un video nuevo, y otra vez cuando llega el título de TMDB, se mira si esa película ya está publicada en el grupo
+   * (por la ficha de TMDB o por nombre y año) o ya está en la cola. Si sí, sale un aviso y quien carga decide: cargarla de todos
+   * modos o no. Solo avisa con el catálogo ya leído (hay que haber entrado a Telegram) y para películas. */
+  function normT(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
+  var DONDE = { espera: "esperando su turno", renderizando: "creándose ahora", renderizado: "ya creada, falta publicarla", publicando: "publicándose ahora", publicado: "ya publicada" };
+  function yaEsta() {
+    if (S.type === "series" || S.viewing || S.dupSkip || S.sending) { return null; }
+    var name = normT($("name").value);
+    var year = Number($("year").value) || 0;
+    var tm = S.tmdb && S.tmdb.type === "movie" ? S.tmdb.id : 0;
+    if (!name && !tm) { return null; }
+    var same = function (n, y, t) {
+      if (tm && t && t.id === tm) { return true; }
+      var yy = Number(y) || 0;
+      return !!name && normT(n) === name && (!year || !yy || Math.abs(year - yy) <= 1);
+    };
+    var q = (window.COLA && COLA.all ? COLA.all() : []).filter(function (x) {
+      return x.estado !== "cancelado" && x.estado !== "error" && x.opts && same(x.opts.name, x.opts.year, x.opts.tmdb);
+    })[0];
+    if (q) { return { key: "cola:" + q.id, donde: "cola", nombre: q.nombre, detalle: "está en la cola, " + (DONDE[q.estado] || q.estado) }; }
+    var B = window.HFB && HFB.debug ? HFB.debug() : null;
+    if (B && !B.reading && B.titles && B.titles.length) {
+      var t = B.titles.filter(function (x) { return x.type === "movie" && same(x.name, x.year, x.tmdb); })[0];
+      if (t) {
+        var qs = [];
+        (t.versions || []).forEach(function (v) { if (v.q && qs.indexOf(v.q) < 0) { qs.push(v.q); } });
+        return { key: "cat:" + t.titleKey, donde: "catalogo", nombre: t.name + (t.year ? " (" + t.year + ")" : ""), detalle: qs.length ? "ya tiene " + qs.join(", ") : "ya está publicada" };
+      }
+    }
+    return null;
+  }
+  var dupAsking = false;
+  function checkYaEsta() {
+    if (dupAsking) { return; }
+    var w = yaEsta();
+    if (!w || S.dupOk === w.key) { return; }
+    dupAsking = true;
+    askYaEsta(w).then(function (ok) {
+      dupAsking = false;
+      if (ok) { S.dupOk = w.key; } else { resetForm(); } // «No cargarla»: el formulario queda en blanco para elegir otra
+    });
+  }
+  function askYaEsta(w) {
+    if (!document.getElementById("dupmCss")) {
+      var st = document.createElement("style");
+      st.id = "dupmCss";
+      st.textContent = [
+        ".dupm { position: fixed; inset: 0; z-index: 96; background: rgba(5,6,7,.72); display: grid; place-items: center; padding: 20px; }",
+        ".dupm-card { width: min(520px, 100%); background: var(--bg2, #16181b); border: 1px solid var(--line2); border-radius: 16px; padding: 24px 26px 20px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }",
+        ".dupm-ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 20px; color: var(--gold-1); background: var(--acc-soft); border: 1px solid var(--acc-line); margin-bottom: 12px; }",
+        ".dupm-card h3 { margin: 0 0 8px; font-size: 18px; }",
+        ".dupm-card p { margin: 0 0 8px; line-height: 1.5; }",
+        ".dupm-card p.dupm-s { color: var(--muted); font-size: 13.5px; }",
+        ".dupm-b { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap; }"
+      ].join("\n");
+      document.head.appendChild(st);
+    }
+    return new Promise(function (resolve) {
+      var el = document.createElement("div");
+      el.className = "dupm";
+      el.setAttribute("role", "alertdialog");
+      el.setAttribute("aria-modal", "true");
+      el.innerHTML = '<div class="dupm-card"><div class="dupm-ic" aria-hidden="true">!</div>' +
+        "<h3>" + (w.donde === "cola" ? "Esa película ya está en la cola" : "Esa película ya está en el catálogo") + "</h3>" +
+        "<p><b>" + esc(w.nombre) + "</b>: " + esc(w.detalle) + ".</p>" +
+        '<p class="dupm-s">' + (w.donde === "cola" ? "Si la cargas otra vez se volverá a crear y a subir al grupo." :
+          "Si solo quieres agregarle las calidades que le faltan, hazlo desde Inicio, en la ficha de esa película. Cargarla aquí la vuelve a crear y a subir al grupo.") + "</p>" +
+        '<div class="dupm-b"><button class="ghost" data-no>No cargarla</button><button class="primary" data-ok>Cargarla de todos modos</button></div></div>';
+      document.body.appendChild(el);
+      var fin = function (ok) { document.removeEventListener("keydown", onKey, true); el.remove(); resolve(ok); };
+      var onKey = function (e) { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fin(false); } };
+      document.addEventListener("keydown", onKey, true);
+      el.querySelector("[data-no]").addEventListener("click", function () { fin(false); });
+      el.querySelector("[data-ok]").addEventListener("click", function () { fin(true); });
+      el.querySelector("[data-no]").focus(); // lo seguro por defecto: no cargarla
+    });
   }
 
   /* ---------- 6. Crear ---------- */
@@ -1099,24 +1500,47 @@
     return o;
   }
   function jobImages() {
-    return { portada: PUB.img.portada && PUB.img.portada.path, banner: PUB.img.banner && PUB.img.banner.path };
+    return { portada: PUB.img.portada && PUB.img.portada.path, banner: PUB.img.banner && PUB.img.banner.path, vertical: PUB.img.vertical && PUB.img.vertical.path, capitulo: PUB.img.capitulo && PUB.img.capitulo.path, capitulos: PUB.img.capitulos && PUB.img.capitulos.path, galeria: (PUB.img.galeria || []).map(function (g) { return g.path; }) };
   }
-  $("start").addEventListener("click", function () {
-    var o = jobOpts();
-    $("log").textContent = "";
-    $("doneBox").classList.add("hidden");
-    api("/api/start", { opts: o, images: jobImages(), primero: true }).then(function (r) {
-      S.mine = r.id; // esta la pidió esta pantalla: su avance se muestra en la pestaña 3
-      if (window.COLA) { COLA.set(r.cola); }
-      $("sum").textContent = S.busy ? "En la cola: empieza al terminar la que se está renderizando." : "Empezando…";
-    }, function (e) { $("log").textContent = e.message; });
-  });
-  $("enqueue").addEventListener("click", function () {
-    api("/api/cola/agregar", { opts: jobOpts(), images: jobImages() }).then(function (r) {
+  /* El botón de envío (paso 3) manda la película al servidor UNA vez. «start» (sin cola) y «enqueue» (con cola, al final) son lo mismo
+   * para el servidor; solo cambia el aviso. S.sending apaga el botón hasta que el servidor contesta; el servidor además no acepta la
+   * misma película dos veces. */
+  /* Al terminar el paso a paso, en un grupo con temas, el tema de esta película se crea ya (así se ve en Telegram aunque la cola tarde en subirla). */
+  function makeTopic(o) {
+    if (!window.PrepTopics || !T.client || !T.peer || !PrepTopics.isForum(T.peer)) { return; }
+    PrepTopics.ensureTopic(T.client, T.peer, { type: o.type === "series" ? "series" : "movie", name: o.name, year: o.type === "series" ? 0 : Number(o.year) || 0 }).then(null, function (e) {
+      S.notice = { text: "No pude crear el tema de «" + o.name + "» ahora (" + (e && e.message || e) + "). Se intentará de nuevo al subirla.", until: Date.now() + 20000 };
+      updateStart();
+    });
+  }
+  function sendJob(kind) {
+    if (S.sending || S.viewing || !S.src || !S.caption) { return; }
+    var nombre = $("name").value || "La película";
+    var o;
+    try { o = jobOpts(); } catch (e) { return; }
+    var images = jobImages();
+    S.sending = kind;
+    updateStart();
+    api(kind === "start" ? "/api/start" : "/api/cola/agregar", { opts: o, images: images }).then(function (r) {
+      S.sending = "";
+      /* la película ya viajó en el objeto de la cola: las pestañas 1 a 4 quedan en blanco para la siguiente. Su avance se ve en «Cola»
+       * (y al tocarla ahí se abre en las pestañas); no se queda atada a esta pantalla, que ya es de la próxima. */
+      makeTopic(o);
+      resetForm();
       if (window.COLA) { COLA.set(r.cola); COLA.flash(r.id); }
-      $("sum").textContent = "«" + ($("name").value || "La película") + "» quedó en la cola. Ya puedes elegir el siguiente video.";
-    }, function (e) { $("sum").textContent = e.message; });
-  });
+      var aviso = r.repetida ? "«" + nombre + "» ya estaba en la cola: no se agregó otra vez. Ya puedes elegir el siguiente video." :
+        kind === "start" ? "«" + nombre + "» empezó a crearse; su avance está en «Cola». Ya puedes elegir el siguiente video." :
+        "«" + nombre + "» quedó al final de la cola. Ya puedes elegir el siguiente video.";
+      /* el aviso se queda a la vista un rato aunque otros eventos repinten la barra (updateStart lo respeta mientras no haya video) */
+      S.notice = { text: aviso, until: Date.now() + 20000 };
+      updateStart();
+    }, function (e) {
+      S.sending = "";
+      updateStart();
+      $("sum").textContent = e.message;
+    });
+  }
+  $("start").addEventListener("click", function () { sendJob(window.COLA && COLA.pending && COLA.pending() > 0 ? "enqueue" : "start"); });
   $("cancel").addEventListener("click", function () {
     if (confirm("¿Detener y borrar la versión que se está creando? Las que ya terminaron se quedan.")) { api("/api/cancel", {}); }
   });
@@ -1124,7 +1548,6 @@
   function setBusy(b) {
     S.busy = b;
     updateTabs();
-    $("cancel").classList.toggle("hidden", !b);
     /* con la cola, el formulario sigue libre mientras se renderiza: es para preparar la siguiente película */
     if (!b && S.src) { renderTracks(); renderQuals(); }
     updateStart();
@@ -1148,9 +1571,9 @@
   function onEvent(ev) {
     var row;
     if (window.COLA) { COLA.onEvent(ev); }
-    if (ev.type === "cola") { if (S.viewing) { paintQView(); } updatePub(); return; }
+    if (ev.type === "cola") { if (S.viewing) { paintQView(); } updatePub(); updateStart(); return; } // updateStart: «Crear versiones» ↔ «＋ Agregar a la cola» según haya cola
     if (ev.cola && ev.cola !== (S.viewing || S.mine)) {
-      if (ev.type === "start") { setBusy(true); } else if (ev.type === "done" || ev.type === "cancelled" || ev.type === "error") { setBusy(false); }
+      /* una película ajena de la cola (la que renderiza el servidor mientras aquí se prepara otra): no bloquea el formulario */
       return;
     }
     if (ev.type === "start") {
@@ -1254,8 +1677,12 @@
     if (!window.TGLib) { return Promise.reject(new Error("No se cargó el motor de Telegram.")); }
     if (!key) { return Promise.reject(new Error("Falta la clave de Telegram de este equipo: ponla en «Configura este equipo» (recarga la página si cerraste esa ventana).")); }
     if (!T.connecting) {
-      T.connecting = TGLib.create(key.id, key.hash, "direct", "hf-preparador").then(function (r) {
+      T.connecting = oneTab().then(function (free) {
+        if (!free) { throw new Error("El preparador ya está abierto en otra pestaña o ventana de este navegador. Usa esa y cierra esta: si las dos usan la sesión de Telegram a la vez, Telegram la cierra."); }
+        return TGLib.create(key.id, key.hash, "direct", "hf-preparador");
+      }).then(function (r) {
         T.client = r.client;
+        if (window.PrepTopics) { PrepTopics.patch(T.client); } // grupos con temas: lo que se publica va al tema de su película
         return T.client.connect().then(function () { return T.client; });
       });
       T.connecting.catch(function () { T.connecting = null; });
@@ -1263,8 +1690,61 @@
     return T.connecting;
   }
 
+  /* Una sola pestaña usa la sesión de Telegram: dos pestañas del preparador comparten la misma llave guardada y, al usarla a la vez,
+   * Telegram la cierra para siempre (AUTH_KEY_DUPLICATED) y ya no deja entrar. El candado se queda tomado mientras la pestaña viva. */
+  var tabLock = null;
+  function oneTab() {
+    if (tabLock) { return tabLock; }
+    tabLock = new Promise(function (resolve) {
+      if (!window.navigator.locks || !window.navigator.locks.request) { resolve(true); return; }
+      /* Se espera hasta 8 s a que se suelte: al recargar (Ctrl+Mayús+R) la página vieja tarda un instante en liberar el candado y la nueva
+       * perdía contra ella para siempre —quedaba sin Telegram y la cola no publicaba nada—. Si pasan los 8 s es que de verdad hay otra pestaña. */
+      var ctl = typeof AbortController === "function" ? new AbortController() : null;
+      var settled = false;
+      var timer = setTimeout(function () { if (!settled) { settled = true; if (ctl) { ctl.abort(); } resolve(false); } }, ctl ? 8000 : 0);
+      var opts = ctl ? { signal: ctl.signal } : { ifAvailable: true };
+      var asked = window.navigator.locks.request("hf-preparador-sesion", opts, function (lock) {
+        if (settled || !lock) { if (!settled) { settled = true; clearTimeout(timer); resolve(false); } return undefined; }
+        settled = true;
+        clearTimeout(timer);
+        resolve(true);
+        return new Promise(function () {});
+      });
+      if (asked && asked.catch) { asked.catch(function () { /* se agotó la espera */ }); }
+    });
+    /* si no se consiguió, la próxima vez se vuelve a intentar (antes el «no» se recordaba hasta recargar) */
+    tabLock.then(function (ok) { if (!ok) { tabLock = null; } });
+    return tabLock;
+  }
+
+  /* «Dónde se publica»: ¿el chat tiene temas? Con temas, lo de cada película va (y se actualiza) en SU tema; sin temas, todo junto en el chat. */
+  var topicMemo = "";
+  function renderTopicNote() {
+    var el = $("topicNote");
+    var p = T.peer;
+    var name = ($("name") && $("name").value || "").trim();
+    var year = $("year") ? Number($("year").value) || 0 : 0;
+    var info;
+    var key;
+    if (!el) { return; }
+    if (!p) { el.textContent = "Es el chat que elegiste al entrar. La sesión de Telegram se maneja desde Inicio."; topicMemo = ""; return; }
+    if (!window.PrepTopics || !PrepTopics.isForum(p)) { el.textContent = "Chat sin temas: todo se publica directo en el chat, como siempre."; topicMemo = ""; return; }
+    info = { type: S.type === "series" ? "series" : "movie", name: name, year: S.type === "series" ? 0 : year };
+    if (!name) { el.textContent = "Grupo con temas: cada película va en su propio tema (se crea al publicar) y lo que ya esté se actualiza ahí mismo."; topicMemo = ""; return; }
+    key = [String(p.id), info.type, name, info.year].join("|");
+    if (key === topicMemo) { return; }
+    topicMemo = key;
+    el.textContent = "Grupo con temas: buscando el tema de «" + name + "»…";
+    if (!T.client) { return; }
+    PrepTopics.find(T.client, p, info).then(function (f) {
+      if (topicMemo !== key) { return; }
+      el.innerHTML = "Grupo con temas: " + (f ? "su tema <b>«" + esc(f.title) + "»</b> ya existe; lo nuevo y los cambios se agregan ahí, sin tocar lo de otros temas." :
+        "se creará el tema <b>«" + esc(PrepTopics.topicName(info)) + "»</b> al publicar y todo va ahí.");
+    }, function () { el.textContent = "Grupo con temas: cada película va en su propio tema."; });
+  }
   function renderTg() {
     var p = T.peer;
+    renderTopicNote();
     if (p) {
       setTgStatus('En <span class="who">' + esc(p.isSelf ? "Mensajes guardados" : (p.title || p.displayName)) + "</span>" +
         (T.me ? " · como " + esc(T.me.displayName || T.me.username || "") : ""), "");
@@ -1348,6 +1828,10 @@
     $("pubDir").value = dir;
     $("pubFiles").innerHTML = '<div class="empty">Leyendo la carpeta…</div>';
     api("/api/versions", { dir: dir }).then(function (r) {
+      /* las imágenes son de SU carpeta: al abrir otra película (o una de la cola) no se arrastran las de la anterior. Solo se conservan las
+       * elegidas a mano cuando es la misma carpeta, o la primera lectura de la carpeta que se acaba de renderizar. */
+      var otraCarpeta = !!PUB.dir && String(PUB.dir).toLowerCase() !== String(r.dir).toLowerCase();
+      if (otraCarpeta || S.viewing) { PUB.img = {}; }
       PUB.dir = r.dir;
       PUB.files = r.files.map(function (f) { f.key = "v" + f.id; return f; });
       PUB.subs = r.subs || [];
@@ -1355,7 +1839,8 @@
       PUB.thumbsBusy = false;
       if (!PUB.thumbs && PUB.files.length) { makeThumbs(); } else { renderThumbs(); }
       PUB.state = {};
-      ["portada", "banner"].forEach(function (k) { if (r.images[k] && !PUB.img[k]) { PUB.img[k] = r.images[k]; } });
+      ["portada", "banner", "vertical", "capitulo", "capitulos"].forEach(function (k) { if (r.images[k] && !PUB.img[k]) { PUB.img[k] = r.images[k]; } });
+      if (r.images.galeria && r.images.galeria.length && !(PUB.img.galeria && PUB.img.galeria.length)) { PUB.img.galeria = r.images.galeria.slice(); }
       /* sin datos en la pestaña 1: se toman del comentario que dejó el preparador, o del nombre de los archivos («Nombre (2021) [1080p].mp4») */
       var saved = !$("name").value && r.caption && window.HFLibrary ? HFLibrary.parseCaption(r.caption) : null;
       if (saved) { fillFromCaption(saved); }
@@ -1406,6 +1891,55 @@
       });
     });
   });
+  /* ----- Galería de escenas: varias fotos por título, cada una con su número (#galeria1, #galeria2…) ----- */
+  function galNext() {
+    var max = 0;
+    (PUB.img.galeria || []).forEach(function (g) { max = Math.max(max, g.num || 0); });
+    var pre = photoCaption("galeria", 0);
+    Object.keys((T.existing && T.existing.photos) || {}).forEach(function (c) {
+      if (c.indexOf(pre) === 0 && /^\d+$/.test(c.slice(pre.length))) { max = Math.max(max, Number(c.slice(pre.length))); }
+    });
+    return max + 1;
+  }
+  function galAdd(info) {
+    PUB.img.galeria = (PUB.img.galeria || []).filter(function (g) { return g.num !== info.num; }).concat([info]).sort(function (a, b) { return a.num - b.num; });
+    PUB.state["img-galeria-" + info.num] = { on: true };
+    renderGallery();
+    renderFiles();
+  }
+  function renderGallery() {
+    var el = $("galGrid");
+    if (!el) { return; }
+    var list = PUB.img.galeria || [];
+    el.innerHTML = list.length ? list.map(function (g) {
+      return '<div class="galth" style="background-image:url(\'' + imgUrl(g) + '\')"><b>#' + g.num + '</b><button type="button" data-gdel="' + g.num + '" aria-label="Quitar la escena ' + g.num + '">×</button></div>';
+    }).join("") : '<div class="galempty">Todavía no hay escenas. Sin galería, el título no muestra el botón.</div>';
+    if ($("galCount")) { $("galCount").textContent = String(list.length); }
+    if ($("galBox") && list.length && !$("galBox")._visto) { $("galBox").open = true; $("galBox")._visto = true; } // se abre sola la primera vez que hay escenas
+  }
+  $("galGrid").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-gdel]");
+    if (!b) { return; }
+    var n = Number(b.getAttribute("data-gdel"));
+    var g = (PUB.img.galeria || []).filter(function (x) { return x.num === n; })[0];
+    PUB.img.galeria = (PUB.img.galeria || []).filter(function (x) { return x.num !== n; });
+    delete PUB.state["img-galeria-" + n];
+    renderGallery();
+    renderFiles();
+    if (g && g.path) { api("/api/borrar-escena", { path: g.path }).catch(function () { /* ya no estaba */ }); }
+  });
+  $("galPick").addEventListener("click", function () {
+    var b = this;
+    if (T.busy || b.disabled) { return; }
+    b.disabled = true;
+    api("/api/pick-image", { start: PUB.dir || $("outDir").value }).then(function (r) {
+      if (!r.path) { return null; }
+      return api("/api/image", { path: r.path, kind: "galeria", num: galNext(), outDir: PUB.dir || $("outDir").value }).then(galAdd);
+    }).then(function () { b.disabled = false; }, function (e) { b.disabled = false; $("galGrid").insertAdjacentHTML("afterbegin", '<div class="galempty" style="color:var(--warn)">' + esc(e.message) + "</div>"); });
+  });
+
+  renderGallery();
+
   /* ----- «Elegir…»: imágenes de TMDB de esta película (el mismo buscador de «Imágenes por revisar») ----- */
   var TI = { kind: "", q: "", pick: null, data: null, busy: "", err: "" };
   function tiClose() { var el = $("tiModal"); if (el) { el.remove(); } TI.kind = ""; }
@@ -1415,9 +1949,14 @@
     TI.pick = pick || null;
     tiRender();
     var body = TI.pick ? { id: TI.pick.id, media: TI.pick.media } : { q: TI.q };
+    body.kind = TI.kind;
+    body.season = Number($("season").value) || 0;
+    body.episode = Number($("episode").value) || 0;
+    var askedKind = TI.kind;
     api("/api/buscar-imagenes", body).then(function (r) {
       TI.busy = "";
       TI.data = r;
+      TI.dataKind = askedKind;
       if (r.picked) { TI.pick = r.picked; }
       if (r.matches && r.matches.length) { TI.matches = r.matches; }
       tiRender();
@@ -1426,7 +1965,7 @@
   /* la portada lleva el título (imágenes con idioma), el banner va sin texto: lo que sirve para cada una primero */
   function tiList() {
     var list = ((TI.data && TI.data.results) || []).slice();
-    var want = TI.kind === "portada";
+    var want = TI.kind === "portada" || TI.kind === "vertical";
     var good = function (x) { return want ? (x.lang === "es" ? 0 : x.lang ? 1 : 2) : (x.lang ? 1 : 0); };
     return list.sort(function (a, b) { return good(a) - good(b) || (b.score || 0) - (a.score || 0) || b.w - a.w; });
   }
@@ -1454,20 +1993,20 @@
         if (e.key === "Enter" && e.target.id === "tiQ") { TI.q = e.target.value.trim(); TI.matches = null; tiSearch(null); }
       });
     }
-    var need = TI.kind === "portada" ? "1280×720, con el título de la película" : "1920×1080, sin texto (a la izquierda va el título de la app)";
+    var need = TI.kind === "galeria" ? "escenas de la película: toca varias, cada una se agrega a la galería (1280×720)" : TI.kind === "capitulo" ? "1280×720, fotograma de este capítulo (de TMDB)" : TI.kind === "capitulos" ? "1280×720, una imagen común para todos los capítulos" : TI.kind === "portada" ? "1280×720, con el título de la película" : TI.kind === "vertical" ? "800×1200 (póster vertical), con el título de la película" : "1920×1080, sin texto (a la izquierda va el título de la app)";
     var list = tiList();
     var grid = TI.busy ? '<div class="ti-msg">' + esc(TI.busy) + "</div>" : TI.err ? '<div class="ti-msg" style="color:#ffb3a6">' + esc(TI.err) + "</div>" :
-      !list.length ? '<div class="ti-msg">TMDB no tiene imágenes horizontales de esta película. Busca otra o usa una tuya.</div>' :
-      '<div class="ti-grid">' + list.map(function (x, i) {
-        var small = x.w < (TI.kind === "portada" ? 1280 : 1920) * 0.75;
-        var tags = (x.lang ? '<span' + (TI.kind === "portada" ? ' class="ok"' : ' class="warn"') + ">con título" + (x.lang === "es" ? " (español)" : x.lang === "en" ? " (inglés)" : "") + "</span>" : '<span' + (TI.kind === "banner" ? ' class="ok"' : "") + ">sin texto</span>") +
+      !list.length ? '<div class="ti-msg">TMDB no tiene imágenes ' + (TI.kind === "vertical" ? "verticales" : "horizontales") + ' de esta película. Busca otra o usa una tuya.</div>' :
+      '<div class="ti-grid' + (TI.kind === "vertical" ? " v" : "") + '">' + list.map(function (x, i) {
+        var small = x.w < (TI.kind === "portada" || TI.kind === "capitulo" || TI.kind === "capitulos" || TI.kind === "galeria" ? 1280 : TI.kind === "vertical" ? 800 : 1920) * 0.75;
+        var tags = (x.lang ? '<span' + (TI.kind !== "banner" ? ' class="ok"' : ' class="warn"') + ">con título" + (x.lang === "es" ? " (español)" : x.lang === "en" ? " (inglés)" : "") + "</span>" : '<span' + (TI.kind === "banner" ? ' class="ok"' : "") + ">sin texto</span>") +
           "<span" + (small ? ' class="warn"' : "") + ">" + x.w + "×" + x.h + "</span>";
-        return '<button type="button" data-ti-img="' + i + '" style="background-image:url(\'' + esc(x.thumb) + '\')" aria-label="Imagen ' + (i + 1) + ", " + x.w + " por " + x.h + '"><span class="tg">' + tags + "</span></button>";
+        return '<button type="button"' + (TI.added && TI.added[x.url] ? ' class="added"' : "") + ' data-ti-img="' + i + '" style="background-image:url(\'' + esc(x.thumb) + '\')' + (TI.kind === "vertical" ? ";aspect-ratio:2/3" : "") + '" aria-label="Imagen ' + (i + 1) + ", " + x.w + " por " + x.h + '"><span class="tg">' + tags + "</span></button>";
       }).join("") + "</div>";
     var matches = TI.matches && TI.matches.length > 1 ? '<div class="ti-matches">' + TI.matches.map(function (m, i) {
       return '<button type="button" class="ghost' + (TI.pick && TI.pick.id === m.id ? " on" : "") + '" data-ti-match="' + i + '">' + esc(m.title) + (m.year ? " (" + m.year + ")" : "") + "</button>";
     }).join("") + "</div>" : "";
-    el.innerHTML = '<div class="ti-card"><div class="ti-head"><div class="um-title">Elegir ' + (TI.kind === "portada" ? "la portada" : "el banner") + ' desde TMDB</div><button class="ghost sm" type="button" data-ti-close aria-label="Cerrar">✕</button></div>' +
+    el.innerHTML = '<div class="ti-card"><div class="ti-head"><div class="um-title">Elegir ' + (TI.kind === "galeria" ? "escenas para la galería" : TI.kind === "portada" ? "la portada" : TI.kind === "vertical" ? "la portada vertical" : TI.kind === "capitulo" ? "la imagen de este capítulo" : TI.kind === "capitulos" ? "la imagen común de los capítulos" : "el banner") + ' desde TMDB</div><button class="ghost sm" type="button" data-ti-close aria-label="Cerrar">✕</button></div>' +
       '<div class="um-sub">' + esc(need) + ". La que elijas se ajusta sola a la medida.</div>" +
       '<div class="ti-search"><input type="search" id="tiQ" value="' + esc(TI.q) + '" placeholder="Nombre de la película" aria-label="Buscar en TMDB"><button type="button" data-ti-go>Buscar</button></div>' +
       matches + grid +
@@ -1476,6 +2015,19 @@
   function tiChoose(x) {
     if (!x) { return; }
     var kind = TI.kind;
+    if (kind === "galeria") {
+      /* galería: cada toque agrega una escena y el selector sigue abierto para tocar más */
+      TI.busy = "Bajando y ajustando la imagen…";
+      tiRender();
+      TI.added = TI.added || {};
+      api("/api/imagen-url", { url: x.url, kind: kind, outDir: PUB.dir || "", num: galNext() }).then(function (info) {
+        TI.busy = "";
+        TI.added[x.url] = 1;
+        galAdd(info);
+        tiRender();
+      }, function (e) { TI.busy = ""; TI.err = e.message; tiRender(); });
+      return;
+    }
     TI.busy = "Bajando y ajustando la imagen…";
     tiRender();
     api("/api/imagen-url", { url: x.url, kind: kind, outDir: PUB.dir || "" }).then(function (info) {
@@ -1489,16 +2041,30 @@
     renderImages();
     renderFiles();
   }
+  Array.prototype.forEach.call(document.querySelectorAll(".fmtsw button"), function (b) {
+    b.addEventListener("click", function () {
+      var f = b.getAttribute("data-fmt");
+      $("imgrows").setAttribute("data-fmt", f);
+      $("fmt-h").classList.toggle("on", f === "h");
+      $("fmt-v").classList.toggle("on", f === "v");
+      $("fmt-c").classList.toggle("on", f === "c");
+      $("fmtHint").textContent = f === "v" ? "Portada vertical (póster 2:3) para las tarjetas y el banner 16:9 que usa el destacado de arriba: en vertical van las dos." : "«Elegir…» busca en TMDB; para una propia, suéltala sobre la foto. El punto naranja marca el formato que aún no tiene imagen.";
+    });
+  });
+  $("fmt-c").addEventListener("click", function () {
+    $("fmtHint").textContent = "Series: «De este capítulo» es la imagen solo de este capítulo (manda sobre la común); «Común» se usa en todos los capítulos que no tengan la suya. Si no pones ninguna, cada capítulo muestra un cuadro de su video.";
+  });
   Array.prototype.forEach.call(document.querySelectorAll(".tmdbImg"), function (b) {
     b.addEventListener("click", function () {
       if (T.busy) { return; }
       var kind = b.getAttribute("data-img");
-      var sameMovie = TI.data && TI.lastKind && TI.forName === $("name").value + "|" + $("year").value;
+      var sameMovie = TI.data && TI.lastKind && TI.dataKind === kind && TI.forName === $("name").value + "|" + $("year").value + "|" + $("season").value + "|" + $("episode").value;
       TI.kind = kind;
       TI.lastKind = kind;
       TI.err = "";
+      if (!sameMovie) { TI.added = {}; }
       if (sameMovie) { tiRender(); return; }
-      TI.forName = $("name").value + "|" + $("year").value;
+      TI.forName = $("name").value + "|" + $("year").value + "|" + $("season").value + "|" + $("episode").value;
       TI.q = ($("name").value.replace(/#/g, "").trim() + (Number($("year").value) ? " " + Number($("year").value) : "")).trim();
       TI.data = null;
       TI.matches = null;
@@ -1676,26 +2242,36 @@
   function imgUrl(i) { return i ? "/api/media/" + i.id + "?t=" + Math.round(i.at || 0) : ""; }
 
   function renderImages() {
-    ["portada", "banner"].forEach(function (k) {
+    ["portada", "banner", "vertical", "capitulo", "capitulos"].forEach(function (k) {
       var i = PUB.img[k];
       var pic = $("pic-" + k);
       var meta = $("meta-" + k);
-      var need = k === "portada" ? [1280, 720] : [1920, 1080];
+      var need = k === "portada" || k === "capitulo" || k === "capitulos" ? [1280, 720] : k === "vertical" ? [800, 1200] : [1920, 1080];
       pic.classList.toggle("has", !!i);
-      pic.querySelector(".ph").textContent = i ? "" : (k === "portada" ? "Sin portada: la app usa un cuadro del video" : "Sin banner: la app usa la portada");
+      pic.querySelector(".ph").textContent = i ? "" : (k === "capitulo" ? "Sin imagen propia de este capítulo" : k === "capitulos" ? "Sin imagen común: cada capítulo usa un cuadro de su video" : k === "portada" ? "Sin portada: la app usa un cuadro del video" : k === "vertical" ? "Sin portada vertical: la app usa la horizontal" : "Sin banner: la app usa la portada");
       pic.style.backgroundImage = i ? "url('" + imgUrl(i) + "')" : "";
       document.querySelector('[data-clear="' + k + '"]').classList.toggle("hidden", !i);
       if (i) {
         var small = i.srcWidth && (i.srcWidth < need[0] * 0.75 || i.srcHeight < need[1] * 0.75);
-        var vertical = i.srcWidth && i.srcHeight > i.srcWidth;
-        meta.className = "meta" + (small || vertical ? " warn" : "");
+        var vertical = k !== "vertical" && i.srcWidth && i.srcHeight > i.srcWidth;
+        var horiz = k === "vertical" && i.srcWidth && i.srcWidth > i.srcHeight;
+        meta.className = "meta" + (small || vertical || horiz ? " warn" : "");
         meta.textContent = (i.srcWidth ? "Original " + i.srcWidth + "×" + i.srcHeight + " → " : "") + i.width + "×" + i.height + " JPG · " + Math.round(i.size / 1024) + " KB" +
-          (vertical ? " · era vertical: se recortó arriba y abajo" : small ? " · es pequeña, puede verse borrosa" : "");
+          (vertical ? " · era vertical: se recortó arriba y abajo" : horiz ? " · era horizontal: se recortó a los lados" : small ? " · es pequeña, puede verse borrosa" : "");
       } else {
         meta.className = "meta";
-        meta.textContent = k === "portada" ? "Lo importante al centro; se recorta sola." : "Mitad izquierda despejada: ahí va el texto.";
+        meta.textContent = k === "capitulo" ? "Solo para este capítulo; manda sobre la común." : k === "capitulos" ? "Se usa en los capítulos que no tengan imagen propia." : k === "portada" ? "Lo importante al centro; se recorta sola." : k === "vertical" ? "Póster 2:3 con el título; se recorta sola." : "Mitad izquierda despejada: ahí va el texto.";
       }
     });
+    renderGallery();
+    /* el punto naranja de cada formato: le falta alguna imagen */
+    $("fmt-h").classList.toggle("miss", !PUB.img.portada || !PUB.img.banner);
+    $("fmt-v").classList.toggle("miss", !PUB.img.vertical || !PUB.img.banner);
+    /* «Capítulos» solo en series; el punto avisa si no hay ni imagen del capítulo ni una común */
+    var esSerie = S.type === "series";
+    $("fmt-c").classList.toggle("hidden", !esSerie);
+    $("fmt-c").classList.toggle("miss", !PUB.img.capitulo && !PUB.img.capitulos);
+    if (!esSerie && $("imgrows").getAttribute("data-fmt") === "c") { $("fmt-h").click(); }
     renderPreview();
   }
 
@@ -1714,6 +2290,42 @@
     return { p: parsed, dur: dur, q: top >= 2000 ? "4K" : top ? top + "p" : "" };
   }
   function fmtDur(s) { s = Math.round(s / 60); return s >= 60 ? Math.floor(s / 60) + " h " + (s % 60) + " min" : s + " min"; }
+
+  /* «Ver como»: TV, tablet o celular. La app móvil usa la misma tarjeta de destacado en celular y tablet (se ensancha), así que cambia el marco y el ancho. */
+  var pvMode = "tv";
+  try { pvMode = localStorage.getItem("hf.preparador.pv") || "tv"; } catch (e) { pvMode = "tv"; }
+  if (pvMode !== "tab" && pvMode !== "cel") { pvMode = "tv"; }
+  function applyPv() {
+    $("tvprev").setAttribute("data-pv", pvMode);
+    Array.prototype.forEach.call($("pvsw").children, function (b) { b.classList.toggle("on", b.getAttribute("data-pv") === pvMode); });
+  }
+  $("pvsw").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-pv]");
+    if (!b) { return; }
+    pvMode = b.getAttribute("data-pv");
+    try { localStorage.setItem("hf.preparador.pv", pvMode); } catch (err) { /* sin guardar */ }
+    applyPv();
+    renderPreview();
+  });
+  applyPv();
+  function renderDevice(name, series, meta, poster, banner, main, p, ti) {
+    var el = $("devprev");
+    var tab = pvMode === "tab";
+    var W = tab ? 820 : 390;
+    var H = tab ? 720 : 800;
+    var zoom = tab ? 0.62 : 0.6;
+    var tags = (series ? ["Serie"] : [p && p.year ? String(p.year) : "", ti.dur ? fmtDur(ti.dur) : ""]).concat(main ? [main] : []).filter(Boolean).slice(0, 4);
+    var cs = '<div style="background-image:' + (poster ? "url('" + poster + "')" : "none") + '"></div><div class="ghost"></div><div class="ghost"></div>' + (tab ? '<div class="ghost"></div><div class="ghost"></div>' : "");
+    if (pvMode !== "tab" && pvMode !== "cel") { el.innerHTML = ""; return; }
+    el.innerHTML = '<div class="pvf' + (tab ? " tb" : "") + '"><div class="pvi" style="width:' + W + "px;height:" + H + "px;zoom:" + zoom + '">' +
+      '<div class="top"><img src="/logo.png" alt=""><b>Home<span>Flix</span></b><i></i></div>' +
+      '<div class="pill-c">Categorías ⌄</div>' +
+      '<div class="hero"><div class="amb" style="background-image:' + (banner ? "url('" + banner + "')" : "none") + '"></div><div class="art" style="background-image:' + (banner ? "url('" + banner + "')" : "none") + '"></div>' +
+      '<div class="copy"><h1' + (name.length > 18 ? ' class="long"' : "") + ">" + esc(name) + '</h1><div class="tags">' + tags.map(function (x) { return "<span>" + esc(x) + "</span>"; }).join("") + "</div>" +
+      '<div class="btns"><span class="p">▶ Reproducir</span><span>ⓘ Más info</span></div></div></div>' +
+      '<div class="dots"><i class="on"></i><i></i><i></i><i></i></div>' +
+      '<div class="rowt">' + esc(main || "Agregados recientemente") + "<small>" + (main ? "categoría" : "") + '</small></div><div class="cs">' + cs + "</div></div></div>";
+  }
 
   function renderPreview() {
     var ti = titleInfo();
@@ -1735,6 +2347,7 @@
       '<div class="btns"><span class="p">▶ Reproducir</span><span>ⓘ Más info</span></div></div>' +
       '<div class="rowt">' + esc(cats[0] || "Agregados recientemente") + "<small>" + (cats.length ? "categoría" : "") + "</small></div>" +
       '<div class="cards"><div style="background-image:' + (poster ? "url('" + poster + "')" : "none") + '"></div><div class="ghost"></div><div class="ghost"></div><div class="ghost"></div></div>';
+    renderDevice(name, series, meta, poster, banner, main, p, ti);
     $("cardprev").innerHTML = '<div class="lbl">Tarjeta con el foco</div><div class="art" style="background-image:' + (poster ? "url('" + poster + "')" : "none") + '"><span>' + (series ? "SERIE" : "PELÍCULA") + "</span></div>" +
       '<div class="t">' + esc(name) + '</div><div class="s">' + [p && p.year, ti.dur ? fmtDur(ti.dur) : "", ti.q].filter(Boolean).join(" · ") + "</div>" +
       (cats.length ? '<div class="cats">' + cats.map(function (c) { return "<span>" + esc(c) + "</span>"; }).join("") + "</div>" : "") +
@@ -1742,9 +2355,12 @@
   }
 
   /* ----- lista de lo que se publica ----- */
-  function photoCaption(kind) {
+  function photoCaption(kind, n) {
     var name = $("name").value.replace(/#/g, "").trim();
     if (!name) { return ""; }
+    if (kind === "capitulo") { return "serie(" + (Number($("season").value) || 1) + "/" + (Number($("episode").value) || 1) + ")#" + name + " #capitulo"; }
+    if (kind === "capitulos") { return "serie#" + name + " #capitulo"; }
+    if (kind === "galeria") { return (S.type === "series" ? "serie#" + name : "pelicula#" + name + (Number($("year").value) ? " (" + Number($("year").value) + ")" : "")) + " #galeria" + (n || ""); }
     return (S.type === "series" ? "serie#" + name : "pelicula#" + name + (Number($("year").value) ? " (" + Number($("year").value) + ")" : "")) + " #" + kind;
   }
 
@@ -1757,13 +2373,22 @@
       if (!tst || (tst.dup !== undefined && tst.dup !== tdup && !tst.state)) { tst = PUB.state.thumbs = { on: !tdup, dup: tdup }; }
       out.push({ key: "thumbs", kind: "thumbs", thumbs: PUB.thumbs, label: "Miniaturas (" + PUB.thumbs.sheets.length + (PUB.thumbs.sheets.length === 1 ? " hoja)" : " hojas)"), caption: tcap, st: tst });
     }
-    ["portada", "banner"].forEach(function (k) {
+    ["portada", "banner", "vertical", "capitulo", "capitulos"].forEach(function (k) {
       if (!PUB.img[k]) { return; }
+      if ((k === "capitulo" || k === "capitulos") && S.type !== "series") { return; }
       var cap = photoCaption(k);
       var dup = !!(T.existing && T.existing.photos[cap]);
       var st = PUB.state["img-" + k];
       if (!st || (st.dup !== undefined && st.dup !== dup && !st.state)) { st = PUB.state["img-" + k] = { on: !dup, dup: dup }; }
-      out.push({ key: "img-" + k, kind: "photo", img: PUB.img[k], label: k === "portada" ? "Portada" : "Banner", sub: "Foto · " + PUB.img[k].width + "×" + PUB.img[k].height, caption: cap, st: st, thumb: imgUrl(PUB.img[k]) });
+      out.push({ key: "img-" + k, kind: "photo", img: PUB.img[k], label: k === "portada" ? "Portada" : k === "vertical" ? "Portada vertical" : k === "capitulo" ? "Imagen de este capítulo" : k === "capitulos" ? "Imagen de todos los capítulos" : "Banner", sub: "Foto · " + PUB.img[k].width + "×" + PUB.img[k].height, caption: cap, st: st, thumb: imgUrl(PUB.img[k]) });
+    });
+    (PUB.img.galeria || []).forEach(function (g) {
+      var cap = photoCaption("galeria", g.num);
+      var dup = !!(T.existing && T.existing.photos[cap]);
+      var key = "img-galeria-" + g.num;
+      var st = PUB.state[key];
+      if (!st || (st.dup !== undefined && st.dup !== dup && !st.state)) { st = PUB.state[key] = { on: !dup, dup: dup }; }
+      out.push({ key: key, kind: "photo", img: g, label: "Escena " + g.num, sub: "Foto · " + g.width + "×" + g.height, caption: cap, st: st, thumb: imgUrl(g) });
     });
     /* subtítulos aparte: uno por idioma, para todas las calidades */
     (PUB.subs || []).forEach(function (x) {
@@ -1921,6 +2546,7 @@
   }
 
   function updatePub() {
+    renderTopicNote();
     var list = items().filter(function (it) { return it.st.on && it.st.state !== "listo"; });
     var bytes = list.reduce(function (n, it) { return n + (it.f ? it.f.size : it.img ? it.img.size : it.thumbs ? it.thumbs.bytes : 0); }, 0);
     var parsed = S.caption && window.HFLibrary ? HFLibrary.parseCaption(S.caption) : null;
@@ -2107,8 +2733,11 @@
     setChat: setChat,
     setMe: setMe,
     busy: function () { return T.busy || S.busy; },
+    /* Para preparar OTRA película: lo que sube la cola al grupo y lo que renderiza el servidor no estorban (todo va en cola: una se sube, otra se
+     * renderiza y las demás esperan). Solo estorba una publicación manual de la pestaña 4 o el video de esta misma pantalla creándose. */
+    formBusy: function () { return (T.busy && !T.queue) || S.busy; },
     /* el original (un archivo de este equipo o uno bajado del grupo) y el español de otro archivo */
-    loadSource: function (path) { loadSource(path); },
+    loadSource: function (path) { loadSource(path, true); }, // la biblioteca carga el original de una película que YA está en el grupo (para agregarle calidades)
     setExtras: function (x) {
       S.extraSub = x && x.sub ? { path: x.sub } : null;
       S.extraAudio = null;
@@ -2116,27 +2745,94 @@
       return x && x.audio ? setExtraAudio(x.audio) : Promise.resolve();
     },
     showTab: function (n) { showTab(n); },
+    /* «＋ Preparar una película nueva» (Inicio): deja las pestañas 1 a 4 en blanco, también si se estaba viendo una película de la cola o si
+     * quedó lo de la anterior. Devuelve false (sin tocar nada) si una publicación manual o un video de esta pantalla está en curso. */
+    newMovie: function () {
+      if (PREP.formBusy()) { return false; }
+      if (S.viewing) { exitQueueView(); } else { resetForm(); }
+      return true;
+    },
+    /* Abre las pestañas 3 y 4 (o solo la 4) de un título que ya está en el grupo, SIN video original: sirve para completar lo que falta (galería,
+     * portada, banner, vertical, imagen de los capítulos, miniaturas de una carpeta) aunque no se vaya a renderizar nada.
+     * Si había otro título cargado, se limpia para no mezclar su video ni sus imágenes. */
+    openPub: function (cap, quals, tab) {
+      var nm = String($("name").value || "").trim().toLowerCase();
+      var same = nm && nm === String(cap.name || "").trim().toLowerCase() && ((S.type === "series") === (cap.type === "series"));
+      if (!same) {
+        S.src = null;
+        $("srcBox").classList.add("hidden");
+        $("srcErr").classList.add("hidden");
+        ["file", "outDir", "pubDir"].forEach(function (id) { if ($(id)) { $(id).value = ""; } });
+        PUB.dir = ""; PUB.files = []; PUB.subs = []; PUB.thumbs = null; PUB.img = {}; PUB.state = {};
+        S.tmdb = null; TM.ficha = null; TM.list = []; renderTmdbList(); $("tmdbPick").classList.add("hidden");
+        S.extraAudio = null; S.extraSub = null; S.extraSubEn = null; S.run = {};
+        try { renderExtras(); } catch (e) { /* nada */ }
+      }
+      fillFromCaption(cap);
+      if (quals) {
+        Object.keys(S.quals).forEach(function (k) { S.quals[k] = quals.indexOf(k) >= 0; }); // solo para esta película: no se guarda como preferencia
+      }
+      try { renderQuals(); refreshPlan(); } catch (e) { /* sin video todavía */ }
+      if (!S.src) { $("sum").textContent = "Sin video original: aquí solo se completa lo que falta; para crear calidades elige el original en la pestaña 1."; }
+      try { renderThumbs(); } catch (e) { /* nada */ }
+      renderImages();
+      renderFiles();
+      renderCaption();
+      if (T.peer) { checkExisting(); }
+      showTab(tab);
+      return true;
+    },
     /* Llena la pestaña 1 con el comentario de la película y marca solo las calidades que faltan */
     prefill: function (cap, missing) {
       fillFromCaption(cap);
       if (missing) {
-        Object.keys(S.quals).forEach(function (k) { S.quals[k] = missing.indexOf(k) >= 0; });
-        saveOpts();
+        Object.keys(S.quals).forEach(function (k) { S.quals[k] = missing.indexOf(k) >= 0; }); // solo para esta película: no se guarda como preferencia
         renderQuals();
         refreshPlan();
       }
     }
   };
 
+  /* Mide cuánto sube ESTE navegador a Telegram: manda datos al azar (60 MB, dos veces, partes de 512 KB como las películas) y NO envía
+   * nada a ningún chat. Devuelve el resultado en una frase. */
+  function speedTest(onLine) {
+    var c = T.client;
+    var MB = 1048576;
+    var size = 60 * MB;
+    var res = [];
+    var data = function () {
+      var b = new Uint8Array(size);
+      var o;
+      for (o = 0; o < size; o += 65536) { crypto.getRandomValues(b.subarray(o, Math.min(size, o + 65536))); }
+      return b;
+    };
+    var one = function (n) {
+      var t0 = performance.now();
+      return c.uploadFile({
+        file: data(), fileSize: size, fileName: "prueba-velocidad.bin", fileMime: "application/octet-stream", partSize: 512,
+        progressCallback: function (u) { var s = (performance.now() - t0) / 1000; if (s > 2) { onLine("Prueba " + n + " de 2: " + (u / MB / s).toFixed(1) + " MB/s…"); } }
+      }).then(function () { return size / MB / ((performance.now() - t0) / 1000); });
+    };
+    return one(1).then(function (a) { res.push(a); return one(2); }).then(function (b) {
+      res.push(b);
+      var avg = (res[0] + res[1]) / 2;
+      return "Subida a Telegram desde este navegador: " + res.map(function (x) { return x.toFixed(1); }).join(" y ") + " MB/s (promedio " + avg.toFixed(1) + " MB/s). " +
+        (avg >= 4 ? "Va a la velocidad de una línea de ~46 Mbps." : avg >= 2.5 ? "Va por debajo de la línea: puede haber otra cosa usando internet o el navegador." : "Va lento: revisa extensiones, VPN u otros programas subiendo.");
+    });
+  }
+
   window.P = {
+    speedTest: speedTest,
     loadDir: loadDir,
     T: function () { return T; },
     api: api, esc: esc, mb: mb, clock: clock, readBytes: readBytes, errText: errText, landed: landed, tgName: tgName, tgShort: tgShort, subKey: subKey,
     pubBusy: function () { return T.busy; },
     viewQueue: function (x, tabN) { viewQueue(x, tabN); },
     viewing: function () { return S.viewing; },
+    queueChanged: function () { updateStart(); },
+    queuePub: queuePub,
     qprog: qprog,
-    setPubBusy: function (b) { T.busy = b; updatePub(); },
+    setPubBusy: function (b) { T.busy = b; T.queue = !!b; updatePub(); }, // lo llama la cola: es una publicación automática, no la manual
     debug: function () { return { T: T, PUB: PUB }; },
     refresh: function () { renderPreview(); renderFiles(); },
     setImage: function (kind, info) { PUB.img[kind] = info; delete PUB.state["img-" + kind]; renderImages(); renderFiles(); }
@@ -2153,6 +2849,14 @@
     S.viewing = x.id;
     document.querySelector("main").classList.add("viewing");
     S.tmdb = o.tmdb || null;
+    /* lo de la pestaña 4 es de la película que estaba antes (imágenes, archivos, avance): se vacía mientras llega lo de esta */
+    PUB.dir = "";
+    PUB.files = [];
+    PUB.subs = [];
+    PUB.thumbs = null;
+    PUB.img = {};
+    PUB.state = {};
+    renderImages();
     paintQView();
     loadSource(o.file).then(function () {
       if (S.viewing !== x.id) { return; }
@@ -2196,7 +2900,8 @@
     renderQuals();
     /* si se está renderizando, se repiten los eventos que ya pasaron para ponerla al día */
     if (x.estado === "renderizando") {
-      api("/api/state").then(function (st) { (st.events || []).filter(function (e) { return e.cola === x.id; }).forEach(onEvent); });
+
+  api("/api/state").then(function (st) { (st.events || []).filter(function (e) { return e.cola === x.id; }).forEach(onEvent); });
     }
   }
   /* pestaña 4: sus archivos, con lo que ya subió la cola */
@@ -2218,7 +2923,9 @@
     var id = S.viewing;
     var x = id && window.COLA ? COLA.item(id) : null;
     if (!x) { return; }
-    var keys = QV.keys[id] || {};
+    /* el estado de cada archivo viene del servidor (lo manda la página que sube; así lo ve cualquier pestaña, también tras recargar)
+     * y, si esta página es la que sube, de su propia memoria, que es más fresca */
+    var keys = Object.assign({}, (x.pub && x.pub.keys) || {}, QV.keys[id] || {});
     Object.keys(PUB.state).concat(Object.keys(keys)).forEach(function (k) {
       if (x.estado === "publicado") { PUB.state[k] = Object.assign(PUB.state[k] || {}, { state: "listo", on: false }); }
       else if (keys[k]) { PUB.state[k] = Object.assign(PUB.state[k] || {}, keys[k]); }
@@ -2252,27 +2959,52 @@
     bar.innerHTML = '<div class="grow">Viendo de la cola: <b>' + esc(x ? x.nombre : "…") + "</b> · " + esc(x ? COLA.text(x) : "") +
       (x && (x.estado === "renderizando" || x.estado === "publicando") ? '<div class="bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' : "") + "</div>" +
       '<button class="sm ghost" id="qvList" type="button">Cola</button><button class="sm" id="qvNew" type="button">＋ Nueva película</button>';
-    if (x && (x.estado === "publicado" || x.estado === "renderizado") && PUB.dir) { applyQueueStates(); }
+    if (x && (x.estado === "publicado" || x.estado === "renderizado" || x.estado === "publicando") && PUB.dir) { applyQueueStates(); }
+  }
+  /* llegó el avance de la publicación de una película de la cola (de otra pestaña o de esta): se actualiza lo que se está viendo */
+  function queuePub(id) {
+    if (S.viewing !== id) { return; }
+    paintQView();
   }
   /* vuelve al formulario libre para preparar la siguiente película */
   function exitQueueView() {
     S.viewing = null;
     document.querySelector("main").classList.remove("viewing");
     paintQView();
+    resetForm();
+  }
+  /* Deja las pestañas 1 a 4 en blanco para la siguiente película. Se usa al salir de ver una película de la cola y, sobre todo, justo
+   * después de mandar una a la cola: todo lo que se llenó ya viajó en el objeto de la cola (opciones, ficha, categorías, imágenes
+   * que el servidor copió a su carpeta), así que vaciar el formulario no toca lo que se está renderizando ni publicando. */
+  function resetForm() {
     S.src = null;
     S.tmdb = null;
     S.extraAudio = null;
     S.extraSub = null;
     S.extraSubEn = null;
+    S.subNote = "";
+    S.formGen = (S.formGen || 0) + 1; // las respuestas que estaban en camino (video, TMDB) ya no son de este formulario
     S.run = {};
-    ["file", "name", "year", "description", "outDir"].forEach(function (id) { $(id).value = ""; });
+    S.plan = [];
+    S.made = false;
+    S.dupOk = "";
+    S.dupSkip = false;
+    S.audioTracks = null;
+    S.subTracks = null;
+    if ($("audios")) { $("audios").innerHTML = ""; }
+    if ($("subs")) { $("subs").innerHTML = ""; }
+    ["file", "name", "year", "description", "outDir", "episodeTitle"].forEach(function (id) { if ($(id)) { $(id).value = ""; } });
+    ["season", "episode"].forEach(function (id) { if ($(id)) { $(id).value = 1; } });
+    if (S.type === "series") { var mv = document.querySelector('#type [data-v="movie"]'); if (mv) { mv.click(); } }
     setCategory({});
     $("kids").checked = false;
     $("srcBox").classList.add("hidden");
+    $("srcErr").classList.add("hidden");
     TM.ficha = null;
     TM.list = [];
     renderTmdbList();
     $("tmdbPick").classList.add("hidden");
+    $("tmdbHint").textContent = "";
     loadOpts();
     PUB.dir = "";
     PUB.files = [];
@@ -2281,11 +3013,15 @@
     PUB.img = {};
     PUB.state = {};
     $("pubDir").value = "";
+    $("log").textContent = "";
+    $("doneBox").classList.add("hidden");
     renderImages();
     renderFiles();
     renderExtras();
     renderCaption();
     renderQuals();
+    refreshPlan();
+    updateStart();
     showTab(1);
   }
 
@@ -2298,6 +3034,7 @@
     tab = n;
     Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) { b.classList.toggle("on", Number(b.getAttribute("data-tab")) === n); });
     Array.prototype.forEach.call(document.querySelectorAll(".panel"), function (p) { p.classList.toggle("on", Number(p.getAttribute("data-panel")) === n); });
+    document.body.classList.toggle("s1-on", n === 1);
     try { localStorage.setItem(TAB_LS, String(n)); } catch (e) {}
     window.scrollTo(0, 0);
     updateTabs();
@@ -2307,6 +3044,50 @@
     if (b) { if (window.HFB) { HFB.show("tabs"); } showTab(Number(b.getAttribute("data-tab"))); }
   });
   $("nextTab").addEventListener("click", function () { showTab(Math.min(4, tab + 1)); });
+  $("prevTab").addEventListener("click", function () { showTab(Math.max(1, tab - 1)); });
+  var STEP_NAMES = ["Archivo y metadatos", "Motor y codificación", "Calidades de salida", "Publicación"];
+
+  /* «Revisa antes de enviar» (arriba del paso 3, solo mientras se prepara una película): lo que va a salir, con lo dudoso en ámbar/rojo y un
+   * «Cambiar» que lleva al paso 1. Así nadie manda a procesar a ciegas desde el primer paso. */
+  function renderReview(on) {
+    var el = $("review");
+    if (!on || !S.src) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+    var o = opts();
+    var name = o.name.trim();
+    var serie = o.type === "series";
+    var chosen = o.qualities.filter(function (k) { return S.src.rungs.some(function (r) { return r.id === k && r.possible; }); });
+    var hayCola = !!(window.COLA && COLA.pending && COLA.pending() > 0);
+    var rows = [];
+    var data = [];
+    var row = function (label, val, level, go) {
+      data.push({ label: label, val: val, level: level });
+      rows.push('<div class="rv-row' + (level ? " " + level : "") + '"><small>' + label + "</small><span title=\"" + esc(val) + '">' + esc(val) + "</span>" +
+        (level && go ? '<button type="button" data-goto="' + go + '">Cambiar en el paso ' + go + "</button>" : "") + "</div>");
+    };
+    row(serie ? "Serie" : "Película", name ? name + (serie ? " · T" + (Number(o.season) || 1) + " E" + (Number(o.episode) || 1) : Number(o.year) ? " (" + Number(o.year) + ")" : "") : "Falta el nombre", name ? (!serie && !Number(o.year) ? "warn" : "") : "bad", 1);
+    row("Categoría", o.categories || "Sin categoría", o.categories ? "" : "warn", 1);
+    row("Perfil", o.kids ? "También en el perfil infantil" : "Perfil general", "", 0);
+    row("Ficha de TMDB", S.tmdb ? "Con ficha (datos e imágenes)" : "Sin ficha de TMDB", S.tmdb ? "" : "warn", 1);
+    row("Video original", String(S.src.file || "").split(/[\\/]/).pop(), "", 0);
+    row("Versiones a crear", chosen.length ? chosen.map(function (k) { return NAMES[k]; }).join(" · ") : "Marca al menos una calidad", chosen.length ? "" : "bad", 0);
+    var auto = !!(window.COLA && COLA.auto && COLA.auto());
+    var dest = hayCola ? "Quedará al final de la cola (hay " + COLA.pending() + " antes)" : "Empieza a crearse enseguida";
+    var bad = data.filter(function (d) { return d.level === "bad"; }).length;
+    var warn = data.filter(function (d) { return d.level === "warn"; }).length;
+    var prev = el.querySelector("details");
+    var wasOpen = prev ? prev.open : (bad + warn > 0); // abierto de entrada solo si hay algo dudoso; luego se respeta lo que elija el usuario
+    var chip = function (d) { return '<span class="rv-chip' + (d.level ? " " + d.level : "") + '" title="' + esc(d.label + ": " + d.val) + '">' + esc(d.val) + "</span>"; };
+    el.innerHTML = '<details class="rvd"' + (wasOpen ? " open" : "") + '><summary><span class="rv-title"><i class="rv-dot' + (bad ? " bad" : warn ? " warn" : "") + '"></i>Revisa antes de enviar</span>' +
+      '<span class="rv-chips">' + [data[0], data[1], data[2], data[3], data[5]].map(chip).join("") + "</span>" +
+      '<span class="rv-short">' + (bad ? bad + " por corregir" : warn ? warn + " por revisar" : dest) + "</span></summary>" +
+      '<div class="rv-body"><div class="rv-grid">' + rows.join("") + '</div><div class="rv-dest"><b>' + dest + "</b>" +
+      (auto ? " · al terminar, la cola la publica sola en el grupo." : " · al terminar, la publicas tú en el paso 4.") + " Si algo está en ámbar o rojo, corrígelo antes.</div></div></details>";
+    el.classList.remove("hidden");
+  }
+  $("review").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-goto]");
+    if (b) { showTab(Number(b.getAttribute("data-goto"))); }
+  });
 
   function dot(id, st) { $(id).className = "st" + (st ? " " + st : ""); }
   function updateTabs() {
@@ -2315,17 +3096,26 @@
     dot("st1", !S.src ? "" : S.caption ? "done" : "warn");
     dot("st2", S.src ? "done" : "");
     dot("st3", S.busy ? "busy" : S.made ? "done" : S.src && !chosen.length ? "warn" : "");
+    $("progSec").classList.toggle("live", !!S.busy);
     dot("st4", T.busy ? "busy" : PUB.allDone ? "done" : "");
     $("tgDot").classList.toggle("on", !!(T.me && T.peer));
     var pub = tab === 4;
+    /* Qué botón principal toca en cada paso (siempre uno solo, a la derecha):
+     * 1 y 2 «Siguiente», 3 «Crear versiones» / «＋ Agregar a la cola» (o «Ir a publicar» si ya se creó / se está viendo una de la cola), 4 «Publicar». */
+    var sendMode = tab === 3 && !S.viewing && !S.made;
     $("sum").classList.toggle("hidden", pub);
     $("pubSum").classList.toggle("hidden", !pub);
-    $("mkBtns").classList.toggle("hidden", pub);
     $("pubBtns").classList.toggle("hidden", !pub);
-    $("nextTab").classList.toggle("hidden", tab === 4 || (tab === 3 && !S.made));
-    $("nextTab").textContent = tab === 3 ? "Ir a publicar →" : "Siguiente →";
+    $("start").classList.toggle("hidden", !sendMode);
+    $("nextTab").classList.toggle("hidden", pub || sendMode);
+    $("nextTab").textContent = tab === 1 ? "Siguiente: Motor →" : tab === 2 ? "Siguiente: Calidades →" : "Ir a publicar →";
+    $("nextTab").disabled = tab === 1 && !S.src && !S.viewing; // sin video no hay nada que preparar
+    $("prevTab").classList.toggle("hidden", tab === 1);
+    $("cancel").classList.toggle("hidden", !S.busy || pub);
+    $("stepChip").innerHTML = "<b>Paso " + tab + " de 4</b> " + STEP_NAMES[tab - 1];
+    renderReview(sendMode);
     var busy = pub ? T.busy : S.busy;
-    var can = pub ? !$("pubStart").disabled : !$("start").disabled;
+    var can = pub ? !$("pubStart").disabled : sendMode ? !$("start").disabled : !$("nextTab").disabled;
     var done = pub ? PUB.allDone : S.made;
     $("footDot").className = "dot" + (busy ? " busy" : done ? " done" : can ? " ready" : "");
   }
@@ -2434,6 +3224,43 @@
   }
   $("updBtn").addEventListener("click", openUpdate);
 
+  /* Página vieja tras actualizar: los archivos nuevos ya están en disco, pero esta pestaña (y a veces el programa en segundo plano)
+   * sigue con lo anterior. Se avisa con una franja arriba y un botón; no se recarga sola para no perder lo que se esté llenando. */
+  function staleCheck() {
+    if (!S.verPagina) { return; }
+    fetch("/api/state").then(function (r) { return r.json(); }).then(function (st) {
+      var old = st.version && st.version !== S.verPagina;
+      var bar = $("staleBar");
+      if (!old) { if (bar) { bar.remove(); } return; }
+      var needRestart = st.corriendo && st.corriendo !== st.version;
+      var working = S.busy || T.busy || (window.COLA && COLA.pending && COLA.pending() > 0);
+      if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "staleBar";
+        bar.style.cssText = "position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:9999;max-width:min(680px,calc(100vw - 24px));display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-radius:12px;background:#2b2d31;border:1.5px solid var(--acc-line);box-shadow:0 8px 28px rgba(0,0,0,.5);font-size:13.5px";
+        document.body.appendChild(bar);
+      }
+      bar.innerHTML = '<span>⬆ El preparador se actualizó a la <b>' + esc(st.version) + '</b>, pero esta ventana sigue con la anterior. ' +
+        (working ? "Cuando termine lo que está en marcha, " : "") + (needRestart ? "reinícialo" : "recárgala") + " para usar lo nuevo.</span>" +
+        '<button class="primary" id="staleGo"' + (working ? " disabled" : "") + ">" + (needRestart ? "Reiniciar ahora" : "Recargar ahora") + "</button>";
+      $("staleGo").onclick = function () {
+        if (!needRestart) { location.reload(); return; }
+        $("staleGo").disabled = true;
+        $("staleGo").textContent = "Reiniciando…";
+        api("/api/reiniciar", {}).then(function () {
+          var tries = 0;
+          var t = setInterval(function () {
+            tries += 1;
+            fetch("/api/state").then(function (r) { return r.json(); }).then(function (n) { if (n.corriendo === n.version) { clearInterval(t); location.reload(); } }, function () { /* arrancando */ });
+            if (tries > 60) { clearInterval(t); bar.innerHTML = "<span>Tarda más de lo normal: cierra el preparador y ábrelo otra vez con su acceso directo.</span>"; }
+          }, 1000);
+        }, function () { location.reload(); });
+      };
+    }, function () { /* sin conexión con el preparador */ });
+  }
+  setInterval(staleCheck, 15000);
+  window.addEventListener("focus", staleCheck);
+
   /* ---------- claves de este PC (preparador instalado) ----------
    * El paquete que se baja del canal no trae claves. Si a este equipo le falta la de Telegram o la de TMDB, se piden una
    * vez y se guardan en el .env de la carpeta del preparador (solo aquí; las actualizaciones no lo tocan). */
@@ -2472,10 +3299,96 @@
   renderCaption();
   checkUpdate();
   checkKeys();
+  /* ---------- Tooltips (estilo popover de beUI) ----------
+   * Toma el «title» de cualquier elemento al pasar el cursor (o enfocarlo con el teclado), lo guarda en data-tip para que no salga el globo nativo y lo muestra
+   * en un globo propio. Sirve también para lo que se crea después (todo va por delegación de eventos). */
+  (function () {
+    var tip = document.createElement("div");
+    tip.className = "hftip";
+    tip.setAttribute("role", "tooltip");
+    tip.id = "hftip";
+    document.body.appendChild(tip);
+    var cur = null;
+    var openT = null;
+    var closeT = null;
+    var lastShown = 0;
+    function text(el) {
+      var t = el.getAttribute("title");
+      if (t === "") { el.removeAttribute("data-tip"); } // el título se vació desde el código: ya no hay globo
+      if (t !== null && t !== "") {
+        el.setAttribute("data-tip", t);
+        el.removeAttribute("title");
+        if (!el.getAttribute("aria-label") && !String(el.textContent || "").trim()) { el.setAttribute("aria-label", t); }
+      }
+      return el.getAttribute("data-tip") || "";
+    }
+    function target(node) {
+      var el = node && node.closest ? node.closest("[title], [data-tip]") : null;
+      while (el && !(el.getAttribute("data-tip") || el.getAttribute("title")) ) { el = el.parentElement && el.parentElement.closest("[title], [data-tip]"); }
+      return el && !el.hasAttribute("data-notip") ? el : null;
+    }
+    function place(el) {
+      var r = el.getBoundingClientRect();
+      var w;
+      var h;
+      var x;
+      var y;
+      var above;
+      tip.style.left = "0px";
+      tip.style.top = "0px";
+      w = tip.offsetWidth;
+      h = tip.offsetHeight;
+      above = r.top - h - 12 >= 8;
+      y = above ? r.top - h - 12 : Math.min(window.innerHeight - h - 8, r.bottom + 12);
+      x = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+      tip.style.left = Math.round(x) + "px";
+      tip.style.top = Math.round(y) + "px";
+      /* el globo brota del elemento: su origen mira hacia el centro del elemento */
+      tip.style.setProperty("--tox", Math.round(Math.max(8, Math.min(w - 8, r.left + r.width / 2 - x))) + "px");
+      tip.style.setProperty("--toy", above ? "100%" : "0%");
+      tip.style.setProperty("--tdy", above ? "6px" : "-6px");
+    }
+    function show(el) {
+      var t = text(el);
+      if (!t) { return; }
+      clearTimeout(closeT);
+      cur = el;
+      tip.textContent = t;
+      tip.classList.remove("on");
+      place(el);
+      void tip.offsetWidth; // para que la animación de entrada arranque desde el estado cerrado
+      tip.classList.add("on");
+      lastShown = Date.now();
+    }
+    function hide() {
+      clearTimeout(openT);
+      clearTimeout(closeT);
+      closeT = setTimeout(function () { tip.classList.remove("on"); cur = null; lastShown = Date.now(); }, 90);
+    }
+    function enter(el) {
+      if (!el || el === cur) { clearTimeout(closeT); return; }
+      clearTimeout(openT);
+      /* con otro globo abierto (o recién cerrado) pasa de inmediato; si no, tras una pausa corta */
+      openT = setTimeout(function () { show(el); }, tip.classList.contains("on") || Date.now() - lastShown < 450 ? 0 : 140);
+    }
+    document.addEventListener("mouseover", function (e) { var el = target(e.target); if (el) { text(el); enter(el); } });
+    document.addEventListener("mouseout", function (e) {
+      var el = target(e.target);
+      var to = e.relatedTarget;
+      if (el && !(to && el.contains && el.contains(to))) { hide(); }
+    });
+    document.addEventListener("focusin", function (e) { var el = target(e.target); if (el && e.target.matches && e.target.matches(":focus-visible")) { text(el); enter(el); } });
+    document.addEventListener("focusout", function () { hide(); });
+    ["mousedown", "scroll", "wheel", "keydown", "resize"].forEach(function (ev) { window.addEventListener(ev, function () { clearTimeout(openT); tip.classList.remove("on"); cur = null; }, true); });
+  }());
+
   api("/api/state").then(function (st) {
+    S.verPagina = st.version;
     S.gpu = st.gpu;
+    S.gpuInfo = st.gpuInfo || null;
     updateEncBadge();
-    if (st.busy) { st.events.forEach(onEvent); setBusy(true); }
+    /* si lo que renderiza el servidor es una película de la cola, el formulario queda libre para preparar la siguiente */
+    if (st.busy) { st.events.forEach(onEvent); if (!st.events.some(function (e) { return e.cola; })) { setBusy(true); } }
   });
   P.refresh();
   ready = true;
@@ -2485,6 +3398,9 @@
 })();
 </script>
 <script src="/subsync.js"></script>
+<script src="/cache.js"></script>
+<script src="/temas.js"></script>
+<script src="/importar.js"></script>
 <script src="/biblioteca.js"></script>
 <script src="/cola.js"></script>
 </body>

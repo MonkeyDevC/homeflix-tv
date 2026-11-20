@@ -9,8 +9,14 @@
     <!-- Actualizaciones: bajar el APK nuevo del servidor de HomeFlix y abrir el instalador (el usuario confirma) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Android TV / sticks: sin pantalla táctil (control remoto) y con el inicio de «Leanback». Ninguno es obligatorio:
+         el mismo APK sigue instalándose en el celular. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
     <application
         android:allowBackup="false"
+        android:banner="@drawable/banner"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="${appLabel}"
@@ -28,6 +34,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <!-- el inicio de Android TV / Google TV solo muestra las apps que traen esta marca -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
 

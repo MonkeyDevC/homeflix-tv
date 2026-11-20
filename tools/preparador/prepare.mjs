@@ -220,7 +220,7 @@ export function caption(o) {
 export function catTags(list) {
   const arr = Array.isArray(list) ? list : String(list || '').split(',');
   return arr.map((c) => String(c).replace(/#/g, '').trim().replace(/\s+/g, '_'))
-    .filter((c) => c && !/^(infantil|kids|ni[ñn]os|portada|poster|banner|fondo)$/i.test(c))
+    .filter((c) => c && !/^(infantil|kids|ni[ñn]os|portada|poster|banner|fondo|vertical|retrato)$/i.test(c))
     .map((c) => ' #' + c).join('');
 }
 
@@ -245,6 +245,28 @@ export function hasNvenc() {
       works(['-f', 'lavfi', '-i', 'testsrc2=s=1280x720:d=0.2', '-c:v', 'h264_nvenc']);
   }
   return nvencCache;
+}
+
+/* Qué tarjeta NVIDIA es (para mostrarla: «RTX 3050»): nvidia-smi, y si no está, Windows. Se lee una sola vez. */
+let gpuCache = null;
+export function gpuInfo() {
+  if (gpuCache) return gpuCache;
+  let name = '';
+  let memMB = 0;
+  let driver = '';
+  const r = spawnSync('nvidia-smi', ['--query-gpu=name,memory.total,driver_version', '--format=csv,noheader,nounits'], { encoding: 'utf8', timeout: 6000 });
+  if (r.status === 0 && r.stdout) {
+    const [n, m, d] = String(r.stdout).split('\n')[0].split(',').map((x) => x.trim());
+    name = n || '';
+    memMB = Number(m) || 0;
+    driver = d || '';
+  }
+  if (!name && process.platform === 'win32') {
+    const w = spawnSync('powershell', ['-NoProfile', '-Command', "(Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match 'NVIDIA' } | Select-Object -First 1).Name"], { encoding: 'utf8', timeout: 8000 });
+    if (w.status === 0) name = String(w.stdout || '').trim();
+  }
+  gpuCache = { name, memMB, driver };
+  return gpuCache;
 }
 
 function ffmpegArgs(src, p, opts, out, kbps, gpu, seg) {
@@ -416,7 +438,8 @@ function gpuAllArgs(src, steps, opts, outs, dur) {
  * segundo es «.eng.2.srt». Salen del .srt que se eligió (español / inglés) y de los de texto del original. */
 const ISO3 = { es: 'spa', esp: 'spa', lat: 'spa', en: 'eng', pt: 'por', fr: 'fre', fra: 'fre', it: 'ita', de: 'ger', deu: 'ger', ja: 'jpn', ko: 'kor', zh: 'chi', zho: 'chi', ru: 'rus' };
 export function lang3(c) { c = String(c || '').toLowerCase().trim(); return ISO3[c] || (/^[a-z]{3}$/.test(c) ? c : 'und'); }
-export function extractSubs(src, opts, outDir, base, dur) {
+/* Qué subtítulos hay que sacar y cómo se llamará cada .srt (mismos nombres siempre: «base.spa.srt», «.eng.srt», «.spa.forzados.srt»…). */
+function subList(src, opts, outDir, base) {
   const list = [];
   if (opts.extraSub && opts.extraSub.path) list.push({ input: opts.extraSub.path, map: '0:s:0', lang: 'spa', forced: false });
   if (opts.extraSubEn && opts.extraSubEn.path) list.push({ input: opts.extraSubEn.path, map: '0:s:0', lang: 'eng', forced: false });
@@ -428,21 +451,22 @@ export function extractSubs(src, opts, outDir, base, dur) {
     x.name = `${base}.${k}${used[k] > 1 ? '.' + used[k] : ''}.srt`;
     x.file = join(outDir, x.name);
   });
-  /* las del mismo archivo salen en UNA pasada (un video de varios GB se lee una sola vez); si esa falla, una por una */
-  const run = (input, items) => {
-    const args = ['-hide_banner', '-v', 'error', '-y', '-i', input];
-    items.forEach((x) => {
-      args.push('-map', x.map);
-      if (opts.testSeconds) args.push('-t', String(dur));
-      args.push('-c:s', 'srt', x.file);
-    });
-    return spawnSync('ffmpeg', args, { encoding: 'utf8', windowsHide: true }).status === 0;
-  };
-  const inputs = [...new Set(list.map((x) => x.input))];
-  inputs.forEach((input) => {
-    const items = list.filter((x) => x.input === input);
-    if (!run(input, items) && items.length > 1) items.forEach((x) => run(input, [x]));
+  return list;
+}
+
+/* los argumentos de ffmpeg para sacar varios subtítulos del mismo archivo en UNA pasada (un video de varios GB se lee una sola vez) */
+function subArgs(opts, dur, input, items) {
+  const args = ['-hide_banner', '-v', 'error', '-y', '-i', input];
+  items.forEach((x) => {
+    args.push('-map', x.map);
+    if (opts.testSeconds) args.push('-t', String(dur));
+    args.push('-c:s', 'srt', x.file);
   });
+  return args;
+}
+
+/* Lo que quedó escrito: se descartan los vacíos y se marcan los forzados que el original no marca. */
+function subFinish(list, base, outDir) {
   const out = [];
   list.forEach((x) => {
     if (existsSync(x.file) && statSync(x.file).size > 0) out.push({ file: x.file, name: x.name, lang: x.lang, forced: x.forced, size: statSync(x.file).size });
@@ -464,6 +488,41 @@ export function extractSubs(src, opts, outDir, base, dur) {
   });
   out.forEach((x) => { delete x.cues; });
   return out;
+}
+
+/* Versión que bloquea el programa hasta terminar: solo para quien la necesita así (subtítulos aparte de un video bajado del grupo). */
+export function extractSubs(src, opts, outDir, base, dur) {
+  const list = subList(src, opts, outDir, base);
+  const run = (input, items) => spawnSync('ffmpeg', subArgs(opts, dur, input, items), { encoding: 'utf8', windowsHide: true }).status === 0;
+  const inputs = [...new Set(list.map((x) => x.input))];
+  inputs.forEach((input) => {
+    const items = list.filter((x) => x.input === input);
+    if (!run(input, items) && items.length > 1) items.forEach((x) => run(input, [x]));
+  });
+  return subFinish(list, base, outDir);
+}
+
+/* La que usa «prepare»: igual, pero sin congelar el servidor. Leer un original de varios GB para sacarle los subtítulos tarda
+ * minutos; con la versión de arriba el preparador no respondía a nada (ni al clic que mandó la película a la cola) hasta terminar.
+ * job.proc deja el ffmpeg en marcha para que «Cancelar» lo detenga. */
+export async function extractSubsAsync(src, opts, outDir, base, dur, job) {
+  const list = subList(src, opts, outDir, base);
+  const run = (input, items) => new Promise((resolve) => {
+    const p = spawn('ffmpeg', subArgs(opts, dur, input, items), { stdio: 'ignore', windowsHide: true });
+    if (job) job.proc = p;
+    p.on('error', () => resolve(false));
+    p.on('close', (code) => { if (job && job.proc === p) job.proc = null; resolve(code === 0); });
+  });
+  const inputs = [...new Set(list.map((x) => x.input))];
+  for (const input of inputs) {
+    if (job && job.cancelled) break;
+    const items = list.filter((x) => x.input === input);
+    if (!(await run(input, items)) && items.length > 1) {
+      for (const x of items) { if (job && job.cancelled) break; await run(input, [x]); }
+    }
+  }
+  if (job && job.cancelled) throw Object.assign(new Error('Cancelado'), { cancelled: true });
+  return subFinish(list, base, outDir);
 }
 
 /* Corre ffmpeg informando el avance. job.kill() lo detiene. */
@@ -498,6 +557,82 @@ function encode(args, duration, onProgress, job) {
   });
 }
 
+/* ----- Corte por peso real -----
+ * Los cortes por tiempo suponen que el video pesa lo mismo cada segundo. En un 4K de ~14 GB las escenas pesadas (acción, ruido) hacen que una parte
+ * salga de 2,1-2,3 GB y pase el tope de Telegram; el programa tiraba TODO y repetía el corte entero (4 intentos de ~10 min con Avatar). Ahora solo se
+ * vuelven a cortar las partes que se pasaron, mirando lo que pesa de verdad cada paquete de video (ffprobe) y cortando en el cuadro clave más lejano
+ * que todavía quepa. Lo que no es video (audio, subtítulos, contenedor) se reparte por segundo. */
+function cutTimes(file, limit) {
+  const size = statSync(file).size;
+  const dur = Number(ffprobeJson(file).format.duration) || 0;
+  const r = spawnSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'packet=pts_time,dts_time,size,flags', '-of', 'csv=p=0', file], { encoding: 'utf8', maxBuffer: 1024 * MB });
+  if (r.status !== 0 || !dur) return null;
+  const t = [];
+  const bytes = [];
+  const key = [];
+  for (const line of r.stdout.split('\n')) {
+    const c = line.trim().split(',');
+    if (c.length < 4) continue;
+    const time = Number.isFinite(Number(c[0])) && c[0] !== 'N/A' ? Number(c[0]) : Number(c[1]);
+    if (!Number.isFinite(time)) continue;
+    t.push(time);
+    bytes.push(Number(c[2]) || 0);
+    key.push(c[3].startsWith('K'));
+  }
+  if (t.length < 2) return null;
+  const cum = [0];
+  bytes.forEach((b, i) => { cum[i + 1] = cum[i] + b; });
+  const audioRate = Math.max(0, (size - cum[bytes.length]) / dur);
+  const budget = limit * 0.985;
+  const keys = [];
+  key.forEach((k, i) => { if (k && i > 0) keys.push(i); });
+  const cuts = [];
+  let a = 0;
+  for (;;) {
+    if (cum[bytes.length] - cum[a] + audioRate * (dur - t[a]) <= budget) break;
+    let best = -1;
+    for (const k of keys) {
+      if (k <= a) continue;
+      if (cum[k] - cum[a] + audioRate * (t[k] - t[a]) <= budget) best = k; else break;
+    }
+    if (best < 0 || t[best] <= t[a]) return null;
+    cuts.push(Number((t[best] - 0.0005).toFixed(4)));
+    a = best;
+  }
+  return { cuts, dur };
+}
+
+/* Corta un archivo que se pasó del tope en partes que quepan. Devuelve las partes (en orden) o null. */
+async function splitByCurve(file, limit, workDir, job, tag) {
+  const plan = cutTimes(file, limit);
+  if (!plan || !plan.cuts.length) return null;
+  const ext = extname(file);
+  const args = ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1', '-i', file, '-map', '0', '-map_chapters', '-1', '-c', 'copy', '-f', 'segment', '-segment_times', plan.cuts.join(','), '-reset_timestamps', '1'];
+  if (/\.(mp4|m4v|mov)$/i.test(ext)) args.push('-segment_format', 'mp4', '-segment_format_options', 'movflags=+faststart');
+  args.push(join(workDir, tag + '_%02d' + ext));
+  await encode(args, plan.dur, () => {}, job);
+  const subs = readdirSync(workDir).filter((x) => x.startsWith(tag + '_')).sort().map((x) => join(workDir, x));
+  if (subs.length !== plan.cuts.length + 1 || !subs.every((x) => statSync(x).size <= limit)) {
+    subs.forEach((x) => { try { unlinkSync(x); } catch { /* nada */ } });
+    return null;
+  }
+  return subs;
+}
+
+/* De una lista de partes en orden, vuelve a cortar solo las que pesan más que el tope. Devuelve la lista nueva o null si alguna no se pudo arreglar. */
+export async function fixOversize(files, limit, workDir, job) {
+  const out = [];
+  for (let i = 0; i < files.length; i += 1) {
+    const f = files[i];
+    if (statSync(f).size <= limit) { out.push(f); continue; }
+    const subs = await splitByCurve(f, limit, workDir, job, 'r' + String(i).padStart(2, '0'));
+    if (!subs) return null;
+    unlinkSync(f);
+    out.push(...subs);
+  }
+  return out;
+}
+
 /* Copia directa y cortes en UNA sola pasada (lee y escribe la película una vez): se arman los argumentos de siempre y
  * la salida pasa por el «segment» de ffmpeg con cortes según el peso esperado. Devuelve las partes o null si alguna se
  * pasó del tope (entonces se hace en dos pasos: copiar y luego cortar con márgenes más amplios). */
@@ -523,10 +658,17 @@ async function copyInParts(args, p, dur, limit, nameFor, job, onPct) {
   };
   job.current = tmpDir;
   try { await encode(a, dur, (pr) => onPct(pr.pct, pr), job); } catch (e) { clean(); throw e; }
-  const out = readdirSync(tmpDir).filter((f) => /^p\d+/.test(f)).sort().map((f) => join(tmpDir, f));
-  if (out.length !== n || !out.every((f) => statSync(f).size <= limit)) { clean(); return null; }
+  let out = readdirSync(tmpDir).filter((f) => /^p\d+/.test(f)).sort().map((f) => join(tmpDir, f));
+  if (!out.length) { clean(); return null; }
+  if (!out.every((f) => statSync(f).size <= limit)) {
+    /* alguna parte se pasó: solo se vuelven a cortar esas (antes se descartaba todo y se repetía la copia entera) */
+    let fixed = null;
+    try { fixed = await fixOversize(out, limit, tmpDir, job); } catch (e) { if (e.cancelled) { clean(); throw e; } }
+    if (!fixed) { clean(); return null; }
+    out = fixed;
+  }
   const files = out.map((f, i) => {
-    const dest = nameFor(i + 1, n);
+    const dest = nameFor(i + 1, out.length);
     renameSync(f, dest);
     return { file: dest, size: statSync(dest).size };
   });
@@ -554,19 +696,27 @@ async function splitCopy(file, limit, nameFor, job, onPct) {
     args.push(join(tmpDir, 'p%02d' + ext));
     let failed = null;
     try { await encode(args, dur, (pr) => onPct(pr.pct), job); } catch (e) { failed = e; }
-    const out = readdirSync(tmpDir).filter((f) => /^p\d+/.test(f)).sort().map((f) => join(tmpDir, f));
-    const ok = !failed && out.length === n && out.every((f) => statSync(f).size <= limit);
+    let out = readdirSync(tmpDir).filter((f) => /^p\d+/.test(f)).sort().map((f) => join(tmpDir, f));
+    let ok = !failed && out.length > 0 && out.every((f) => statSync(f).size <= limit);
+    if (!failed && !ok && out.length) {
+      /* alguna parte se pasó: solo se vuelven a cortar esas, mirando el peso real (antes se probaba otra vez con cortes más cortos, copiando todo de nuevo) */
+      try {
+        const fixed = await fixOversize(out, limit, tmpDir, job);
+        if (fixed) { out = fixed; ok = true; }
+      } catch (e) { if (e.cancelled) failed = e; }
+    }
     if (!ok) {
-      out.forEach((f) => { try { unlinkSync(f); } catch { /* nada */ } });
+      readdirSync(tmpDir).forEach((f) => { try { unlinkSync(join(tmpDir, f)); } catch { /* nada */ } });
       try { rmdirSync(tmpDir); } catch { /* nada */ }
       if (failed) throw failed;
       continue;
     }
     const files = out.map((f, i) => {
-      const dest = nameFor(i + 1, n);
+      const dest = nameFor(i + 1, out.length);
       renameSync(f, dest);
       return { file: dest, size: statSync(dest).size };
     });
+    readdirSync(tmpDir).forEach((f) => { try { unlinkSync(join(tmpDir, f)); } catch { /* nada */ } });
     try { rmdirSync(tmpDir); } catch { /* nada */ }
     return files;
   }
@@ -596,7 +746,7 @@ export function prepare(opts, emit) {
     const gpuTotal = !!(gpu && opts.gpuTotal !== false && steps.some((x) => !x.copy) && canFullGpu(src));
     emit({ type: 'start', outDir, gpu, gpuTotal, steps, caption: text });
     /* subtítulos aparte primero (son segundos): sirven para todas las calidades, también las que ya están en el grupo */
-    const subs = extractSubs(src, opts, outDir, base, dur);
+    const subs = await extractSubsAsync(src, opts, outDir, base, dur, job); // sin congelar el servidor (ver extractSubsAsync)
     emit({ type: 'subs', files: subs.map((x) => ({ name: x.name, lang: x.lang, forced: x.forced, size: x.size })) });
     const results = [];
     /* todo en la tarjeta, todas juntas (si se puede); lo que no salga así se hace por el camino de siempre */

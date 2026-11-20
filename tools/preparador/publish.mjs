@@ -76,10 +76,13 @@ export function listVersions(dir) {
   });
   files.sort((a, b) => a.rung - b.rung || a.part - b.part || a.name.localeCompare(b.name));
   const images = {};
-  for (const kind of ['portada', 'banner']) {
+  for (const kind of ['portada', 'banner', 'vertical', 'capitulo', 'capitulos']) {
     const p = join(dir, kind + '.jpg');
     if (existsSync(p)) images[kind] = imageInfo(p);
   }
+  /* galería de escenas: galeria-01.jpg, galeria-02.jpg… (el número va en el comentario: #galeria1, #galeria2…) */
+  images.galeria = readdirSync(dir).map((f) => /^galeria-(\d{1,3})\.jpg$/i.exec(f)).filter(Boolean)
+    .map((m) => Object.assign(imageInfo(join(dir, m[0])), { num: Number(m[1]) })).sort((a, b) => a.num - b.num);
   return { dir, files, images, subs: subsIn(dir), caption: savedCaption(dir), thumbs: thumbsInfo(dir) };
 }
 
@@ -173,7 +176,9 @@ function savedCaption(dir) {
   return line || '';
 }
 
-export const IMAGE_SIZE = { portada: [1280, 720], banner: [1920, 1080] };
+/* portada y banner son horizontales (16:9); vertical es el póster 2:3 de la vista vertical de la app (portada vertical.jpg) */
+/* capitulo = la imagen de ESTE capítulo de una serie (#capitulo con serie(1/3)#…); capitulos = una común para todos los capítulos (serie#… #capitulo) */
+export const IMAGE_SIZE = { portada: [1280, 720], banner: [1920, 1080], vertical: [800, 1200], capitulo: [1280, 720], capitulos: [1280, 720], galeria: [1280, 720] };
 
 function imageInfo(path) {
   const info = ffprobe(path);
@@ -182,7 +187,7 @@ function imageInfo(path) {
 }
 
 /* Deja la imagen en la medida justa (rellena y recorta al centro), en JPG, como portada.jpg / banner.jpg de la carpeta. */
-export function makeImage(src, kind, outDir) {
+export function makeImage(src, kind, outDir, num) {
   const size = IMAGE_SIZE[kind];
   if (!size) throw new Error('Tipo de imagen desconocido.');
   if (!src || !existsSync(src)) throw new Error('No existe la imagen: ' + src);
@@ -190,12 +195,15 @@ export function makeImage(src, kind, outDir) {
   const os = (orig.streams && orig.streams[0]) || {};
   const dir = outDir && existsSync(outDir) ? outDir : join(tmpdir(), 'homeflix-preparador');
   mkdirSync(dir, { recursive: true });
-  const out = join(dir, kind + '.jpg');
+  const out = join(dir, kind === 'galeria' ? 'galeria-' + String(Math.max(1, Number(num) || 1)).padStart(2, '0') + '.jpg' : kind + '.jpg');
   const [w, h] = size;
   const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', src, '-frames:v', '1',
-    '-vf', `scale=${w}:${h}:force_original_aspect_ratio=increase:flags=lanczos,crop=${w}:${h}`, '-q:v', '2', out], { encoding: 'utf8', windowsHide: true });
+    '-vf', kind === 'galeria'
+      /* galería: la escena completa, sin recortar: solo se achica (nunca se agranda) para que pese menos */
+      ? 'scale=w=min(1920\\,iw):h=min(1920\\,ih):force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos'
+      : `scale=${w}:${h}:force_original_aspect_ratio=increase:flags=lanczos,crop=${w}:${h}`, '-q:v', '2', out], { encoding: 'utf8', windowsHide: true });
   if (r.status !== 0 || !existsSync(out)) throw new Error('No pude convertir la imagen: ' + (r.stderr || '').trim().split('\n').pop());
-  return Object.assign(imageInfo(out), { srcWidth: os.width || 0, srcHeight: os.height || 0 });
+  return Object.assign(imageInfo(out), { srcWidth: os.width || 0, srcHeight: os.height || 0 }, kind === 'galeria' ? { num: Math.max(1, Number(num) || 1) } : {});
 }
 
 /* ----- Fotogramas de un video para usarlos de portada o banner -----

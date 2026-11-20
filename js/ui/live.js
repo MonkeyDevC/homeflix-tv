@@ -24,7 +24,11 @@ var LV = {
   pvTimer: null,
   digits: "",
   digitTimer: null,
-  groupTimer: null
+  groupTimer: null,
+  searching: false,  // el botón de búsqueda se expandió y ocupa la fila de las categorías
+  q: "",             // lo que se está buscando (en toda la lista, no solo en la categoría)
+  searchTimer: null,
+  tabsFresh: false   // al cerrar la búsqueda las categorías vuelven con un fundido
 };
 var LV_MAX_ROWS = 400; // filas que se dibujan por grupo (las TVs se ponen lentas con miles)
 var LV_PV = { x: 88, y: 152, w: 880, h: 495 };        // el recuadro de la vista previa (1920×1080)
@@ -55,6 +59,8 @@ function loadLive(force) {
   renderLive();
   HFIptv.load({ force: !!force }).then(function (d) {
     LV.loading = false;
+    LV.searching = false;
+    LV.q = "";
     LV.data = d;
     if (LV.group !== "__all" && LV.group !== "__fav" && !d.groups.some(function (g) { return g.name === LV.group; })) { LV.group = "__all"; }
     /* abrir donde quedó: el grupo y el canal que se vio por última vez */
@@ -64,7 +70,7 @@ function loadLive(force) {
     if (currentRoute === "live") { renderLive(); }
     /* la guía de programación llega después y repinta lo que pasa ahora en cada canal */
     HFIptv.loadEpg(d).then(function (ok) {
-      if (ok && currentRoute === "live" && LV.data === d && !LV.editing) {
+      if (ok && currentRoute === "live" && LV.data === d && !LV.editing && !(LV.searching && isTypingInInput())) {
         var a = currentArea();
         renderLive(a ? a.name : "channels", state.itemIndex);
       }
@@ -78,9 +84,7 @@ function loadLive(force) {
 
 function liveGroups() {
   var favN = Object.keys(HFLibrary.iptvFavs()).length;
-  var out = [];
-  if (favN) { out.push({ id: "__fav", label: "★ Favoritos", count: favN }); }
-  out.push({ id: "__all", label: "Destacado", count: LV.data ? LV.data.channels.length : 0 });
+  var out = [{ id: "__all", label: "Destacado", count: LV.data ? LV.data.channels.length : 0 }, { id: "__fav", label: "★ Favoritos", count: favN }];
   (LV.data ? LV.data.groups : []).forEach(function (g) { out.push({ id: g.name, label: g.name, count: g.count }); });
   return out;
 }
@@ -92,8 +96,7 @@ function channelRowHtml(c, i, favs) {
   var n = HFIptv.now(c);
   var thumb = n && n.icon ? n.icon : c.logo;
   return '<div class="lv-ch' + (LV.pvKey === c.key ? " live" : "") + '" data-focusable="true" data-lv-ch="' + i + '" data-title="' + esc(c.name) + '" data-description="' + esc(n ? n.title : c.group) + '" tabindex="0">' +
-    '<span class="lv-logo"' + (c.logo ? ' data-logo="' + esc(c.logo) + '"' : "") + "><i>" + liveInitial(c) + "</i></span>" +
-    '<span class="lv-thumb' + (n && n.icon ? "" : " plain") + '"' + (thumb ? ' data-logo="' + esc(thumb) + '"' : "") + '><em class="lv-eq"><u></u><u></u><u></u></em></span>' +
+    '<span class="lv-thumb' + (n && n.icon ? "" : " plain") + '"' + (thumb ? ' data-logo="' + esc(thumb) + '"' : "") + "><i>" + liveInitial(c) + '</i><em class="lv-eq"><u></u><u></u><u></u></em></span>' +
     '<span class="lv-name"><b>' + esc(n ? n.title || c.name : c.name) + "</b>" +
     "<small>" + (n ? HFIptv.leftText(n.left) : "<i class=\"lv-dot sm\"></i>En vivo · " + esc(c.group)) + (c.kind === "movie" ? " · película" : "") + "</small>" +
     (n ? '<span class="lv-bar"><i style="width:' + Math.round(n.pct) + '%"></i></span>' : "") + "</span>" +
@@ -117,9 +120,121 @@ function liveInfoHtml(c) {
     '<div class="lv-i-keys"><b>OK</b> Pantalla completa</div>';
 }
 
+/* «☆ Favorito» / «★ Quitar de favoritos» para el canal enfocado */
+function liveFavChipHtml(c) {
+  var fav = c && HFLibrary.iptvFavs()[c.key];
+  return (fav ? "★ En favoritos" : "☆ Favorito");
+}
+
+function toggleLiveFav(c) {
+  var now;
+  if (!c) { return; }
+  HFLibrary.toggleIptvFav(c.key);
+  now = !!HFLibrary.iptvFavs()[c.key];
+  updateStatus(now ? c.name + " agregado a favoritos" : c.name + " quitado de favoritos");
+  if (LV.group === "__fav") {
+    LV.list = HFIptv.byGroup(LV.data, "__fav");
+    LV.index = Math.max(0, Math.min(LV.index, LV.list.length - 1));
+  }
+  var a = currentArea();
+  renderLive(a && a.name === "channels" && LV.list.length ? "channels" : "tools", a && a.name === "channels" && LV.list.length ? Math.min(LV.index, LV_MAX_ROWS - 1) : 0);
+}
+
 function clockHM(ms) {
   var d = new Date(ms);
   return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+}
+
+/* ----- Búsqueda de canales: el botón de la fila de categorías se expande y busca en TODA la lista ----- */
+function liveTabIndex() {
+  /* el botón de búsqueda es el primero de la fila; las categorías van después */
+  return LV.searching ? 0 : Math.max(0, liveGroups().map(function (g) { return g.id; }).indexOf(LV.group)) + 1;
+}
+
+function liveAreaDefs() {
+  return [
+    { name: "top", selector: "#liveTopbar [data-focusable]", dir: "h" },
+    { name: "tabs", selector: "#scrLive .lv-tabs [data-focusable]", dir: "h", track: byId("lvTabTrack"), onFocus: onLiveGroupFocus },
+    { name: "channels", selector: "#scrLive .lv-ch", dir: "v", track: byId("lvChanTrack"), onFocus: onLiveChanFocus },
+    { name: "tools", selector: "#scrLive .lv-tools [data-focusable]", dir: "h" }
+  ];
+}
+
+/* Canales cuyo nombre, grupo o número contienen TODAS las palabras escritas (sin tildes ni mayúsculas); primero los que empiezan igual. */
+function liveSearchResults(q) {
+  var words = HFIptv.norm(q).split(" ").filter(function (w) { return w; });
+  var first = HFIptv.norm(q);
+  var out = [];
+  if (!words.length || !LV.data) { return []; }
+  LV.data.channels.forEach(function (c) {
+    var hay = HFIptv.norm(c.name + " " + c.group + " " + c.num);
+    if (words.every(function (w) { return hay.indexOf(w) >= 0; })) { out.push(c); }
+  });
+  return out.map(function (c, i) { return { c: c, i: i, p: HFIptv.norm(c.name).indexOf(first) === 0 ? 0 : 1 }; })
+    .sort(function (a, b) { return a.p - b.p || a.i - b.i; })
+    .map(function (x) { return x.c; });
+}
+
+function liveRowsHtml(shown, favs) {
+  if (shown.length) { return shown.map(function (c, i) { return channelRowHtml(c, i, favs); }).join(""); }
+  if (LV.searching) {
+    return '<div class="lv-none">' + (LV.q.trim() ? "No hay canales que coincidan con «" + esc(LV.q.trim()) + "»." : "Escribe el nombre de un canal, su grupo o su número.") + "</div>";
+  }
+  return '<div class="lv-none">' + (LV.group === "__fav" ? "Aún no tienes favoritos. Enfoca un canal y pulsa el botón amarillo, o elige «Favorito» (◀ desde la lista)." : "Este grupo no tiene canales.") + "</div>";
+}
+
+function liveHeadHtml(shown) {
+  var groups = liveGroups();
+  var gName = (groups.filter(function (g) { return g.id === LV.group; })[0] || {}).label || "";
+  return "<h2>" + esc(LV.searching ? (LV.q.trim() ? "Resultados" : "Buscar") : gName) + "</h2><span>" + LV.list.length + " canales" + (LV.list.length > shown.length ? " · se ven los primeros " + shown.length : "") + "</span>";
+}
+
+function startLiveSearch() {
+  LV.searching = true;
+  LV.q = "";
+  LV.list = [];
+  LV.index = 0;
+  stopLivePreview();
+  renderLive("tabs", 0);
+  focusInput(byId("lvSearch"));
+}
+
+function exitLiveSearch() {
+  clearTimeout(LV.searchTimer);
+  LV.searching = false;
+  LV.q = "";
+  LV.tabsFresh = true;
+  LV.list = HFIptv.byGroup(LV.data, LV.group);
+  LV.index = 0;
+  renderLive("tabs", 0);
+}
+
+function onLiveSearchInput() {
+  clearTimeout(LV.searchTimer);
+  LV.searchTimer = setTimeout(function () {
+    var input = byId("lvSearch");
+    if (currentRoute !== "live" || !LV.searching || !input) { return; }
+    LV.q = input.value;
+    LV.list = liveSearchResults(LV.q);
+    LV.index = 0;
+    renderLiveResults();
+  }, 250);
+}
+
+/* Solo cambian los resultados: el campo (y el teclado en pantalla) no se tocan. */
+function renderLiveResults() {
+  var tr = byId("lvChanTrack");
+  var head = document.querySelector("#scrLive .lv-head");
+  var shown = LV.list.slice(0, LV_MAX_ROWS);
+  var cur = LV.list[0] || null;
+  if (!tr || !head) { return; }
+  head.innerHTML = liveHeadHtml(shown);
+  tr.innerHTML = liveRowsHtml(shown, HFLibrary.iptvFavs());
+  tr.style.transform = "";
+  tr._hfOff = null;
+  byId("lvInfo").innerHTML = liveInfoHtml(cur);
+  setAreas(liveAreaDefs(), "tabs", 0);
+  loadLiveLogos(0);
 }
 
 function renderLive(focusName, focusIndex) {
@@ -167,28 +282,34 @@ function renderLive(focusName, focusIndex) {
   var favs = HFLibrary.iptvFavs();
   var groups = liveGroups();
   var shown = LV.list.slice(0, LV_MAX_ROWS);
-  var gName = (groups.filter(function (g) { return g.id === LV.group; })[0] || {}).label || "";
   var cur = LV.list[LV.index] || null;
+  var tabsHtml;
+  var fresh = LV.tabsFresh;
+  LV.tabsFresh = false;
+  if (LV.searching) {
+    /* el botón se expandió: ocupa toda la fila (el campo nace del botón y crece hacia la derecha) */
+    tabsHtml = '<div class="lv-sfield" data-focusable="true" data-input="lvSearch" data-title="Buscar canal" data-description="OK para escribir · Listo para ver los resultados · BACK para volver a las categorías" tabindex="0">' +
+      '<i class="lv-sbg"></i>' + IC.search + '<input id="lvSearch" class="lv-sinput" type="text" autocomplete="off" spellcheck="false" placeholder="Buscar entre los ' + LV.data.channels.length + ' canales" value="' + esc(LV.q) + '"/></div>';
+  } else {
+    tabsHtml = '<span class="lv-sbtn" data-focusable="true" data-lv="search" data-title="Buscar" data-description="Buscar un canal en toda la lista" tabindex="0">' + IC.search + "</span>" + groups.map(function (g) {
+      return '<span class="lv-tab' + (g.id === LV.group ? " on" : "") + '" data-focusable="true" data-lv-group="' + esc(g.id) + '" data-title="' + esc(g.label) + '" data-description="' + g.count + ' canales" tabindex="0">' + esc(g.label) + "</span>";
+    }).join("");
+  }
   html = hole + html;
   html += '<div class="lv-pv"><span class="lv-pv-badge" id="lvPvBadge"></span><div class="lv-pv-state" id="lvPvState"></div></div>' +
     '<div class="lv-info" id="lvInfo">' + liveInfoHtml(cur) + "</div>" +
-    '<div class="lv-tools"><span class="hf2-chip" data-focusable="true" data-lv="refresh" data-title="Actualizar lista" data-description="Volver a descargar la lista del proveedor" tabindex="0">' + IC.refresh + " Actualizar lista</span>" +
+    '<div class="lv-tools"><span class="hf2-chip lv-favchip" id="lvFavChip" data-focusable="true" data-lv="fav" data-title="Favorito" data-description="Marcar o quitar este canal de tus favoritos" tabindex="0">' + liveFavChipHtml(cur) + "</span>" +
+    '<span class="hf2-chip" data-focusable="true" data-lv="refresh" data-title="Actualizar lista" data-description="Volver a descargar la lista del proveedor" tabindex="0">' + IC.refresh + " Actualizar lista</span>" +
     '<span class="hf2-chip" data-focusable="true" data-lv="edit" data-title="Cambiar enlace" data-description="Poner otro enlace M3U" tabindex="0">' + IC.pencil + " Cambiar enlace</span>" +
     '<span class="lv-status">' + (LV.loading ? "Cargando la lista…" : LV.data.channels.length + " canales" + (LV.data.stale ? " · copia guardada (sin conexión con el proveedor)" : "")) + "</span></div>" +
-    '<div class="lv-right"><div class="lv-tabs"><div class="lv-ttrack" id="lvTabTrack">' + groups.map(function (g) {
-      return '<span class="lv-tab' + (g.id === LV.group ? " on" : "") + '" data-focusable="true" data-lv-group="' + esc(g.id) + '" data-title="' + esc(g.label) + '" data-description="' + g.count + ' canales" tabindex="0">' + esc(g.label) + "</span>";
-    }).join("") + "</div></div>" +
-    '<div class="lv-head"><h2>' + esc(gName) + "</h2><span>" + LV.list.length + " canales" + (LV.list.length > shown.length ? " · se ven los primeros " + shown.length : "") + "</span></div>" +
-    '<div class="lv-cview"><div class="lv-ctrack" id="lvChanTrack">' +
-    (shown.length ? shown.map(function (c, i) { return channelRowHtml(c, i, favs); }).join("") :
-      '<div class="lv-none">' + (LV.group === "__fav" ? "Aún no tienes favoritos. Mientras ves un canal, pulsa OK y elige «Favorito»." : "Este grupo no tiene canales.") + "</div>") +
-    "</div></div></div>";
+    '<div class="lv-right"><div class="lv-tabs"><div class="lv-ttrack' + (fresh ? " fresh" : "") + '" id="lvTabTrack">' + tabsHtml + "</div></div>" +
+    '<div class="lv-head">' + liveHeadHtml(shown) + "</div>" +
+    '<div class="lv-cview"><div class="lv-ctrack" id="lvChanTrack">' + liveRowsHtml(shown, favs) + "</div></div></div>";
   scr.innerHTML = html;
-  areasDef.push({ name: "tabs", selector: "#scrLive .lv-tab", dir: "h", track: byId("lvTabTrack"), onFocus: onLiveGroupFocus });
-  areasDef.push({ name: "channels", selector: "#scrLive .lv-ch", dir: "v", track: byId("lvChanTrack"), onFocus: onLiveChanFocus });
-  areasDef.push({ name: "tools", selector: "#scrLive .lv-tools [data-focusable]", dir: "h" });
+  areasDef = liveAreaDefs();
+  if (LV.searching && byId("lvSearch")) { byId("lvSearch").addEventListener("input", onLiveSearchInput, false); }
   var startName = focusName || (LV.list.length ? "channels" : "tabs");
-  var startIndex = typeof focusIndex === "number" ? focusIndex : startName === "channels" ? Math.min(LV.index, LV_MAX_ROWS - 1) : startName === "tabs" ? Math.max(0, groups.map(function (g) { return g.id; }).indexOf(LV.group)) : 0;
+  var startIndex = typeof focusIndex === "number" ? focusIndex : startName === "channels" ? Math.min(LV.index, LV_MAX_ROWS - 1) : startName === "tabs" ? liveTabIndex() : 0;
   setAreas(areasDef, startName, startIndex);
   loadLiveLogos(startName === "channels" ? startIndex : 0);
   paintLivePv();
@@ -232,6 +353,8 @@ function onLiveChanFocus(el) {
   if (!c) { return; }
   LV.index = i;
   if (info) { info.innerHTML = liveInfoHtml(c); }
+  var chip = byId("lvFavChip");
+  if (chip) { chip.textContent = liveFavChipHtml(c); }
   loadLiveLogos(i);
   previewSchedule(c, 650);
 }
@@ -292,6 +415,8 @@ function handleLiveSelect(el) {
   var g = el.getAttribute("data-lv-group");
   var ch = el.getAttribute("data-lv-ch");
   if (el.getAttribute("data-menu")) { liveMenu(el.getAttribute("data-menu")); return; }
+  if (act === "search") { startLiveSearch(); return; }
+  if (el.getAttribute("data-input") === "lvSearch") { focusInput(byId("lvSearch")); return; }
   if (act === "url") { focusInput(byId("lvUrl")); return; }
   if (act === "save") {
     var url = (byId("lvUrl").value || "").trim();
@@ -302,6 +427,7 @@ function handleLiveSelect(el) {
     loadLive(true);
     return;
   }
+  if (act === "fav") { toggleLiveFav(LV.list[LV.index]); return; }
   if (act === "cancel") { LV.editing = false; LV.error = ""; renderLive(); return; }
   if (act === "edit") { stopLivePreview(); LV.editing = true; LV.error = ""; renderLive("form", 0); return; }
   if (act === "refresh") { LV.data = LV.data; loadLive(true); return; }
@@ -326,28 +452,32 @@ function liveMenu(menu) {
   browse.section = menu;
   browse.resume = null;
   showRoute("browse");
-  renderBrowse("top", MENU.map(function (m) { return m.id; }).indexOf(menu));
+  renderBrowse("top", menuIndex(menu));
 }
 
 /* ▲ en el primer canal sube a las pestañas; ◀ lleva a las herramientas; ▶ vuelve a la lista */
 function handleLiveKey(code) {
   var a = currentArea();
+  /* INFO: calibrar la vista previa si el video no cae justo en el recuadro (automático, 1×, 2×, 1,5×) */
+  if ((code === 457 || code === 404) && HFLive.usesAv()) { updateStatus(HFLive.cycleScale()); return true; }
+  if (code === 405 && LV.list.length && a && (a.name === "channels" || a.name === "tools")) { toggleLiveFav(LV.list[LV.index]); return true; }
   if (code === 37 && a && a.name === "channels") { focusAreaByName("tools", 0); return true; }
   if (code === 39 && a && a.name === "tools") {
     if (state.itemIndex >= a.count - 1 && LV.list.length) { focusAreaByName("channels", Math.min(LV.index, LV_MAX_ROWS - 1)); return true; }
     return false;
   }
   if (code === 40 && a && a.name === "channels" && state.itemIndex >= a.count - 1) { return true; } // no pasar a las herramientas
-  if (code === 38 && a && a.name === "tools") { focusAreaByName("tabs", Math.max(0, liveGroups().map(function (g) { return g.id; }).indexOf(LV.group))); return true; }
+  if (code === 38 && a && a.name === "tools") { focusAreaByName("tabs", liveTabIndex()); return true; }
   if (code === 40 && a && a.name === "tools") { return true; }
   if (code >= 48 && code <= 57 && LV.data && !isTypingInInput()) { typeChannelDigit(code - 48); return true; }
   return false;
 }
 
 function goBackLive() {
+  if (LV.searching) { exitLiveSearch(); return; }
   if (LV.editing && HFIptv.config()) { LV.editing = false; LV.error = ""; renderLive(); return; }
   var a = currentArea();
-  if (a && a.name !== "top") { focusAreaByName("top", Math.max(0, MENU.map(function (m) { return m.id; }).indexOf("live"))); return; }
+  if (a && a.name !== "top") { focusAreaByName("top", Math.max(0, menuIndex("live"))); return; }
   stopLivePreview();
   browse.section = "home";
   showRoute("browse");
@@ -397,6 +527,8 @@ function typeChannelDigit(d) {
     LV.digits = "";
     box.style.display = "none";
     if (!hit) { updateStatus("No hay canal " + n); return; }
+    LV.searching = false;
+    LV.q = "";
     LV.group = "__all";
     LV.list = all;
     playLiveIndex(all.indexOf(hit));

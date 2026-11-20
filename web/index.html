@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HomeFlix</title>
+  <meta name="description" content="Películas y series de tu grupo de Telegram.">
+  <meta name="theme-color" content="#0b0c0e">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <!-- Instalable como app desde el navegador («Agregar a inicio» en iPhone, «Instalar app» en Android) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="HomeFlix">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Interfaz según la ventana: ancha y con mouse → la de computador (../); el resto, estas pantallas del celular. Cambia sola al redimensionar (js/responsive-web.js). ?movil=1 fija esta. -->
+  <script src="../js/responsive-web.js"></script>
+  <link rel="stylesheet" href="../mobile/m.css">
+  <link rel="stylesheet" href="../mobile/themes.css">
+</head>
+<body>
+<!-- Video del reproductor: fijo, debajo de la interfaz (el motor lo busca por id) -->
+<div id="mplayer" class="m-video" hidden>
+  <video id="playerVideo" playsinline webkit-playsinline></video>
+  <canvas id="playerSubPic" class="m-subpic" width="1920" height="1080"></canvas>
+  <div id="playerSub" class="m-sublines"></div>
+  <div id="playerSubTop" class="m-subtop"></div>
+</div>
+
+<!-- Pantallas del celular (mobile/m.js): las mismas del APK, aprobadas en el tablero de diseño (design/) -->
+<div id="m" class="m" data-view="boot"></div>
+<noscript><p style="padding:24px;color:#f4f4f2">HomeFlix necesita JavaScript.</p></noscript>
+
+<!-- Motor compartido con la TV y el celular (la misma lista que mobile/index.html) -->
+<script src="ios.js"></script>
+<script src="../js/tg.bundle.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/config.local.js" onerror="void 0"></script>
+<script src="../js/imagenes.js" onerror="void 0"></script>
+<script src="../js/telegram.js"></script>
+<script src="../js/library.js"></script>
+<script src="../js/catalog.js"></script>
+<script src="../js/sync.js"></script>
+<script src="../js/reco.js"></script>
+<script src="../js/anime.js"></script>
+<script src="../js/remote.js"></script>
+<script src="../js/update.js"></script>
+<script src="../js/intro.js"></script>
+<script src="../js/engine/i18n-es.js"></script>
+<script src="../js/engine/mp4.js"></script>
+<script src="../js/engine/mkv.js"></script>
+<script src="../js/engine/subs.js"></script>
+<script src="../js/engine/player.js"></script>
+<script src="../js/vendor/hls.min.js"></script>
+<script src="../js/playback.js"></script>
+<script src="../js/iptv.js"></script>
+<script src="../mobile/icons.js"></script>
+<script src="../mobile/themes.js"></script>
+<script src="../mobile/m.js"></script>
+<script src="instalar.js"></script>
+<script>
+  /* Instalación como app: guarda lo necesario para abrir rápido (solo con https o en localhost). */
+  (function () {
+    var local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    if ('serviceWorker' in navigator && !/[?&]design=/.test(location.search) && (location.protocol === 'https:' || local)) {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* sin instalación: la app funciona igual */ });
+    }
+  })();
+</script>
+</body>
+</html>

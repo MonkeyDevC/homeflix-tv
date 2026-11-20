@@ -28,6 +28,10 @@ import androidx.webkit.WebViewClientCompat;
  * HomeFlix en el celular: una sola pantalla con un WebView que carga mobile/index.html.
  * Todo lo de la app (Telegram, biblioteca, reproductor) es el mismo motor web que la TV (js/).
  *
+ * En un Android TV / stick (sin pantalla táctil, con el inicio «Leanback») el mismo APK abre la interfaz de la TV
+ * (app.html, la de Samsung) en vez de la del celular: flechas y OK llegan solas al WebView; ATRÁS y las teclas
+ * multimedia del control se pasan a js/androidtv.js (HFTV), que las traduce a las teclas que entiende la interfaz.
+ *
  * Los archivos se sirven desde el propio APK en https://appassets.androidplatform.net/ (origen https fijo:
  * IndexedDB y localStorage guardan la sesión de Telegram entre aperturas).
  * Lo nativo es lo mínimo que la web no puede hacer sola: pantalla completa y giro para el reproductor,
@@ -37,7 +41,10 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String HOST = "appassets.androidplatform.net";
     private static final String START = "https://" + HOST + "/mobile/index.html";
+    private static final String START_TV = "https://" + HOST + "/app.html";
 
+    /** true en un Android TV / stick: se abre la interfaz de la TV y se maneja con el control remoto. */
+    private boolean tv = false;
     private WebView web;
     private WebViewAssetLoader assets;
     private Actualizador actualizador;
@@ -48,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        tv = detectTv();
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
@@ -79,7 +87,9 @@ public class MainActivity extends AppCompatActivity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        /* El servidor de HomeFlix vive en el Mac de la casa por http (local/README.md): la app (https://appassets…) tiene que
+         * poder hablarle. Se permite el contenido mixto, pero shouldInterceptRequest corta todo http que NO vaya a la red de la casa. */
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         s.setTextZoom(100); // el tamaño de letra del sistema no desarma el diseño
 
         /* Primero la interfaz bajada del servidor de HomeFlix (si hay y arrancó bien); lo que no esté ahí, del APK. */
@@ -93,7 +103,12 @@ public class MainActivity extends AppCompatActivity {
         web.setWebViewClient(new WebViewClientCompat() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                return assets.shouldInterceptRequest(request.getUrl());
+                Uri u = request.getUrl();
+                if ("http".equalsIgnoreCase(u.getScheme()) && !esRedDeCasa(u.getHost())) {
+                    /* http sin cifrar solo hacia la red de la casa (el servidor de HomeFlix); afuera, solo https */
+                    return new WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", null, null);
+                }
+                return assets.shouldInterceptRequest(u);
             }
 
             @Override
@@ -123,8 +138,10 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                /* La app web decide (cerrar una hoja, volver de la ficha…); si no hay a dónde volver, se sale. */
-                web.evaluateJavascript("(window.HFMobile && HFMobile.back) ? String(HFMobile.back()) : 'false'", r -> {
+                /* La app web decide (cerrar una hoja, volver de la ficha…); si no hay a dónde volver, se sale.
+                 * TV: HFTV.back (js/androidtv.js) hace lo mismo que la tecla ATRÁS de la TV Samsung. */
+                String ask = tv ? "(window.HFTV && HFTV.back) ? String(HFTV.back()) : 'false'" : "(window.HFMobile && HFMobile.back) ? String(HFMobile.back()) : 'false'";
+                web.evaluateJavascript(ask, r -> {
                     if (!"\"true\"".equals(r)) {
                         finish();
                     }
@@ -132,12 +149,74 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        if (tv) {
+            /* Control remoto: la página tiene que tener el foco para recibir las flechas, siempre horizontal y sin barras */
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            web.setFocusable(true);
+            web.setFocusableInTouchMode(true);
+            web.requestFocus();
+            WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), web);
+            c.hide(WindowInsetsCompat.Type.systemBars());
+            c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        }
+
         if (savedInstanceState == null) {
             String dev = BuildConfig.DEV_URL;
-            web.loadUrl(BuildConfig.DEBUG && dev != null && !dev.isEmpty() ? dev : START);
+            web.loadUrl(BuildConfig.DEBUG && dev != null && !dev.isEmpty() ? dev : (tv ? START_TV : START));
         } else {
             web.restoreState(savedInstanceState);
         }
+    }
+
+    /** ¿Es un Android TV / stick? Por el modo de la interfaz, por «Leanback» o porque no hay pantalla táctil.
+     *  Para probar en un celular: adb shell am start -n com.homeflix.app/.MainActivity --ez tv true (false lo apaga). */
+    private boolean detectTv() {
+        try {
+            android.content.Intent it = getIntent();
+            if (it != null && it.hasExtra("tv")) {
+                return it.getBooleanExtra("tv", false);
+            }
+            android.app.UiModeManager um = (android.app.UiModeManager) getSystemService(UI_MODE_SERVICE);
+            if (um != null && um.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION) {
+                return true;
+            }
+            android.content.pm.PackageManager pm = getPackageManager();
+            return pm.hasSystemFeature("android.software.leanback")
+                    || pm.hasSystemFeature("android.hardware.type.television")
+                    || !pm.hasSystemFeature("android.hardware.touchscreen");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Teclas del control que el WebView no entrega a la página → el código que usa la interfaz de la TV (los de Tizen). */
+    private static int tvKey(int keyCode) {
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_MEDIA_PLAY: return 415;
+            case android.view.KeyEvent.KEYCODE_MEDIA_PAUSE: return 19;
+            case android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return 10252;
+            case android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: return 417;
+            case android.view.KeyEvent.KEYCODE_MEDIA_REWIND: return 412;
+            case android.view.KeyEvent.KEYCODE_MEDIA_STOP: return 413;
+            case android.view.KeyEvent.KEYCODE_CHANNEL_UP: return 427;
+            case android.view.KeyEvent.KEYCODE_CHANNEL_DOWN: return 428;
+            case android.view.KeyEvent.KEYCODE_INFO: return 457;
+            default: return 0;
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent e) {
+        if (tv && web != null) {
+            int code = tvKey(e.getKeyCode());
+            if (code != 0) {
+                if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                    web.evaluateJavascript("window.HFTV&&HFTV.key&&HFTV.key(" + code + ")", null);
+                }
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(e);
     }
 
     /** Pide el modo de pantalla con más Hz (120 en paneles que lo tienen) para que la app y la intro se vean fluidas;
@@ -417,14 +496,19 @@ public class MainActivity extends AppCompatActivity {
         if (liveRef != null && !liveRef.isEmpty()) {
             http.setDefaultRequestProperties(java.util.Collections.singletonMap("Referer", liveRef));
         }
-        androidx.media3.common.MediaItem item = androidx.media3.common.MediaItem.fromUri(liveUrl);
-        boolean hls = asHls || liveUrl.toLowerCase(java.util.Locale.ROOT).contains("m3u8");
-        androidx.media3.exoplayer.source.MediaSource src = hls
-                ? new androidx.media3.exoplayer.hls.HlsMediaSource.Factory(http).createMediaSource(item)
-                : new androidx.media3.exoplayer.source.DefaultMediaSourceFactory(http).createMediaSource(item);
-        live.setMediaSource(src);
-        live.prepare();
-        live.setPlayWhenReady(true);
+        try {
+            androidx.media3.common.MediaItem item = androidx.media3.common.MediaItem.fromUri(liveUrl);
+            boolean hls = asHls || liveUrl.toLowerCase(java.util.Locale.ROOT).contains("m3u8");
+            androidx.media3.exoplayer.source.MediaSource src = hls
+                    ? new androidx.media3.exoplayer.hls.HlsMediaSource.Factory(http).createMediaSource(item)
+                    : new androidx.media3.exoplayer.source.DefaultMediaSourceFactory(http).createMediaSource(item);
+            live.setMediaSource(src);
+            live.prepare();
+            live.setPlayWhenReady(true);
+        } catch (Throwable t) {
+            /* una excepción aquí (formato que ExoPlayer no puede armar) cerraba toda la app: ahora solo falla ese canal */
+            liveEmit("error", "Este canal usa un formato que la app no puede reproducir.");
+        }
     }
 
     private void liveOpenOnUi(String url, String ua, String ref, float x, float y, float w, float h) {
@@ -629,7 +713,13 @@ public class MainActivity extends AppCompatActivity {
         /* ----- TV en vivo (IPTV) ----- */
         @JavascriptInterface
         public void liveOpen(String url, String ua, String ref, float x, float y, float w, float h) {
-            runOnUiThread(() -> liveOpenOnUi(url, ua, ref, x, y, w, h));
+            runOnUiThread(() -> {
+                try {
+                    liveOpenOnUi(url, ua, ref, x, y, w, h);
+                } catch (Throwable t) {
+                    liveEmit("error", "No se pudo abrir el reproductor del canal.");
+                }
+            });
         }
 
         @JavascriptInterface
@@ -682,6 +772,14 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> web.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY));
         }
 
+        /** Reproductor: girar entre horizontal (por defecto) y vertical, para los videos tipo short. */
+        @JavascriptInterface
+        public void setPlayerOrientation(boolean portrait) {
+            runOnUiThread(() -> setRequestedOrientation(portrait
+                ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE));
+        }
+
         /** Reproductor: pantalla completa (sin barras) y en horizontal; al salir, todo vuelve a la normalidad. */
         @JavascriptInterface
         public void setPlayerMode(boolean on) {
@@ -702,6 +800,31 @@ public class MainActivity extends AppCompatActivity {
                     WindowManager.LayoutParams lp = getWindow().getAttributes();
                     lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
                     getWindow().setAttributes(lp);
+                }
+            });
+        }
+
+        /* ----- Android TV / stick (js/androidtv.js) ----- */
+        /** true si esta app corre en un Android TV / stick: la página es la interfaz de la TV. */
+        @JavascriptInterface
+        public boolean modoTV() { return tv; }
+
+        /** «Chromecast Google TV», «Xiaomi Mi TV Stick»…: para reconocer este aparato en «Ver en la TV». */
+        @JavascriptInterface
+        public String modelo() {
+            String m = android.os.Build.MODEL == null ? "" : android.os.Build.MODEL.trim();
+            String f = android.os.Build.MANUFACTURER == null ? "" : android.os.Build.MANUFACTURER.trim();
+            return m.toLowerCase().startsWith(f.toLowerCase()) ? m : (f + " " + m).trim();
+        }
+
+        /** Mantener la pantalla encendida mientras se reproduce un video (el protector de pantalla del stick no debe cortarlo). */
+        @JavascriptInterface
+        public void keepOn(boolean on) {
+            runOnUiThread(() -> {
+                if (on) {
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                } else {
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 }
             });
         }
@@ -965,5 +1088,21 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
+    }
+
+    /** ¿Es una dirección de la red de la casa? (10.x, 172.16–31.x, 192.168.x, 127.x, localhost o *.local) */
+    static boolean esRedDeCasa(String host) {
+        if (host == null) return false;
+        String h = host.toLowerCase(java.util.Locale.ROOT);
+        if (h.equals("localhost") || h.endsWith(".local")) return true;
+        String[] p = h.split("\\.");
+        if (p.length != 4) return false;
+        int[] n = new int[4];
+        try {
+            for (int i = 0; i < 4; i++) { n[i] = Integer.parseInt(p[i]); if (n[i] < 0 || n[i] > 255) return false; }
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        return n[0] == 10 || n[0] == 127 || (n[0] == 192 && n[1] == 168) || (n[0] == 172 && n[1] >= 16 && n[1] <= 31);
     }
 }

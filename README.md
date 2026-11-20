@@ -67,3 +67,5 @@ Necesita Tizen 5.5 o más nuevo (BigInt). Basado en [titlog/telegram-tizen](http
 - `config.xml`: manifiesto de Tizen (id del paquete, versión, perfil `tv-samsung`).
 - `tools/build-wgt.mjs`: empaquetador sin dependencias.
 - `.cursor/rules/`: reglas de ingeniería para TV (foco, rendimiento, APIs prohibidas).
+
+**Versión web (instalable como app en iPhone y Android):** [`web/`](web/CLAUDE.md) usa las mismas pantallas del celular (`mobile/`) y, en el computador, las de la TV. Para verla: `node tools/serve.mjs` → `http://localhost:5173/web/` (siempre con `localhost`; desde otro dispositivo: `node tools/serve.mjs --https`, porque Telegram necesita conexión segura).

@@ -166,6 +166,7 @@ var HFLibrary = (function () {
     var nl;
     var kids = false;
     var image = "";
+    var galleryN = 0;
     var categories = [];
     var tmdb = null;
     var langs = null;
@@ -177,6 +178,11 @@ var HFLibrary = (function () {
     /* Marcas al final, en cualquier orden:
      *   "#infantil" (o #kids / #niños): contenido para el perfil Kids.
      *   "#portada" (o #poster) y "#banner" (o #fondo): en una FOTO, es la imagen de la tarjeta o el fondo grande del título.
+     *   "#vertical" (o #retrato): en una FOTO, es la portada vertical (póster 2:3) para la vista vertical de las tarjetas.
+     *   "#galeria1", "#galeria2"… (o #escena1…): en una FOTO, una escena de la galería del título (el número da el orden).
+     *   En una serie, «serie#Nombre #galeria1» es la galería de la serie y «serie(1/3)#Nombre #galeria1» la de ESE capítulo.
+     *   "#capitulo" (o #episodio): en una FOTO de una serie, es la imagen del capítulo: con «serie(1/3)#Nombre» es la de ese capítulo;
+     *   con «serie#Nombre» (sin números) es una común para todos los capítulos que no tengan la suya.
      *   "#Marvel", "#Terror", "#Ciencia_ficción"…: cualquier otra palabra es una CATEGORÍA y tiene su propia fila
      *   (el guion bajo se muestra como espacio). Las categorías van separadas por un espacio de lo anterior. */
     for (;;) {
@@ -195,12 +201,19 @@ var HFLibrary = (function () {
         raw = raw.slice(0, mark.index).replace(/\s+$/, "");
         continue;
       }
-      mark = /\s*#\s*(infantil|kids|ni[ñn]os|portada|poster|banner|fondo)\s*$/i.exec(raw);
+      mark = /\s*#\s*(infantil|kids|ni[ñn]os|portada|poster|banner|fondo|vertical|retrato|capitulo|cap[ií]tulo|episodio|galer[ií]a\d{0,3}|escena\d{0,3})\s*$/i.exec(raw);
       if (mark) {
         if (/^(portada|poster)$/i.test(mark[1])) {
           image = image || "portada";
         } else if (/^(banner|fondo)$/i.test(mark[1])) {
           image = image || "banner";
+        } else if (/^(vertical|retrato)$/i.test(mark[1])) {
+          image = image || "vertical";
+        } else if (/^(capitulo|cap[ií]tulo|episodio)$/i.test(mark[1])) {
+          image = image || "capitulo";
+        } else if (/^(galer[ií]a|escena)\d{0,3}$/i.test(mark[1])) {
+          image = image || "galeria";
+          galleryN = Number(String(mark[1]).replace(/\D/g, "")) || 0;
         } else {
           kids = true;
         }
@@ -258,6 +271,7 @@ var HFLibrary = (function () {
       description: "",
       kids: kids,
       image: image,
+      galleryN: galleryN,
       categories: categories,
       tmdb: tmdb,
       langs: langs
@@ -483,6 +497,8 @@ var HFLibrary = (function () {
     var movies = {};
     var series = {};
     var infos = {};
+    var epCovers = {};
+    var epGalleries = {};
     var unclassified = [];
     var byKey = {};
     var all = [];
@@ -546,7 +562,15 @@ var HFLibrary = (function () {
         if (p) {
           /* una película sin año en la foto también vale para la película con año (se resuelve en applyInfo) */
           key = (p.type === "movie" ? "m:" + norm(p.name) + (p.year ? ":" + p.year : "") : "s:" + norm(p.name));
-          addInfo(key, p, it);
+          if (p.image === "galeria" && p.type !== "movie" && p.season && p.episode) {
+            var gk = key + "|" + p.season + "|" + p.episode;
+            (epGalleries[gk] = epGalleries[gk] || []).push({ key: it.key, date: it.date, n: p.galleryN || 0 });
+          } else if (p.image === "capitulo" && p.type !== "movie" && p.season && p.episode) {
+            var ck = key + "|" + p.season + "|" + p.episode;
+            if (!epCovers[ck] || it.date >= epCovers[ck].date) { epCovers[ck] = { key: it.key, date: it.date }; }
+          } else {
+            addInfo(key, p, it);
+          }
         }
         return;
       }
@@ -666,7 +690,11 @@ var HFLibrary = (function () {
      * Si hay varias del mismo tipo, gana la más nueva. */
     function addInfo(key, p, it) {
       var info = infos[key] || (infos[key] = {});
-      var slotName = p.image === "portada" ? "poster" : p.image === "banner" ? "banner" : "photo";
+      if (p.image === "galeria") {
+        (info.gallery = info.gallery || []).push({ key: it.key, date: it.date, n: p.galleryN || 0 });
+        return;
+      }
+      var slotName = p.image === "portada" ? "poster" : p.image === "banner" ? "banner" : p.image === "vertical" ? "vertical" : p.image === "capitulo" ? "epall" : "photo";
       if (!info[slotName] || it.date >= info[slotName].date) {
         info[slotName] = { key: it.key, date: it.date };
       }
@@ -694,6 +722,15 @@ var HFLibrary = (function () {
         if (banner) {
           t.bannerKey = banner.key;
         }
+        if (info.vertical) {
+          t.verticalKey = info.vertical.key;
+        }
+        if (info.gallery && info.gallery.length) {
+          /* por número (#galeria1, #galeria2…) y, a igualdad, por fecha; sin repetir */
+          var seenG = {};
+          t.galleryKeys = info.gallery.slice().sort(function (a, b) { return (a.n || 9999) - (b.n || 9999) || a.date - b.date; })
+            .filter(function (g) { if (seenG[g.key]) { return false; } seenG[g.key] = 1; return true; }).map(function (g) { return g.key; });
+        }
         if (info.kids) {
           t.kids = true;
         }
@@ -701,6 +738,20 @@ var HFLibrary = (function () {
         if (info.description) {
           t.description = info.description;
         }
+      }
+      if (t.type === "series") {
+        t.seasons.forEach(function (season) {
+          season.episodes.forEach(function (ep) {
+            var own = epCovers[t.titleKey + "|" + ep.season + "|" + ep.episode];
+            ep.coverKey = own ? own.key : info && info.epall ? info.epall.key : "";
+            var eg = epGalleries[t.titleKey + "|" + ep.season + "|" + ep.episode];
+            if (eg && eg.length) {
+              var seenE = {};
+              ep.galleryKeys = eg.slice().sort(function (a, b) { return (a.n || 9999) - (b.n || 9999) || a.date - b.date; })
+                .filter(function (g) { if (seenE[g.key]) { return false; } seenE[g.key] = 1; return true; }).map(function (g) { return g.key; });
+            }
+          });
+        });
       }
       if (t.type === "series" && !t.description) {
         t.description = t.seasons.length && t.seasons[0].episodes.length ? "" : "";
@@ -901,6 +952,32 @@ var HFLibrary = (function () {
       }
     });
     return list;
+  }
+
+  /* Perfil «Anime»: cada cuenta lo tiene, con el canal fijo «Anime» (js/anime.js) activo. Se crea una vez, si hay lugar
+   * (hasta MAX_PROFILES por cuenta y MAX_TOTAL_PROFILES en total) y si el usuario no lo borró antes (profilesDel).
+   * Devuelve true si lo creó. Las demás cuentas y dispositivos lo reciben con la sincronización (mismo id). */
+  var ANIME_PROFILE = "anime";
+  function ensureAnimeProfile() {
+    var list;
+    var del;
+    if (!isMainAccount() && !load("profiles", null)) {
+      return false; // cuenta agregada que aún no tiene perfiles: el primero lo crea quien la conectó
+    }
+    list = profiles();
+    del = load("profilesDel", {});
+    if (!list.length || list.some(function (p) { return p.id === ANIME_PROFILE || norm(p.name) === "anime"; }) || del[ANIME_PROFILE]) {
+      return false;
+    }
+    if (list.length >= MAX_PROFILES || totalProfiles() >= MAX_TOTAL_PROFILES) {
+      return false;
+    }
+    list.push({ id: ANIME_PROFILE, name: "Anime", color: "morado", avatar: "gato", kids: false, at: Date.now() });
+    save("profiles", list);
+    save("profilesAt", Date.now());
+    setEnabledSources({ anime: "Anime" }, ANIME_PROFILE);
+    changed("profiles");
+    return true;
   }
 
   function saveProfile(p) {
@@ -1676,6 +1753,20 @@ var HFLibrary = (function () {
     return { episode: eps[best], resume: p.t, started: true };
   }
 
+  /* Las claves de Telegram de un video: él mismo y cada pieza de cada versión (para HFTelegram.warm). En una serie, el capítulo que toca. */
+  function videoKeys(entry) {
+    var keys = [];
+    var seen = {};
+    function add(e) {
+      if (!e || e.anime) { return; }
+      if (e.video && e.video.key) { keys.push(String(e.video.key)); }
+      (e.versions || []).forEach(function (v) { (v.parts || [v]).forEach(function (p) { if (p && p.key) { keys.push(String(p.key)); } }); });
+    }
+    if (!entry) { return keys; }
+    if (entry.type === "series") { add(nextEpisode(entry).episode); } else { add(entry); }
+    return keys.filter(function (k) { if (seen[k]) { return false; } seen[k] = true; return true; });
+  }
+
   function episodeAfter(series, ep) {
     var eps = [];
     var i;
@@ -1763,6 +1854,7 @@ var HFLibrary = (function () {
     primaryCategory: primaryCategory,
     chronoIndex: chronoIndex,
     enabledSources: enabledSources,
+    ensureAnimeProfile: ensureAnimeProfile,
     setEnabledSources: setEnabledSources,
     allEnabledSources: allEnabledSources,
     cachedItems: cachedItems,
@@ -1785,6 +1877,7 @@ var HFLibrary = (function () {
     aliasKeys: aliasKeys,
     nextEpisode: nextEpisode,
     episodeAfter: episodeAfter,
+    videoKeys: videoKeys,
     formatDuration: formatDuration,
     formatClock: formatClock,
     formatSize: formatSize

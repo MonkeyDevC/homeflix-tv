@@ -131,7 +131,7 @@ function renderLogin() {
       "<li><span>1</span><div>Desde el teléfono entra a <b>my.telegram.org</b>.</div></li>" +
       "<li><span>2</span><div>Abre <b>API development tools</b>.</div></li>" +
       "<li><span>3</span><div>Crea una app y copia <b>api_id</b> y <b>api_hash</b>.</div></li></ol>" +
-      '<div class="hf2-help-tip">Tip: con Apps2Samsung puedes escribir desde el teclado del teléfono.</div>';
+      '<div class="hf2-help-tip">' + (window.HF_TV ? "Tip: la app Google TV del celular (control remoto) trae un teclado para escribir aquí." : "Tip: con Apps2Samsung puedes escribir desde el teclado del teléfono.") + "</div>";
     sideClass = "help";
   } else if (loginState === "password") {
     main = '<div class="hf2-kicker">Verificación en dos pasos</div><h1 class="hf2-title small">Escribe tu contraseña<br>de Telegram</h1>' +
@@ -189,6 +189,10 @@ function showLoginError(message) {
 
 function errorText(e) {
   var message = String((e && e.message) || e || "Error desconocido");
+  /* el navegador solo da WebCrypto (lo necesita Telegram) con https o en localhost: pasa al abrir la web por la IP */
+  if (/WebCrypto|crypto\.subtle/i.test(message)) {
+    return "Telegram necesita una conexión segura. Abre HomeFlix en este mismo equipo con http://localhost (no con la IP ni el nombre del equipo); desde otro dispositivo, ábrelo por https.";
+  }
   if (/network|fetch|websocket|sin respuesta/i.test(message)) {
     return "No hay conexión con Telegram. Revisa el internet de la TV y vuelve a intentarlo. (" + message + ")";
   }
@@ -446,6 +450,8 @@ function profileAvatarHtml(p, cls) {
 
 function openProfiles(message, editMode) {
   pruneEmptyAccounts();
+  HFAnime.resetAccount();
+  HFLibrary.ensureAnimeProfile(); // perfil «Anime» (js/library.js); no hace nada si ya existe, no hay lugar o se borró
   showRoute("profiles");
   renderProfiles(!!editMode);
   if (message) {
@@ -551,6 +557,7 @@ function enterProfile(id) {
     }
   });
   HFLibrary.setProfile(activeProfile.id);
+  applyCardView();
   rebuildLibrary();
   openBrowse("home", "Perfil: " + activeProfile.name + (activeProfile.kids ? " (infantil)" : ""));
 }
@@ -734,17 +741,23 @@ function handleProfileEditSelect(el) {
     }
     openProfiles("Perfil guardado", true);
   } else if (action === "delete") {
-    if (el.getAttribute("data-confirm") !== "true") {
-      el.setAttribute("data-confirm", "true");
-      el.textContent = "¿Seguro? OK otra vez";
-      updateStatus("Pulsa OK otra vez para borrar el perfil con su progreso y Mi lista");
-      return;
-    }
-    HFLibrary.deleteProfile(profileEdit.id);
-    if (activeProfile && activeProfile.id === profileEdit.id) {
-      activeProfile = null;
-    }
-    openProfiles("Perfil borrado", true);
+    /* un modal de confirmación (antes el botón se agrandaba con «¿Seguro? OK otra vez» y se salía del panel) */
+    var delId = profileEdit.id;
+    var delName = String(profileEdit.name || "").trim() || "este perfil";
+    askConfirm({
+      title: "¿Borrar el perfil «" + delName + "»?",
+      text: "Se borrarán también su progreso y su Mi lista. Esto no se puede deshacer.",
+      okLabel: "Borrar",
+      cancelLabel: "Cancelar",
+      danger: true,
+      onOk: function () {
+        HFLibrary.deleteProfile(delId);
+        if (activeProfile && activeProfile.id === delId) {
+          activeProfile = null;
+        }
+        openProfiles("Perfil borrado", true);
+      }
+    });
   } else if (action === "cancel") {
     openProfiles("", true);
   }
@@ -807,6 +820,29 @@ function renderPin(focusName, focusIndex) {
   }
 }
 
+/* Cada número que se pulsa ya NO vuelve a dibujar toda la pantalla (logo, avatar con su imagen grande, teclado de 12 teclas y el motor de
+ * foco): en la TV eso era una tarea de ~660 ms por dígito (se sentía el lag). Solo se cambian los puntos, el título y la nota. */
+function pinPaint() {
+  var f = pinFlow;
+  var root = byId("scrPin");
+  var dots;
+  var title;
+  var note;
+  var i;
+  if (!f || !root) { return; }
+  dots = root.querySelectorAll(".hf2-pin-dots i");
+  for (i = 0; i < dots.length; i += 1) {
+    dots[i].className = i < f.entered.length ? "on" : "";
+  }
+  title = root.querySelector(".hf2-pin-title");
+  if (title) { title.textContent = f.step === "repeat" ? "Repite el PIN" : f.title; }
+  note = root.querySelector(".hf2-pin-note");
+  if (note) {
+    note.textContent = f.error || (f.step === "repeat" ? "Para confirmar que lo escribiste bien" : f.note || "Usa los números del control o el teclado de abajo");
+    note.className = "hf2-pin-note" + (f.error ? " error" : "");
+  }
+}
+
 function pinRefocus() {
   var a = currentArea();
   if (a && a.name.indexOf("pad-") === 0) {
@@ -823,8 +859,7 @@ function pinDigit(d) {
   }
   f.entered += d;
   f.error = "";
-  r = pinRefocus();
-  renderPin(r.name, r.index);
+  pinPaint();
   if (f.entered.length === 4) {
     setTimeout(pinComplete, 150);
   }
@@ -857,7 +892,7 @@ function pinComplete() {
     f.error = "Los PIN no coinciden. Escríbelo de nuevo.";
   }
   f.entered = "";
-  renderPin(r.name, r.index);
+  pinPaint();
   updateStatus(f.error || "Repite el PIN");
 }
 
@@ -867,8 +902,7 @@ function pinBackspace() {
     return;
   }
   pinFlow.entered = pinFlow.entered.slice(0, -1);
-  r = pinRefocus();
-  renderPin(r.name, r.index);
+  pinPaint();
 }
 
 function cancelPin() {

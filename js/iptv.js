@@ -391,6 +391,60 @@ var HFLive = (function () {
   }
   function attach(el) { layerEl = el; return el; }
 
+  /* AVPlay en la TV (medido en la QN55Q65B, Tizen 6.5): setDisplayRect(x, y, w, h) respeta el TAMAÑO, pero DUPLICA la posición
+   * (x e y salen ×2), y la capa del <object> debe partir de (0,0). Por eso el rectángulo de diseño (1920×1080) se pasa con la
+   * posición a la mitad; en la vista previa el tamaño lleva un 3 % de sobra (lo que sobra lo recorta el recuadro de la página).
+   * El botón VERDE (o INFO) del control apaga/enciende esta compensación por si otro modelo no la necesita (hf.avcomp=off). */
+  function compOn() { try { return window.localStorage.getItem("hf.avcomp") !== "off"; } catch (e) { return true; } }
+  function appScale() {
+    var app = document.getElementById("app");
+    var b = app ? app.getBoundingClientRect() : null;
+    return { b: b, sc: b && b.width ? b.width / 1920 : 1 };
+  }
+  function avRect(r) {
+    var a = appScale();
+    var ox = a.b ? a.b.left : 0;
+    var oy = a.b ? a.b.top : 0;
+    var x = ox + r.x * a.sc;
+    var y = oy + r.y * a.sc;
+    var w = r.w * a.sc;
+    var h = r.h * a.sc;
+    if (compOn()) {
+      var full = w >= 1900 * a.sc;
+      x /= 2;
+      y /= 2;
+      if (!full) { w *= 1.03; h *= 1.03; }
+    }
+    return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+  }
+  /* la capa del video: pantalla completa desde (0,0) con AVPlay; pegada al recuadro fuera de la TV */
+  function layerBox() {
+    var el = layerEl;
+    var full = !!avplay();
+    if (!el || el.id !== "lvMedia") { return; }
+    if (full) {
+      el.style.left = "0px";
+      el.style.top = "0px";
+      el.style.width = "1920px";
+      el.style.height = "1080px";
+    } else if (curRect) {
+      el.style.left = curRect.x + "px";
+      el.style.top = curRect.y + "px";
+      el.style.width = curRect.w + "px";
+      el.style.height = curRect.h + "px";
+    }
+    el.classList.toggle("lv-media-full", full);
+  }
+  function cycleScale() {
+    var next = compOn() ? "off" : "on";
+    try { window.localStorage.setItem("hf.avcomp", next); } catch (e) { /* sin almacenamiento */ }
+    place();
+    return avInfo();
+  }
+  function avInfo() {
+    return "Ajuste del video: compensación " + (compOn() ? "activada" : "desactivada") + " (verde o INFO para cambiar) · ventana " + window.innerWidth;
+  }
+
   /* rect: {x, y, w, h} en píxeles de la página (en la TV, de 1920×1080) */
   function place(rect) {
     var av = avplay();
@@ -398,14 +452,10 @@ var HFLive = (function () {
     var el = layerEl;
     curRect = rect || curRect;
     if (!curRect) { return; }
-    if (el && el.id === "lvMedia") {
-      el.style.left = curRect.x + "px";
-      el.style.top = curRect.y + "px";
-      el.style.width = curRect.w + "px";
-      el.style.height = curRect.h + "px";
-    }
+    layerBox();
     if (av && current && current.av) {
-      try { av.setDisplayRect(Math.round(curRect.x), Math.round(curRect.y), Math.round(curRect.w), Math.round(curRect.h)); } catch (e) { /* sin imagen aún */ }
+      var ar = avRect(curRect);
+      try { av.setDisplayRect(ar.x, ar.y, ar.w, ar.h); } catch (e) { /* sin imagen aún */ }
     }
     if (nat && current && current.native) {
       try { nat.liveRect(curRect.x, curRect.y, curRect.w, curRect.h); } catch (e2) { /* nada */ }
@@ -476,6 +526,7 @@ var HFLive = (function () {
       }
       document.documentElement.classList.add("hf-live-av");
       current = { av: true, ch: ch, state: "cargando" };
+      layerBox();
       say("cargando");
       try {
         av.open(ch.url);
@@ -491,8 +542,8 @@ var HFLive = (function () {
           onsubtitlechange: function () {},
           ondrmevent: function () {}
         });
-        var r = curRect || { x: 0, y: 0, w: 1920, h: 1080 };
-        av.setDisplayRect(Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h));
+        var r = avRect(curRect || { x: 0, y: 0, w: 1920, h: 1080 });
+        av.setDisplayRect(r.x, r.y, r.w, r.h);
         try { av.setDisplayMethod("PLAYER_DISPLAY_MODE_LETTER_BOX"); } catch (e2) { /* modelos viejos */ }
         av.prepareAsync(function () {
           if (my !== session) { return; }
@@ -544,7 +595,7 @@ var HFLive = (function () {
   }
 
   return {
-    play: play, stop: stop, place: place, layer: layer, attach: attach, usesAv: usesAv, nativeEvent: nativeEvent,
+    play: play, stop: stop, place: place, cycleScale: cycleScale, avInfo: avInfo, layer: layer, attach: attach, usesAv: usesAv, nativeEvent: nativeEvent,
     native: function () { return !!nativeLive(); },
     video: function () { return current && current.video || null; },
     current: function () { return current && current.ch; },

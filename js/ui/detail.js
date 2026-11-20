@@ -24,11 +24,48 @@ function openDetail(title, opts) {
   }
   detail.title = title;
   detail.season = 0;
+  if (typeof HFReco !== "undefined" && !title.anime && title.titleKey) { HFReco.click(title.titleKey); }
+  /* al darle a reproducir ya no se espera a Telegram para encontrar el mensaje del video (eran ~3,5 s) */
+  if (!title.anime && typeof HFTelegram !== "undefined" && HFTelegram.warm) { HFTelegram.warm(HFLibrary.videoKeys(title)); }
   if (title.type === "series") {
     detail.season = seasonIndexFor(title, opts.episodeKey || (HFLibrary.nextEpisode(title).episode || {}).key);
   }
   showRoute("detail");
   renderDetail(opts.focus || (opts.episodeKey ? "episodes" : "actions"), opts.episodeKey ? episodeIndexFor(title, opts.episodeKey) : 0);
+  if (title.anime) { loadAnimeDetail(title, opts); }
+}
+
+/* Anime: los capítulos y la ficha vienen del servidor; se pinta enseguida con lo que haya y se completa al llegar. */
+function loadAnimeDetail(title, opts) {
+  var rerender = function () {
+    var a;
+    if (detail.title !== title || currentRoute !== "detail") { return; }
+    a = currentArea();
+    renderDetail(a ? a.name : "actions", a && a.name === "actions" ? state.itemIndex : 0);
+  };
+  var next;
+  HFAnime.touch(title);
+  detail.animeError = "";
+  /* capítulos al instante si ya se sabe cuántos hay; la ficha (descripción) y la lista real llegan después sin bloquear nada */
+  if (!title.loaded && HFAnime.quick(title)) {
+    if (!opts.episodeKey) { detail.season = seasonIndexFor(title, (HFLibrary.nextEpisode(title).episode || {}).key); }
+    renderDetail("actions", 0);
+  }
+  next = title.loaded ? HFLibrary.nextEpisode(title).episode : null;
+  if (next) { HFAnime.prefetch(next); } // la fuente se va buscando mientras se mira la ficha
+  HFAnime.info(title).then(rerender);
+  HFAnime.ensure(title).then(function () {
+    var a;
+    if (detail.title !== title || currentRoute !== "detail") { return; }
+    a = currentArea();
+    if (!opts.episodeKey) { detail.season = seasonIndexFor(title, (HFLibrary.nextEpisode(title).episode || {}).key); }
+    renderDetail(a ? a.name : "actions", a && a.name === "actions" ? state.itemIndex : 0);
+  }, function (e) {
+    if (detail.title === title && currentRoute === "detail") {
+      detail.animeError = String((e && e.message) || e);
+      renderDetail("actions", 0);
+    }
+  });
 }
 
 function closeDetail() {
@@ -75,8 +112,8 @@ function sourceLine(t) {
 function episodeCardHtml(ep) {
   var p = HFLibrary.progress(ep.key);
   var prog = progressInfo(ep.key);
-  return '<div class="hf2-ep" data-focusable="true" data-ref="v:' + esc(ep.key) + '" data-title="' + esc(ep.title) + '" data-description="T' + ep.season + ":E" + ep.episode + " · " + esc(ep.title) + (p && p.done ? " · visto" : "") + (prog ? " · " + prog.left : "") + '" tabindex="0">' +
-    '<div class="hf2-ep-art hf2-img" data-img="' + esc(ep.key) + '" data-img-w="480">' + fallbackArt(ep.key, "ep") + '<span class="hf2-ep-num">' + ep.episode + "</span>" +
+  return '<div class="hf2-ep" data-focusable="true" data-ref="v:' + esc(ep.key) + '" data-title="' + esc(ep.title) + '" data-description="' + epTag(ep) + " · " + esc(ep.title) + (p && p.done ? " · visto" : "") + (prog ? " · " + prog.left : "") + '" tabindex="0">' +
+    '<div class="hf2-ep-art hf2-img" data-img="' + esc(ep.coverKey || ep.key) + '" data-img-w="480">' + fallbackArt(ep.key, "ep") + '<span class="hf2-ep-num">' + ep.episode + "</span>" +
       (p && p.done ? '<span class="hf2-ep-done">' + IC.check + "Visto</span>" : "") +
       (prog ? '<span class="hf2-card-progress"><i style="width:' + prog.pct + '%"></i></span>' : "") +
       '<span class="hf2-ep-play">' + IC.play + "</span></div>" +
@@ -99,7 +136,7 @@ function renderDetail(focusName, focusIndex) {
 
   root.className = "screen hf2 cat dt";
   html += '<div class="hf2-dt-art hf2-img' + (t.type === "video" ? " muted" : "") + '"' + (art ? ' data-img="' + esc(art) + '" data-img-w="1280"' : "") + ">" + fallbackArt(art || t.name, "dt") + "</div>" +
-    '<div class="hf2-dt-shade"></div>' + brandHtml("small dt") + '<div class="hf2-back">' + IC.back + "Volver</div>";
+    '<div class="hf2-dt-shade"></div>' + brandHtml("small dt") + '<div class="hf2-dt-nav"><div class="hf2-home">' + IC.menuHome + 'Inicio</div><div class="hf2-back">' + IC.back + "Volver</div></div>";
 
   if (t.type === "movie" || t.type === "video") {
     p = HFLibrary.progress(entryVideoKey(t));
@@ -123,37 +160,44 @@ function renderDetail(focusName, focusIndex) {
       (prog ? '<div class="hf2-dt-progress"><span class="bar"><i style="width:' + prog.pct + '%"></i></span><span>Viste ' + HFLibrary.formatDuration(p.t) + " · " + prog.left.toLowerCase() + "</span></div>" : "") +
       (t.description ? "<p>" + esc(t.description) + "</p>" : "") +
       '<div class="hf2-bb-actions">' + buttons + "</div></div>";
+    /* «Similares» del motor de recomendaciones (js/reco.js); mientras no llegue (o si son pocas), lo de siempre */
+    var similar = typeof HFReco !== "undefined" ? HFReco.similares(t.titleKey, library).filter(function (e) { return e.item !== t; }) : [];
     var others = library.movies.filter(function (m) { return m !== t && m.video.chatTitle === t.video.chatTitle; }).slice(0, 12);
     if (others.length < 4) {
       others = library.movies.filter(function (m) { return m !== t; }).slice(0, 12);
     }
-    if (others.length) {
+    if (similar.length >= 3) {
+      html += '<div class="hf2-dt-more">' + rowHtml("more", "Similares", similar, { note: "para " + (activeProfile ? activeProfile.name : "ti") }) + "</div>";
+    } else if (others.length) {
       html += '<div class="hf2-dt-more">' + rowHtml("more", others.length && others[0].video.chatTitle === t.video.chatTitle ? "También de " + t.video.chatTitle : "Más películas", others, { note: String(others.length) }) + "</div>";
     }
   } else if (t.type === "series") {
     next = HFLibrary.nextEpisode(t);
     if (next.episode) {
       if (next.started && next.resume > 0) {
-        buttons += dtButton("play-next", IC.play, "Continuar T" + next.episode.season + ":E" + next.episode.episode, true, "Seguir con " + next.episode.title);
+        buttons += dtButton("play-next", IC.play, "Continuar " + epTag(next.episode), true, "Seguir con " + next.episode.title);
       } else if (next.finished) {
-        buttons += dtButton("play-first", IC.restart, "Ver desde T1:E1", true, "Volver a empezar la serie");
+        buttons += dtButton("play-first", IC.restart, "Ver desde " + epTag(t.seasons[0].episodes[0]), true, "Volver a empezar la serie");
       } else {
-        buttons += dtButton("play-next", IC.play, "Ver T" + next.episode.season + ":E" + next.episode.episode, true, next.episode.title);
+        buttons += dtButton("play-next", IC.play, "Ver " + epTag(next.episode), true, next.episode.title);
       }
       if (next.started && !next.finished) {
-        buttons += dtButton("play-first", IC.restart, "Desde T1:E1");
+        buttons += dtButton("play-first", IC.restart, "Desde " + epTag(t.seasons[0].episodes[0]));
       }
+    } else if (t.anime) {
+      buttons += dtButton("reload", IC.restart, detail.animeError ? "Reintentar" : "Cargando capítulos…", true, detail.animeError || "Trayendo los capítulos del servidor");
     }
     inList = HFLibrary.inMyList(t.titleKey);
     buttons += dtButton("mylist", inList ? IC.check : IC.plus, inList ? "En mi lista" : "Mi lista", false, inList ? "Quitar de Mi lista" : "Guardar en Mi lista");
-    var season = t.seasons[detail.season] || t.seasons[0];
+    var season = t.seasons[detail.season] || t.seasons[0] || { episodes: [] };
     var watched = season.episodes.filter(function (ep) { var x = HFLibrary.progress(ep.key); return x && x.done; }).length;
-    html += '<div class="hf2-dt-copy"><div class="hf2-bb-badges"><span class="hf2-chip gold">Serie</span>' + (t.kids ? '<span class="hf2-chip kids">' + IC.star + "Infantil</span>" : "") + "</div>" +
-      "<h1" + (t.name.length > 20 ? ' class="long"' : "") + ">" + esc(t.name) + '</h1><div class="hf2-bb-meta"><b>' + t.seasons.length + (t.seasons.length === 1 ? " temporada" : " temporadas") + "</b><span>" + t.episodeCount + " capítulos</span></div>" +
+    html += '<div class="hf2-dt-copy"><div class="hf2-bb-badges"><span class="hf2-chip gold">' + (t.anime ? "Anime" : "Serie") + "</span>" + (t.kids ? '<span class="hf2-chip kids">' + IC.star + "Infantil</span>" : "") + "</div>" +
+      "<h1" + (t.name.length > 20 ? ' class="long"' : "") + ">" + esc(t.name) + '</h1><div class="hf2-bb-meta">' + (t.anime ? animeMeta(t) : "<b>" + t.seasons.length + (t.seasons.length === 1 ? " temporada" : " temporadas") + "</b><span>" + t.episodeCount + " capítulos</span>") + "</div>" +
       '<div class="hf2-dt-full">' + sourceLine(t) + (t.description ? "<p>" + esc(t.description) + "</p>" : "") + '<div class="hf2-bb-actions">' + buttons + "</div></div></div>" +
       '<div class="hf2-dt-episodes"><div class="hf2-seasons">' + t.seasons.map(function (s, i) {
-        return '<span class="hf2-pill' + (i === detail.season ? " on" : "") + '" data-focusable="true" data-season="' + i + '" data-title="Temporada ' + s.number + '" data-description="Temporada ' + s.number + " · " + s.episodes.length + ' capítulos" tabindex="0">Temporada ' + s.number + " <b>" + s.episodes.length + "</b></span>";
+        return '<span class="hf2-pill' + (i === detail.season ? " on" : "") + '" data-focusable="true" data-season="' + i + '" data-title="' + esc(seasonLabel(s)) + '" data-description="' + esc(seasonLabel(s)) + " · " + s.episodes.length + ' capítulos" tabindex="0">' + esc(seasonLabel(s)) + " <b>" + s.episodes.length + "</b></span>";
       }).join("") + '<span class="hf2-seasons-note">Viste ' + watched + " de " + season.episodes.length + " capítulos</span></div>" +
+      (t.anime && !season.episodes.length ? '<p class="hf2-text" style="margin-left:88px">' + esc(detail.animeError || "Cargando los capítulos…") + "</p>" : "") +
       '<div class="hf2-ep-viewport"><div class="hf2-ep-track" id="episodeTrack">' + season.episodes.map(episodeCardHtml).join("") + "</div></div></div>";
   } else {
     buttons = dtButton("tag", IC.tag, "Etiquetar", true, "Decir si es película o capítulo, sin tocar Telegram") +
@@ -180,6 +224,105 @@ function renderDetail(focusName, focusIndex) {
   setAreas(defs, focusName || "actions", focusIndex || 0);
   observeImages(root);
   updateStatus(t.name + " · " + titleMeta(t));
+  detailPvArm();
+}
+
+/* ===================== Vista previa en la ficha =====================
+ * Igual que en el destacado del inicio (js/ui/library.js, HeroPv): a los ~0,4 s de abrir la ficha de una película o serie suena un fragmento
+ * (a ~30 % de la película, máx. 45 s) a todo el ancho, con fundido, sobre la imagen. Usa el mismo estado (HeroPv): al salir de la ficha, al
+ * reproducir o al abrir otra pantalla se corta (heroPvCancel). Si la ficha se vuelve a pintar (Mi lista, temporada…) el video se vuelve a colocar. */
+function detailPvArm() {
+  var t = detail.title;
+  var root = byId("scrDetail");
+  var ref;
+  var art;
+  var pr;
+  if (!t || currentRoute !== "detail" || (t.type !== "movie" && t.type !== "series") || t.anime || typeof heroPvSupported !== "function" || !heroPvSupported() ||
+      (typeof UPM !== "undefined" && UPM.open)) {
+    return;
+  }
+  ref = "d:" + (t.titleKey || t.key);
+  if (HeroPv.ref === ref && HeroPv.wrap) {
+    if (HeroPv.wrap.parentNode !== root) { // la ficha se pintó de nuevo: el video vuelve a su sitio y sigue
+      art = root.querySelector(".wii-pv") || root.querySelector(".hf2-dt-art");
+      if (art) {
+        if (art.classList.contains("wii-pv")) { art.appendChild(HeroPv.wrap); } else { art.parentNode.insertBefore(HeroPv.wrap, art.nextSibling); }
+        try { pr = HeroPv.el.play(); if (pr && pr.catch) { pr.catch(function () { /* sin reproducir */ }); } } catch (e) { /* nada */ }
+      }
+    }
+    return;
+  }
+  if (HeroPv.ref === ref && HeroPv.timer) { return; }
+  heroPvCancel();
+  HeroPv.ref = ref;
+  HeroPv.timer = setTimeout(function () {
+    HeroPv.timer = null;
+    detailPvStart(ref);
+  }, HERO_PV_DELAY);
+}
+
+// Preferencia del botón de sonido de la vista previa (mini reproductor del tema Wii, js/themes.js): «0» = en silencio, «1» = con sonido; sin elegir = como siempre.
+function detailPvSinSonido() {
+  var p = null;
+  try { p = localStorage.getItem("hf.pv.sonido"); } catch (e) { p = null; }
+  return p === "0";
+}
+
+function detailPvStart(ref) {
+  var t = detail.title;
+  var root = byId("scrDetail");
+  var art = root.querySelector(".wii-pv") || root.querySelector(".hf2-dt-art"); // «.wii-pv»: el mini reproductor del tema Wii (js/themes.js)
+  var mini = !!(art && art.classList.contains("wii-pv"));
+  var pick;
+  var my;
+  var video;
+  var shade;
+  var fade;
+  var wrap;
+  var engine;
+  if (!t || HeroPv.ref !== ref || currentRoute !== "detail" || !art) { return; }
+  pick = heroPvPick(t);
+  if (!pick) { return; }
+  my = HeroPv.token;
+  video = document.createElement("video");
+  video.className = "hf2-bb-pv";
+  video.muted = HERO_PV_MUTED || detailPvSinSonido() || (richFx() && !(navigator.userActivation && navigator.userActivation.hasBeenActive));
+  video.volume = HERO_PV_VOLUME;
+  video.setAttribute("playsinline", "");
+  wrap = document.createElement("div");
+  wrap.className = "hf2-bb-vmedia dt" + (mini ? " wii" : "");
+  wrap.appendChild(video);
+  if (!mini) { // en la ficha normal el video lleva su sombra y el fundido hacia el fondo; en el mini reproductor va limpio
+    shade = document.createElement("div");
+    shade.className = "hf2-bb-shade pv";
+    fade = document.createElement("div");
+    fade.className = "hf2-bb-vfade";
+    fade.style.backgroundImage = heroPvFadeGradient(art);
+    wrap.appendChild(shade);
+    wrap.appendChild(fade);
+  }
+  if (mini) { art.appendChild(wrap); } else { art.parentNode.insertBefore(wrap, art.nextSibling); }
+  HeroPv.el = video;
+  HeroPv.wrap = wrap;
+  engine = Player.create(video, function () { /* registro interno: no se muestra */ }, function (phase) {
+    if (my !== HeroPv.token) { return; }
+    if (phase === "playing") {
+      wrap.classList.add("on");
+      if (!HeroPv.end) { HeroPv.end = setTimeout(heroPvCancel, HERO_PV_LEN); }
+    } else if (phase === "error") {
+      heroPvCancel();
+    }
+  });
+  HeroPv.engine = engine;
+  HFTelegram.source(pick.key).then(function (src) {
+    if (my !== HeroPv.token) { return null; }
+    return engine.open(src, { startAt: pick.startAt, onTracks: function () {}, onSub: function () {} });
+  }).then(function () {
+    if (my !== HeroPv.token) { return; }
+    try { video.play(); } catch (e) { /* el motor ya la inicia */ }
+  }, function () {
+    if (my === HeroPv.token) { heroPvCancel(); }
+  });
 }
 
 /* En la serie, al bajar a temporadas/capítulos la cabecera se reduce y los capítulos suben. */
@@ -192,6 +335,11 @@ function setDetailScrolled(on) {
   root.className = "screen hf2 cat dt" + (on ? " scrolled" : "");
   measureAreas();
   updateFocus();
+  if (on) {
+    if (typeof heroPvCancel === "function") { heroPvCancel(); } // la vista previa se corta al recoger la cabecera
+  } else if (currentArea() && currentArea().name === "actions" && typeof detailPvArm === "function") {
+    detailPvArm();
+  }
 }
 
 function onSeasonFocus(el, index) {
@@ -224,6 +372,11 @@ function handleDetailSelect(el) {
     detail.season = Number(seasonIdx);
     renderDetail("episodes", 0);
     setDetailScrolled(true);
+    return;
+  }
+  if (action === "reload") {
+    loadAnimeDetail(t, {});
+    renderDetail("actions", 0);
     return;
   }
   if (action === "play") {

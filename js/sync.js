@@ -25,7 +25,7 @@
 var HFSync = (function () {
   "use strict";
 
-  var SERVER = String(window.HF_SYNC_URL || "https://scalvache.shop/productos/HomeFlix").replace(/\/+$/, "");
+  var SERVER = typeof hfServidor === "function" ? hfServidor() : String(window.HF_SYNC_URL || "https://scalvache.shop/productos/HomeFlix").replace(/\/+$/, "");
 
   var on = false;
   var account = "";
@@ -64,16 +64,86 @@ var HFSync = (function () {
     return null;
   }
 
-  /* ----- Este dispositivo (para que la consola sepa desde dónde se sincroniza) ----- */
+  /* ----- Este dispositivo (para que la consola sepa desde dónde se sincroniza) -----
+   * Identidad completa; el servidor la guarda por cuenta (servidor/src/base.js, «IDENTIDAD DEL DISPOSITIVO»):
+   *   tipo        tv (Samsung Tizen o Android TV) · android (APK de celular) · pc (navegador de computador) · web (navegador/PWA de celular o tablet)
+   *   plataforma  tizen · androidtv · android · ios · ipados · windows · macos · linux · chromeos
+   *   interfaz    tv · movil · pc   (cuál de las tres pantallas de HomeFlix usa)
+   *   canal       tizen · androidtv · apk · pwa (instalada desde el navegador) · navegador · escritorio (app de PC, a futuro)
+   *   navegador   «Chrome 131» (web y pc)    app: versión de HomeFlix    modelo: modelo de la TV, si se conoce
+   * «Ver en la TV» lista los que pueden reproducir (tv y pc). Las apps viejas solo mandan id/tipo/nombre y siguen funcionando. */
+  var entornoCache = null;
+
+  function navegadorDe(ua) {
+    var m;
+    if ((m = /Edg(?:e|A|iOS)?\/(\d+)/.exec(ua))) { return "Edge " + m[1]; }
+    if ((m = /OPR\/(\d+)/.exec(ua))) { return "Opera " + m[1]; }
+    if ((m = /(?:Firefox|FxiOS)\/(\d+)/.exec(ua))) { return "Firefox " + m[1]; }
+    if ((m = /(?:Chrome|CriOS)\/(\d+)/.exec(ua))) { return "Chrome " + m[1]; }
+    if ((m = /Version\/(\d+)[^ ]* (?:Mobile\/\S+ )?Safari/.exec(ua))) { return "Safari " + m[1]; }
+    return "";
+  }
+
+  function entorno() {
+    var ua = navigator.userAgent || "";
+    var tv = !!(window.tizen || window.HF_TV);
+    var pc = document.documentElement.getAttribute("data-web") === "pc";
+    var plataforma;
+    var canal;
+    var standalone = false;
+    var e;
+    if (entornoCache && entornoCache.pc === pc) { return entornoCache; }
+    try { standalone = !!(navigator.standalone || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)); } catch (err) { standalone = false; }
+    if (window.tizen) { plataforma = "tizen"; }
+    else if (window.HF_TV) { plataforma = "androidtv"; }
+    else if (window.HFAndroid) { plataforma = "android"; }
+    else if (/iPhone|iPod/.test(ua)) { plataforma = "ios"; }
+    else if (/iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1)) { plataforma = "ipados"; }
+    else if (/Android/.test(ua)) { plataforma = "android"; }
+    else if (/CrOS/.test(ua)) { plataforma = "chromeos"; }
+    else if (/Windows/.test(ua)) { plataforma = "windows"; }
+    else if (/Macintosh|Mac OS X/.test(ua)) { plataforma = "macos"; }
+    else if (/Linux|X11/.test(ua)) { plataforma = "linux"; }
+    else { plataforma = ""; }
+    canal = window.tizen ? "tizen" : window.HF_TV ? "androidtv" : window.HFAndroid ? "apk" : standalone ? "pwa" : "navegador";
+    e = {
+      pc: pc,
+      tipo: tv ? "tv" : window.HFAndroid ? "android" : pc ? "pc" : "web",
+      plataforma: plataforma,
+      interfaz: tv ? "tv" : pc ? "pc" : "movil",
+      canal: canal,
+      navegador: tv || window.HFAndroid ? "" : navegadorDe(ua),
+      app: typeof HF_VERSION !== "undefined" && HF_VERSION ? String(HF_VERSION) : ""
+    };
+    entornoCache = e;
+    return e;
+  }
+
+  var SO_NOMBRE = { windows: "Windows", macos: "macOS", linux: "Linux", chromeos: "ChromeOS", ios: "iPhone", ipados: "iPad", android: "Android" };
+
   function device() {
     var id = store("hf.device");
+    var e;
+    var nombre;
     if (!id) {
       id = randomKey().slice(0, 16);
       store("hf.device", id);
     }
-    var tipo = window.tizen ? "tv" : window.HFAndroid ? "android" : "web";
-    var nombre = tipo === "tv" ? tvName() : tipo === "android" ? "Android" : (/iPhone|iPad/.test(navigator.userAgent) ? "iPhone / iPad" : /Android/.test(navigator.userAgent) ? "Android (navegador)" : "Navegador");
-    return { id: id, tipo: tipo, nombre: nombre };
+    e = entorno();
+    if (e.tipo === "tv") { nombre = tvName(); }
+    else if (e.tipo === "android") { nombre = "Android"; }
+    else if (e.tipo === "pc") { nombre = (e.navegador ? e.navegador.split(" ")[0] : "Navegador") + " en " + (SO_NOMBRE[e.plataforma] || "computador"); }
+    else { nombre = (SO_NOMBRE[e.plataforma] || "Navegador") + (e.canal === "pwa" ? " (app instalada)" : e.navegador ? " · " + e.navegador.split(" ")[0] : ""); }
+    return {
+      id: id, tipo: e.tipo, nombre: nombre, plataforma: e.plataforma, interfaz: e.interfaz, canal: e.canal,
+      navegador: e.navegador, app: e.app, modelo: e.tipo === "tv" ? tvModel() : ""
+    };
+  }
+
+  /* Lo que se manda en la dirección del canal en vivo (sin cabecera nueva: un servidor sin actualizar la ignora en lugar de rechazar la petición). */
+  function deviceInfo() {
+    var d = device();
+    return { plataforma: d.plataforma, interfaz: d.interfaz, canal: d.canal, navegador: d.navegador, app: d.app, modelo: d.modelo };
   }
 
   /* «TV Samsung QN55Q65B»: así se reconoce en la lista de «Ver en la TV» del celular. */
@@ -81,12 +151,25 @@ var HFSync = (function () {
   function tvName() {
     var m = "";
     if (tvNameCache) { return tvNameCache; }
+    if (window.HF_TV && window.HFTV) {
+      tvNameCache = "TV Android" + (window.HFTV.model() ? " " + window.HFTV.model() : "");
+      return tvNameCache;
+    }
     try { m = window.webapis && webapis.productinfo && webapis.productinfo.getRealModel ? webapis.productinfo.getRealModel() : ""; } catch (e) { m = ""; }
     if (!m) {
       try { m = tizen.systeminfo.getCapability("http://tizen.org/system/model_name"); } catch (e) { m = ""; }
     }
     tvNameCache = "TV Samsung" + (m ? " " + String(m).replace(/^Samsung\s*/i, "") : "");
     return tvNameCache;
+  }
+
+  /* El modelo a secas («QN55Q65B»), o vacío. */
+  function tvModel() {
+    var m = "";
+    if (window.HF_TV && window.HFTV) { try { return String(window.HFTV.model() || ""); } catch (e) { return ""; } }
+    try { m = window.webapis && webapis.productinfo && webapis.productinfo.getRealModel ? webapis.productinfo.getRealModel() : ""; } catch (e) { m = ""; }
+    if (!m) { try { m = tizen.systeminfo.getCapability("http://tizen.org/system/model_name"); } catch (e) { m = ""; } }
+    return String(m || "").replace(/^Samsung\s*/i, "");
   }
 
   function accountInfo() {
@@ -259,8 +342,39 @@ var HFSync = (function () {
     window.addEventListener("pagehide", flush, false);
   }
 
+  /* ----- Dirección del servidor (js/config.js hfServidor) -----
+   * setServidor(url): la guarda en este aparato y en el archivo de la cuenta en Telegram (homeflix-cuenta.json), así la TV
+   * y los demás la toman solos al abrir. Solo se adopta lo que trae «servidorAt» (lo escribe esta función): el «servidor» que
+   * venía en archivos viejos era el del VPS, que ya no existe. Rige al volver a abrir la app. */
+  function setServidor(url) {
+    var u = String(url || "").trim().replace(/\/+$/, "");
+    if (typeof hfServidorValido === "function" && !hfServidorValido(u)) { return Promise.reject(new Error("direccion_invalida")); }
+    var at = Date.now();
+    store("hf.servidor", u);
+    store("hf.servidor.at", String(at));
+    return HFTelegram.keyRead().then(function (r) {
+      if (!r || !r.data || !validKey(r.data.key)) { return null; }
+      return HFTelegram.keyWrite(Object.assign({}, r.data, { servidor: u, servidorAt: at }), r.id);
+    }).catch(function () { return null; }); // sin Telegram: queda solo en este aparato
+  }
+
+  var adoptado = false;
+  function adoptarServidor() {
+    if (adoptado || typeof HFTelegram === "undefined" || !HFTelegram.keyRead) { return; }
+    adoptado = true;
+    HFTelegram.keyRead().then(function (r) {
+      var d = r && r.data;
+      var local = Number(store("hf.servidor.at")) || 0;
+      if (d && d.servidorAt && d.servidorAt > local && typeof hfServidorValido === "function" && hfServidorValido(d.servidor)) {
+        store("hf.servidor", String(d.servidor).replace(/\/+$/, ""));
+        store("hf.servidor.at", String(d.servidorAt));
+      }
+    }, function () { /* sin Telegram: sigue con el de este aparato */ });
+  }
+
   function start() {
     hook();
+    adoptarServidor();
     if (on && account === HFLibrary.accountId()) {
       if (Date.now() - lastPull > PULL_EVERY) {
         run();
@@ -291,8 +405,10 @@ var HFSync = (function () {
       return { state: !on ? "off" : busy ? "busy" : lastError ? "error" : "idle", at: lastOk, error: lastError };
     },
     server: SERVER,
+    setServidor: setServidor,
     /* para «Ver en la TV» (js/remote.js): la misma llave y el mismo dispositivo que la sincronización */
     key: function () { return accountKey(HFLibrary.accountId()); },
-    device: device
+    device: device,
+    deviceInfo: deviceInfo
   };
 })();

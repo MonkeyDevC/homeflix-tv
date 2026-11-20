@@ -241,7 +241,7 @@ var HFTelegram = (function () {
   }
 
   function signedOut(e) {
-    return /AUTH_KEY_UNREGISTERED|AUTH_KEY_INVALID|SESSION_REVOKED|SESSION_EXPIRED|USER_DEACTIVATED/.test(String(e && e.message));
+    return /AUTH_KEY_UNREGISTERED|AUTH_KEY_INVALID|AUTH_KEY_DUPLICATED|SESSION_REVOKED|SESSION_EXPIRED|USER_DEACTIVATED/.test(String(e && e.message));
   }
 
   function rejectedApi(e) {
@@ -366,6 +366,8 @@ var HFTelegram = (function () {
     if (flood) {
       return "Telegram pide esperar " + (Number(flood[1]) > 90 ? Math.ceil(Number(flood[1]) / 60) + " minutos" : flood[1] + " segundos") + " antes de intentar de nuevo.";
     }
+    if (/AUTH_KEY_DUPLICATED/.test(m)) { return "Telegram detectó la misma sesión usada a la vez en dos sitios y la cerró. Cierra HomeFlix en las otras ventanas o equipos y vuelve a entrar."; }
+    if (/WebCrypto|crypto\.subtle|isSecureContext/i.test(m)) { return "Telegram necesita una conexión segura. Abre HomeFlix en este mismo equipo con http://localhost (no con la IP ni el nombre del equipo); desde otro dispositivo, ábrelo por https."; }
     if (/PHONE_NUMBER_INVALID|PHONE_NUMBER_BANNED/.test(m)) { return "Ese número no es válido para Telegram. Revisa el indicativo y el número."; }
     if (/PHONE_NUMBER_UNOCCUPIED/.test(m)) { return "Ese número no tiene cuenta de Telegram."; }
     if (/PHONE_CODE_INVALID|PHONE_CODE_EMPTY/.test(m)) { return "El código no es correcto. Revísalo e inténtalo de nuevo."; }
@@ -587,8 +589,13 @@ var HFTelegram = (function () {
   function describe(m, kind) {
     var d = m.media;
     var key = String(m.chat.id) + ":" + m.id;
+    var edit = m.editDate ? m.editDate.getTime() : 0;
     messages[key] = m;
+    if (kind === "photo") {
+      noteEdit(key, edit);
+    }
     return {
+      edit: edit,
       key: key,
       chatId: String(m.chat.id),
       chatTitle: (m.chat && (m.chat.title || m.chat.displayName)) || "",
@@ -604,30 +611,73 @@ var HFTelegram = (function () {
     };
   }
 
-  async function collect(chatId, filter, keep, kind, out) {
+  /* stopAt (opcional): lectura INCREMENTAL. Telegram entrega lo más nuevo primero; en cuanto una página trae mensajes que ya se
+   * conocían (id ≤ stopAt) se termina esa página y se deja de pedir más: cada página son ~3,5 s en esta ruta. */
+  async function collect(chatId, filter, keep, kind, out, stopAt) {
     var offset;
     var res;
     var n = 0;
     do {
       res = await again(function () { return client.searchMessages({ chatId: typeof chatId === "object" ? chatId : Number(chatId), filter: filter, limit: 100, offset: offset }); });
       res.forEach(function (m) {
-        if (keep(m)) {
+        if (keep(m) && !(stopAt && m.id <= stopAt)) {
           out.push(describe(m, typeof kind === "function" ? kind(m) : kind));
         }
       });
       n += res.length;
       offset = res.next;
+      if (stopAt && res.some(function (m) { return m.id <= stopAt; })) {
+        break;
+      }
     } while (res.length && offset !== undefined && n < MAX_PER_FILTER);
   }
 
+  /* Cuántos videos + documentos + fotos tiene el chat ahora (3 peticiones de 1 mensaje, a la vez): sirve para notar que se BORRÓ algo sin releer todo.
+   * Devuelve null si Telegram no da el total (entonces no se puede comprobar y se sigue como antes). */
+  async function countMedia(chatId) {
+    var tot = 0;
+    var rs;
+    await start();
+    try {
+      rs = await withPeer(chatId, async function (peer) {
+        return Promise.all([VIDEO, DOCS, PHOTOS].map(function (f) {
+          return again(function () { return client.searchMessages({ chatId: typeof peer === "object" ? peer : Number(peer), filter: f, limit: 1 }); });
+        }));
+      });
+    } catch (e) { return null; }
+    if (!rs.every(function (r) { return r && typeof r.total === "number"; })) { return null; }
+    rs.forEach(function (r) { tot += r.total; });
+    return tot;
+  }
+
   /* Todos los videos (y fotos-ficha) de un chat, con su comentario (con la llave de esta cuenta: withPeer). */
-  async function scanOne(chat, out) {
+  async function scanOne(chat, out, stopAt) {
     await withPeer(chat, async function (peer) {
-      var mine = [];
-      await collect(peer, VIDEO, isVideoMsg, "video", mine);
-      await collect(peer, DOCS, function (m) { return isVideoDoc(m) || isThumbDoc(m) || isSubDoc(m); }, function (m) { return isThumbDoc(m) ? "thumbs" : isSubDoc(m) ? "sub" : "video"; }, mine);
-      await collect(peer, PHOTOS, isPhotoWithCaption, "photo", mine);
-      mine.forEach(function (it) { out.push(it); }); // si se reintenta, no quedan repetidos
+      var vids = [];
+      var docs = [];
+      var photos = [];
+      var docKeep = function (m) { return isVideoDoc(m) || isThumbDoc(m) || isSubDoc(m); };
+      var docKind = function (m) { return isThumbDoc(m) ? "thumbs" : isSubDoc(m) ? "sub" : "video"; };
+      /* Los tres filtros (videos, documentos, fotos) se piden A LA VEZ: antes iban uno tras otro y la lectura de un chat tardaba la
+       * suma de los tres. Si Telegram protesta por tantas peticiones juntas, se repite uno por uno como siempre. */
+      try {
+        await Promise.all([
+          collect(peer, VIDEO, isVideoMsg, "video", vids, stopAt),
+          collect(peer, DOCS, docKeep, docKind, docs, stopAt),
+          collect(peer, PHOTOS, isPhotoWithCaption, "photo", photos, stopAt)
+        ]);
+      } catch (e) {
+        if (badPeer(e)) {
+          throw e; // la llave del chat: withPeer la renueva y vuelve a intentar
+        }
+        vids = [];
+        docs = [];
+        photos = [];
+        await collect(peer, VIDEO, isVideoMsg, "video", vids, stopAt);
+        await collect(peer, DOCS, docKeep, docKind, docs, stopAt);
+        await collect(peer, PHOTOS, isPhotoWithCaption, "photo", photos, stopAt);
+      }
+      vids.concat(docs, photos).forEach(function (it) { out.push(it); }); // si se reintenta, no quedan repetidos
     });
   }
 
@@ -676,16 +726,64 @@ var HFTelegram = (function () {
    * (sin importar cuál de los dos se eligió) y todo cuenta como el chat elegido (así los perfiles que lo tenían
    * elegido no tienen que volver a elegirlo). Cada video conserva su clave real (chat:mensaje), la misma en todos
    * los dispositivos. */
-  async function scan(chatId) {
+  /* scan(chatId, {since}): con since (el mensaje más nuevo que ya se tenía de ese chat) solo se leen los mensajes NUEVOS: unas pocas
+   * peticiones en vez de recorrer todo el chat. El arreglo devuelto trae .incremental, .maxId (el id más nuevo de este chat) y
+   * .migrated (si el chat se pasó a supergrupo: esos se leen siempre completos). */
+  async function scan(chatId, opts) {
     var out = [];
     var more = [];
     var moved;
+    var movedP;
+    var since = opts && opts.since ? Number(opts.since) : 0;
     await start();
-    await scanOne(chatId, out);
-    moved = await migratedTo(chatId);
-    if (!moved) {
-      moved = await migratedFrom(chatId);
+    if (since) {
+      await scanOne(chatId, out, since);
+      /* Las fotos que ya se tenían: ¿alguna se editó (portada o banner cambiados en el mismo mensaje)? Se piden de a 100 mensajes
+       * y solo se devuelven las que cambiaron; si falla (límite de Telegram…) se sigue con lo nuevo y se verá en la próxima. */
+      if (opts && opts.photos && opts.photos.length) {
+        try {
+          await withPeer(chatId, async function (peer) {
+            var known = {};
+            var ids = [];
+            var batches = [];
+            var got;
+            var i;
+            opts.photos.forEach(function (p) { known[p.msgId] = p.edit || 0; ids.push(p.msgId); });
+            for (i = 0; i < ids.length; i += 100) {
+              batches.push(ids.slice(i, i + 100));
+            }
+            got = await Promise.all(batches.map(function (b) {
+              return again(function () { return client.getMessages(peer, b); });
+            }));
+            got.forEach(function (list) {
+              (list || []).forEach(function (m) {
+                var now;
+                if (!m || !m.media || !m.id) { return; }
+                now = m.editDate ? m.editDate.getTime() : 0;
+                if (now !== known[m.id] && !out.some(function (o) { return o.msgId === m.id; })) {
+                  out.push(describe(m, "photo"));
+                }
+              });
+            });
+          });
+        } catch (e) { /* sin revisar ediciones esta vez */ }
+      }
+      out.incremental = true;
+      out.maxId = out.reduce(function (n, it) { return Math.max(n, it.msgId || 0); }, since);
+      out.migrated = false;
+      return out;
     }
+    /* ¿el grupo se migró? se averigua mientras se leen los mensajes (eran 1–2 peticiones más, una tras otra) */
+    movedP = (async function () {
+      var m = await migratedTo(chatId);
+      return m || migratedFrom(chatId);
+    })();
+    movedP.catch(function () { /* se atiende abajo */ });
+    await scanOne(chatId, out);
+    moved = await movedP;
+    out.maxId = out.reduce(function (n, it) { return Math.max(n, it.msgId || 0); }, 0);
+    out.migrated = !!moved;
+    out.incremental = false;
     if (moved) {
       try {
         await scanOne(moved, more);
@@ -693,7 +791,7 @@ var HFTelegram = (function () {
         more = []; // esta cuenta entró al grupo después del cambio y no ve el grupo de antes: solo lo del actual
       }
       more.forEach(function (it) { it.chatId = String(chatId); });
-      out = dedupeCopies(out.concat(more));
+      out = Object.assign(dedupeCopies(out.concat(more)), { maxId: out.maxId, migrated: true, incremental: false });
     }
     return out;
   }
@@ -753,6 +851,47 @@ var HFTelegram = (function () {
   /* ----- Caché de miniaturas en la TV (IndexedDB) -----
    * Cada miniatura descargada se guarda en este dispositivo; al volver a entrar se lee de aquí, sin pedirla a Telegram.
    * Se guardan hasta IMG_MAX; al pasarse se borran las que hace más tiempo no se usan. */
+  /* Fotos editadas EN EL MISMO MENSAJE (cambiar la portada vertical, el banner…): el mensaje conserva su número, así que la imagen
+   * guardada en este equipo (por número de mensaje) quedaba para siempre. Se anota la fecha de edición de cada foto editada y va
+   * en la llave de la caché: al editarla cambia la llave y se baja la nueva. Se guarda aparte para valer desde el primer pintado. */
+  var EDIT_KEY = "hf.imgedit";
+  var edits = (function () {
+    try {
+      return JSON.parse(window.localStorage.getItem(EDIT_KEY) || "{}") || {};
+    } catch (e) {
+      return {};
+    }
+  }());
+  var editSaveTimer = null;
+
+  function noteEdit(key, stamp) {
+    if (!stamp || edits[key] === stamp) {
+      return;
+    }
+    edits[key] = stamp;
+    clearTimeout(editSaveTimer);
+    editSaveTimer = setTimeout(function () {
+      try { window.localStorage.setItem(EDIT_KEY, JSON.stringify(edits)); } catch (e) { /* sin almacenamiento: se anota de nuevo en la próxima lectura */ }
+    }, 800);
+  }
+
+  function imgKey(key, want) {
+    var e = edits[String(key)];
+    return key + "@" + want + (e ? "~" + e : "");
+  }
+
+  /* Texto que cambia cuando se edita alguna de esas fotos (para la huella que decide si se repinta el catálogo). */
+  function imageStamp() {
+    var out = "";
+    var i;
+    for (i = 0; i < arguments.length; i += 1) {
+      if (arguments[i] && edits[String(arguments[i])]) {
+        out += edits[String(arguments[i])] + ",";
+      }
+    }
+    return out;
+  }
+
   var IMG_DB = "hf-images";
   var IMG_STORE = "img";
   var IMG_MAX = 1500;
@@ -789,16 +928,16 @@ var HFTelegram = (function () {
       }
       return new Promise(function (resolve) {
         try {
-          var tx = db.transaction(IMG_STORE, "readwrite");
+          /* «readonly»: las lecturas de muchas portadas corren a la vez (con «readwrite» cada una esperaba a la anterior) */
+          var tx = db.transaction(IMG_STORE, "readonly");
           var st = tx.objectStore(IMG_STORE);
           var req = st.get(key);
           req.onsuccess = function () {
             var v = req.result;
             if (v && v.b) {
-              /* marcar como usada recién (para el recorte por antigüedad), sin esperar */
+              /* marcar como usada (para el recorte por antigüedad) una vez al día y aparte, sin esperar */
               if (Date.now() - (v.at || 0) > 86400000) {
-                v.at = Date.now();
-                st.put(v, key);
+                imgTouch(key);
               }
               resolve(v.b);
             } else {
@@ -810,6 +949,24 @@ var HFTelegram = (function () {
           resolve(null);
         }
       });
+    });
+  }
+
+  function imgTouch(key) {
+    imgDb().then(function (db) {
+      var st;
+      var r;
+      if (!db) { return; }
+      try {
+        st = db.transaction(IMG_STORE, "readwrite").objectStore(IMG_STORE);
+        r = st.get(key);
+        r.onsuccess = function () {
+          if (r.result) {
+            r.result.at = Date.now();
+            st.put(r.result, key);
+          }
+        };
+      } catch (e) { /* nada */ }
     });
   }
 
@@ -885,14 +1042,68 @@ var HFTelegram = (function () {
 
   /* La URL de una miniatura que ya está lista en memoria (para pintarla al instante al redibujar), o null. */
   function imageReady(key, want) {
-    return imageUrls[key + "@" + want] || null;
+    return imageUrls[imgKey(key, want)] || null;
+  }
+
+  /* Solo lo que ya está en este equipo (memoria o IndexedDB), sin pedir nada a Telegram: null si no está. Permite pintar de golpe todas
+   * las portadas ya guardadas sin hacerlas esperar en la cola de descargas (que va de a 3 y a ~3,5 s cada una). */
+  function imageLocal(key, want) {
+    var cacheKey = imgKey(key, want);
+    if (/^https?:\/\//i.test(String(key))) {
+      return Promise.resolve(key);
+    }
+    if (imageUrls[cacheKey]) {
+      return Promise.resolve(imageUrls[cacheKey]);
+    }
+    if (imageCache[cacheKey]) {
+      return imageCache[cacheKey].then(function (u) { return u || null; }, function () { return null; });
+    }
+    return imgGet(cacheKey).then(function (saved) {
+      var url;
+      if (!saved) {
+        return null;
+      }
+      url = toUrl(saved);
+      imageUrls[cacheKey] = url;
+      imageCache[cacheKey] = Promise.resolve(url);
+      return url;
+    }, function () { return null; });
+  }
+
+  /* Adelantar los mensajes de unos videos (UNA petición por chat, hasta 100 a la vez): al darle a reproducir, la fuente ya no
+   * espera a Telegram para encontrar el mensaje (eran ~3,5 s). Se llama al abrir la ficha de una película o serie. */
+  var warming = {};
+  function warm(keys) {
+    var byChat = {};
+    (keys || []).forEach(function (k) {
+      var p;
+      k = String(k);
+      if (messages[k] || warming[k] || !/^-?\d+:\d+$/.test(k)) { return; } // solo mensajes de Telegram (no «anime:…»)
+      p = k.split(":");
+      (byChat[p[0]] = byChat[p[0]] || []).push(Number(p[1]));
+      warming[k] = true;
+    });
+    Object.keys(byChat).forEach(function (chat) {
+      start().then(function () {
+        return withPeer(chat, function (peer) {
+          return again(function () { return client.getMessages(peer, byChat[chat].slice(0, 100)); });
+        });
+      }).then(function (ms) {
+        (ms || []).forEach(function (m) { if (m && m.id) { messages[chat + ":" + m.id] = m; } });
+      }, function () { /* sin adelantar: se pedirá al reproducir, como siempre */ }).then(function () {
+        byChat[chat].forEach(function (id) { delete warming[chat + ":" + id]; });
+      });
+    });
   }
 
   /* Imagen para una tarjeta o ficha: portada que Telegram guarda del video, su miniatura, o la foto de la ficha.
    * Primero se busca en la caché de la TV; si no está, se descarga de Telegram y se guarda.
    * Devuelve una URL blob: (se guarda en memoria) o null. */
   function image(key, want) {
-    var cacheKey = key + "@" + want;
+    var cacheKey = imgKey(key, want);
+    if (/^https?:\/\//i.test(String(key))) {
+      return Promise.resolve(key);
+    }
     if (!imageCache[cacheKey]) {
       imageCache[cacheKey] = (async function () {
         var saved = await imgGet(cacheKey);
@@ -1022,8 +1233,12 @@ var HFTelegram = (function () {
     dialogs: dialogs,
     videoCount: videoCount,
     scan: scan,
+    countMedia: countMedia,
     image: image,
+    imageStamp: imageStamp,
     imageReady: imageReady,
+    imageLocal: imageLocal,
+    warm: warm,
     fileUrl: fileUrl,
     messageOf: messageOf,
     rejectedApi: rejectedApi,

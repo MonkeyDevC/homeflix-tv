@@ -1,0 +1,26 @@
+# anime-api (https://github.com/aryaniiil/anime-api) en el VPS, carpeta ~/anime-api (el repo clonado + estos archivos).
+# SIN puerto publicado y sin dominio: solo el contenedor «homeflix» la alcanza (por la red «anime-interna»), y es el
+# servidor de HomeFlix quien valida la cuenta de cada app antes de preguntarle algo (servidor/src/anime.js).
+#
+# La red se crea una vez:  docker network create anime-interna
+services:
+  anime-api:
+    build: .
+    container_name: anime-api
+    # PRUEBAS (2026-11-14): puerto SOLO en el VPS (127.0.0.1) para que Caddy publique anime.homeflix.fun detrás de una clave. Quitarlo al terminar (ver quitar-dominio-publico.sh).
+    ports:
+      - "127.0.0.1:4600:8000"
+    restart: unless-stopped
+    networks:
+      - anime-interna
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 768m
+    cpus: 1.5
+
+networks:
+  anime-interna:
+    external: true

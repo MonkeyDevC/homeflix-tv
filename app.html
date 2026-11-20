@@ -3,8 +3,21 @@
 <head>
 <meta charset="utf-8"/>
 <title>HomeFlix TV</title>
+<script>
+  /* Abierta desde la versión web en un computador (web/index.html → ?web=1): se maneja con mouse y teclado,
+   * así que sobra la barra de ayuda del control remoto de abajo. En el televisor nunca lleva esta marca. */
+  /* En el sitio publicado (dist/web, tools/build-web.mjs) el index.html trae window.HF_WEB = true; en pruebas locales basta con ?web=1. */
+  window.HF_WEB = window.HF_WEB === true || /[?&]web=1/.test(location.search);
+  if (window.HF_WEB) {
+    document.write('<script src="js/responsive-web.js"><' + '/script>'); // ventana angosta o sin mouse → las pantallas del celular (/web/); cambia sola al redimensionar
+    document.documentElement.setAttribute("data-web", "pc");
+    document.write('<script src="js/web-pc.js"><' + '/script>'); // mouse: foco al pasar, rueda y botón atrás (solo en la web)
+    document.write('<script src="js/themes.js"><' + '/script>'); // apariencias (Wii…): se eligen en Ajustes
+  }
+</script>
 <link href="css/hf2.css" rel="stylesheet"/>
 <link href="css/app.css" rel="stylesheet"/>
+<script>if (window.HF_WEB) { document.write('<link href="css/themes.css" rel="stylesheet"/>'); } /* apariencias (js/themes.js): después de app.css para poder reemplazarlo */</script>
 <!-- AVPlay (reproductor nativo de Samsung) para TV en vivo: lo da la propia TV; fuera de ella no existe y no pasa nada -->
 <script src="$WEBAPIS/webapis/webapis.js"></script>
 </head>
@@ -30,10 +43,13 @@
       <div class="hf2-searchbox" data-focusable="true" data-input="searchInput" data-title="Buscar" data-description="Escribe el nombre de una película o serie" tabindex="0">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
         <input id="searchInput" class="hf2-search-input" type="text" autocomplete="off" spellcheck="false" placeholder="Película o serie" />
+        <span class="hf2-s-clear" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
       </div>
       <div id="searchBody"></div>
     </div>
     <div id="searchTopbar"></div>
+    <!-- solo se ve en la web de computador (css/app.css): el mouse no tiene BACK -->
+    <div class="hf2-s-back" title="Volver (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></div>
   </div>
 
   <!-- Reproductor: el video y las capas de subtítulos son fijos -->
@@ -60,11 +76,15 @@
 
 <script src="js/tg.bundle.js"></script>
 <script src="js/config.js"></script>
+<script src="js/androidtv.js"></script>
 <script src="js/config.local.js" onerror="void 0"></script>
 <script src="js/imagenes.js" onerror="void 0"></script>
 <script src="js/telegram.js"></script>
 <script src="js/library.js"></script>
+<script src="js/catalog.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/reco.js"></script>
+<script src="js/anime.js"></script>
 <script src="js/remote.js"></script>
 <script src="js/update.js"></script>
 <script src="js/intro.js"></script>
@@ -74,6 +94,7 @@
 <script src="js/engine/mkv.js"></script>
 <script src="js/engine/subs.js"></script>
 <script src="js/engine/player.js"></script>
+<script src="js/vendor/hls.min.js"></script>
 <script src="js/playback.js"></script>
 <script src="js/iptv.js"></script>
 <script src="js/ui/core.js"></script>

@@ -2,6 +2,9 @@
 var HFIcons = (function () {
   "use strict";
   var I = {
+    rotate: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="14" rx="2" transform="rotate(0)"/><path d="M4 19h9"/><path d="M10.5 16.5L13 19l-2.5 2.5"/><path d="M20 14v2a3 3 0 01-3 3"/></svg>',
+    gallery: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 012 2v12"/><circle cx="8" cy="11" r="1.4"/><path d="M3 17l4-4 4 4 3-3 3 3"/></svg>',
+    sparkle: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15v4M17 17h4"/></svg>',
     live: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M4.9 4.9a10 10 0 000 14.2M19.1 4.9a10 10 0 010 14.2"/></svg>',
     pip: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><rect x="12" y="12" width="6" height="4.5" rx="1" fill="currentColor"/></svg>',
     expand: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
@@ -19,6 +22,7 @@ var HFIcons = (function () {
     home: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V20h-5.5v-6h-5v6H4z"/></svg>',
     film: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8 5v14M16 5v14M3.5 9.5H8M3.5 14.5H8M16 9.5h4.5M16 14.5h4.5"/></svg>',
     tv: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="6" width="18" height="12.5" rx="2"/><path d="M8.5 3l3.5 3 3.5-3"/></svg>',
+    anime: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l1.9 5.4L19.5 9l-4.3 3.6 1.4 5.6L12 15.2 7.4 18.2l1.4-5.6L4.5 9l5.6-.6z"/></svg>',
     bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4.2L6 20V5a1 1 0 0 1 1-1z"/></svg>',
     list: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9"/></svg>',
     quality: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M8 9.5v5M8 12h3M11 9.5v5M14 9.5h2.2a2.5 2.5 0 010 5H14z" stroke-linecap="round"/></svg>',
@@ -26,6 +30,7 @@ var HFIcons = (function () {
     next: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round"><path d="M5 5.5v13l9.5-6.5z" fill="currentColor"/><path d="M18 5.5v13" stroke-linecap="round"/></svg>',
     rew: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 107.5-7.5H8.5"/><path d="M10.5 1.8L7.8 4.5l2.7 2.7"/></svg>',
     fwd: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12A7.5 7.5 0 1112 4.5h3.5"/><path d="M13.5 1.8l2.7 2.7-2.7 2.7"/></svg>',
+    pc: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
     cast: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-5"/><path d="M3 13a6 6 0 016 6M3 16.5A2.5 2.5 0 015.5 19M3 19h.01"/></svg>',
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.6"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>',
     lockOpen: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 017.6-1.7"/><path d="M12 14.5v2"/></svg>',

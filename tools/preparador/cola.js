@@ -1,6 +1,6 @@
 /* HomeFlix · preparador · cola de películas.
  *
- * Se encolan varias películas («＋ A la cola» o «Crear versiones»); el servidor las renderiza una tras otra
+ * Se encolan varias películas («＋ Agregar a la cola» o «Crear versiones»: la misma acción); el servidor las renderiza una tras otra
  * (server.mjs · colaSeguir) y, con «Publicar en el grupo al terminar» encendido, ESTA página sube cada una apenas termina,
  * sin que nadie pulse nada: sus versiones, portada, banner y miniaturas, con el comentario que quedó en su carpeta
  * (COMO-SUBIR.txt). Lo que ya está en el grupo (mismo archivo y tamaño, o la misma foto) no se vuelve a subir.
@@ -67,12 +67,18 @@
     C.actual = v.actual || "";
     paint();
     kick();
+    if (P.queueChanged) { P.queueChanged(); } // los botones de la pestaña 3 dependen de si hay cola
   }
   function load() { P.api("/api/cola").then(set, function () { /* sin servidor */ }); }
 
   /* eventos del render (los manda el servidor con el id de la película en «cola») */
   function onEvent(ev) {
     if (ev.type === "cola") { set(ev.cola); return; }
+    if (ev.type === "cola-pub") { // el avance de una publicación que hace otra pestaña (o esta misma antes de recargar)
+      var it = C.items.filter(function (i) { return i.id === ev.id; })[0];
+      if (it) { it.pub = ev.pub; paint(); if (P.queuePub) { P.queuePub(ev.id); } }
+      return;
+    }
     if (!ev.cola) { return; }
     var r = C.render[ev.cola] || (C.render[ev.cola] = { n: 1, i: 0, pct: 0, left: 0 });
     if (ev.type === "start") { r.n = (ev.steps || []).length || 1; r.i = 0; r.pct = 0; }
@@ -90,7 +96,7 @@
   function pendientes() { return C.items.filter(function (x) { return x.estado !== "publicado" && x.estado !== "cancelado"; }); }
   function rowText(x, pos) {
     var r = C.render[x.id];
-    var p = C.pub[x.id];
+    var p = C.pub[x.id] || x.pub; // el avance local (si esta página sube) o el que manda el servidor (si sube otra pestaña)
     if (x.estado === "espera") { return C.pausa ? "En espera · la cola está en pausa" : "En espera · #" + pos + " en la cola"; }
     if (x.estado === "renderizando") {
       if (!r) { return "Renderizando…"; }
@@ -107,7 +113,7 @@
   }
   function rowPct(x) {
     var r = C.render[x.id];
-    var p = C.pub[x.id];
+    var p = C.pub[x.id] || x.pub; // el avance local (si esta página sube) o el que manda el servidor (si sube otra pestaña)
     if (x.estado === "renderizando" && r) { return ((r.i + r.pct / 100) / r.n) * 100; }
     if (x.estado === "publicando" && p && p.total) { return ((p.done + p.sent) / p.total) * 100; }
     if (x.estado === "publicando" && p) { return (p.i / Math.max(1, p.n)) * 100; }
@@ -144,10 +150,12 @@
     box.innerHTML = '<div class="cq-panel"><div class="cq-head"><h2>Cola de películas</h2><button class="ghost" data-cq="close">Cerrar</button></div>' +
       '<div class="cq-opts"><label><input type="checkbox" id="cqAuto"' + (C.auto ? " checked" : "") + "> Publicar en el grupo al terminar de renderizar</label>" +
       '<label><input type="checkbox" id="cqPausa"' + (C.pausa ? " checked" : "") + "> Pausar la cola</label></div>" +
-      '<div class="cq-note">Se renderizan una tras otra; mientras tanto puedes preparar la siguiente en la pestaña 1 y pulsar «＋ A la cola». <b>Toca una película</b> para ver sus datos y su avance en las pestañas 1 a 4. ' +
+      '<div class="cq-note">Se renderizan una tras otra; mientras tanto puedes preparar la siguiente desde el paso 1 hasta el 3 y pulsar «＋ Agregar a la cola». <b>Toca una película</b> para ver sus datos y su avance en las pestañas 1 a 4. ' +
       "La publicación la hace esta ventana del navegador: <b>déjala abierta</b> (puede estar minimizada). Lo que ya está en el grupo no se sube dos veces.</div>" +
-      (rows || '<div class="cq-empty">La cola está vacía. Prepara una película en la pestaña 1 y pulsa «＋ A la cola».</div>') +
-      (C.items.some(function (x) { return x.estado === "publicado"; }) ? '<div class="cq-foot"><span></span><button class="ghost" data-cq="clean">Quitar las publicadas</button></div>' : "") + "</div>";
+      (rows || '<div class="cq-empty">La cola está vacía. Prepara una película (pasos 1 a 3) y pulsa «Crear versiones».</div>') +
+      '<div class="cq-foot"><button class="ghost" data-cq="speed"' + (C.speedBusy ? " disabled" : "") + ' title="Sube datos de prueba a Telegram (no se envía nada a ningún chat) y mide cuántos MB/s da este navegador">⚡ ' + (C.speedBusy ? "Midiendo…" : "Probar velocidad de subida") + "</button>" +
+      (C.items.some(function (x) { return x.estado === "publicado"; }) ? '<button class="ghost" data-cq="clean">Quitar las publicadas</button>' : "<span></span>") + "</div>" +
+      (C.speedText ? '<div class="cq-note cq-speed">' + esc(C.speedText) + "</div>" : "") + "</div>";
   }
   function open() {
     if ($("cqBox")) { return; }
@@ -183,17 +191,43 @@
     if (what === "del") { P.api("/api/cola/quitar", { id: id }).then(set, function (er) { alert(er.message); }); }
     if (what === "retry") { P.api("/api/cola/reintentar", { id: id }).then(set); }
     if (what === "clean") { P.api("/api/cola/limpiar", {}).then(set); }
+    if (what === "speed") { speed(); }
     if (what === "open" && x) { P.api("/api/open", { path: x.outDir }); }
     if (what === "pub" && x) { publish(x); }
     if (what === "stop" && C.abort) { C.abort.abort(); }
   }
   document.addEventListener("click", function (e) { if (e.target.closest && e.target.closest("#colaBtn")) { open(); } });
 
+  /* «⚡ Probar velocidad de subida»: mide lo que sube ESTE navegador a Telegram con datos al azar (no se envía nada a ningún chat).
+   * Sirve para saber si la lentitud de una publicación viene del navegador/internet o de otra cosa (disco, antivirus, otro programa). */
+  function speed() {
+    var T = P.T();
+    if (C.speedBusy) { return; }
+    var say = function (t) { C.speedText = t; paint(); };
+    if (!T.client) { say("Esta pestaña no tiene la sesión de Telegram (solo una pestaña la usa): hazlo en la que publica."); return; }
+    if (C.busy || P.pubBusy()) { say("Hay una publicación en marcha: espera a que termine para medir sin estorbarla."); return; }
+    C.speedBusy = true;
+    say("Subiendo datos de prueba a Telegram (no se envía nada a ningún chat)…");
+    P.speedTest(function (t) { C.speedText = t; paint(); }).then(function (r) { C.speedBusy = false; say(r); }, function (e) { C.speedBusy = false; say("No se pudo medir: " + P.errText(e)); });
+  }
+
   /* ----- publicación automática ----- */
+  var fixing = false;
   function kick() {
-    if (!C.auto || C.busy || P.pubBusy()) { return; }
+    if (C.busy || P.pubBusy() || fixing) { return; }
     var T = P.T();
     if (!T.client || !T.peer) { return; }
+    /* Una película en «publicando» cuando ESTA página (la única que tiene la sesión de Telegram) no está publicando nada quedó huérfana:
+     * la página que la subía se cerró o se recargó (por ejemplo al actualizar el preparador) y el servidor no se entera. Antes se quedaba
+     * así para siempre —y las siguientes esperando— hasta reiniciar el preparador. Se devuelve a «renderizada» y se vuelve a publicar
+     * (lo que ya está en el grupo no se repite). */
+    var huerfana = C.items.filter(function (i) { return i.estado === "publicando"; })[0];
+    if (huerfana) {
+      fixing = true;
+      P.api("/api/cola/estado", { id: huerfana.id, estado: "renderizado" }).then(function (v) { fixing = false; set(v); }, function () { fixing = false; });
+      return;
+    }
+    if (!C.auto) { return; }
     var x = C.items.filter(function (i) { return i.estado === "renderizado"; })[0];
     if (x) { publish(x); }
   }
@@ -232,10 +266,16 @@
       var tcap = (movie ? head : "serie(" + (cap.season || 1) + "/" + (cap.episode || 1) + ")#" + cap.name) + " #miniaturas";
       if (ex.thumbs[tcap]) { skip += 1; skipped.push("thumbs"); } else { list.push({ kind: "thumbs", thumbs: thumbs, caption: tcap, base: base, key: "thumbs" }); }
     }
-    ["portada", "banner"].forEach(function (k) {
+    ["portada", "banner", "vertical", "capitulo", "capitulos"].forEach(function (k) {
       if (!r.images[k]) { return; }
-      var pc = head + " #" + k;
+      /* capitulo: la de este capítulo (serie(1/3)#…); capitulos: una común a todos (serie#…); las dos llevan #capitulo */
+      var pc = k === "capitulo" ? "serie(" + (cap.season || 1) + "/" + (cap.episode || 1) + ")#" + cap.name + " #capitulo" : k === "capitulos" ? head + " #capitulo" : head + " #" + k;
       if (ex.photos[pc]) { skip += 1; skipped.push("img-" + k); } else { list.push({ kind: "photo", img: r.images[k], caption: pc, key: "img-" + k }); }
+    });
+    /* escenas de la galería: una foto por escena, con #galeria1, #galeria2… */
+    (r.images.galeria || []).forEach(function (g) {
+      var gc = head + " #galeria" + g.num;
+      if (ex.photos[gc]) { skip += 1; skipped.push("img-galeria-" + g.num); } else { list.push({ kind: "photo", img: g, caption: gc, key: "img-galeria-" + g.num }); }
     });
     /* subtítulos aparte: uno por idioma, para todas las calidades (también las que ya estaban en el grupo) */
     (r.subs || []).forEach(function (x) {
@@ -269,14 +309,14 @@
       var cap = r.caption && window.HFLibrary ? HFLibrary.parseCaption(r.caption) : null;
       if (!cap) { throw new Error("La carpeta no tiene el comentario de la película (COMO-SUBIR.txt)."); }
       var th = r.thumbs ? Promise.resolve(r.thumbs) : r.files.length ? P.api("/api/thumbs", { dir: x.outDir }).then(null, function () { return null; }) : Promise.resolve(null);
-      return Promise.all([th, existing(T)]).then(function (res) { return { r: r, cap: cap, thumbs: res[0], ex: res[1] }; });
+      return Promise.all([th, guard(existing(T), STALL_SMALL, "revisar lo que ya está en el grupo")]).then(function (res) { return { r: r, cap: cap, thumbs: res[0], ex: res[1] }; });
     }).then(function (d) {
       var pl = plan(d.r, d.cap, d.thumbs, d.ex, T);
       p.n = pl.list.length;
       p.skip = pl.skip;
       pl.skipped.forEach(function (k) { prog(x.id, k, { state: "listo", on: false, dup: true }); });
       pl.list.forEach(function (it) { prog(x.id, it.key, { state: "", on: true }); });
-      p.total = pl.list.reduce(function (n, it) { return n + (it.f ? it.f.size : 0); }, 0);
+      p.total = pl.list.reduce(function (n, it) { return n + (it.f ? it.f.size : SMALL); }, 0);
       return upload(pl.list, T, p, signal, x.id);
     }).then(function () {
       x.estado = "publicado";
@@ -295,7 +335,50 @@
   }
 
   /* la subida, igual que «Publicar» de la pestaña 4 (videos con streaming, miniaturas en álbumes de 10) */
-  function prog(id, key, patch) { if (P.qprog && key) { P.qprog(id, key, patch); } }
+  /* estado de cada archivo de lo que ESTA página sube: PK[id][key] = {state, sent, speed, error}. Además de pintarlo aquí, se manda al servidor
+   * (cada cambio de estado enseguida y el avance de bytes cada ~0,8 s) para que cualquier pestaña —o esta misma tras recargar— lo vea. */
+  var PK = {};
+  var SMALL = 1048576; // lo que pesa en la barra una imagen, un subtítulo o un álbum de miniaturas
+  var pubLast = 0;
+  var pubTimer = null;
+  function sendPub(id, now) {
+    var p = C.pub[id];
+    if (!p) { return; }
+    var go = function () {
+      pubTimer = null;
+      pubLast = Date.now();
+      P.api("/api/cola/progreso", { id: id, pub: { i: p.i, n: p.n, done: p.done, sent: p.sent, total: p.total, speed: p.speed, skip: p.skip, keys: PK[id] || {} } }).then(null, function () { /* sin servidor */ });
+    };
+    if (now || Date.now() - pubLast > 800) { clearTimeout(pubTimer); go(); }
+    else if (!pubTimer) { pubTimer = setTimeout(go, 800); }
+  }
+  function prog(id, key, patch) {
+    if (!key) { return; }
+    var m = PK[id] || (PK[id] = {});
+    m[key] = Object.assign(m[key] || {}, patch);
+    if (P.qprog) { P.qprog(id, key, patch); }
+    sendPub(id, patch.state !== "subiendo");
+  }
+
+  /* Telegram a veces deja una petición colgada sin responder ni fallar (conexión caída a medias, red que se cortó un momento): antes la
+   * publicación se quedaba esperando para siempre —«Publicando 1 de 8 · 0 MB» sin moverse— y las demás películas detrás. Ahora cada
+   * llamada tiene un tiempo máximo (y los videos, un tiempo máximo SIN avanzar): si se cumple, se reintenta el archivo hasta 3 veces
+   * (lo que ya llegó al grupo se reconoce y no se repite) y, si sigue sin responder, la película queda en error con el motivo. */
+  var STALL_SMALL = 90000; // una foto, un subtítulo o un álbum de miniaturas: sin respuesta de Telegram en este tiempo
+  var STALL_VIDEO = 120000; // un video: sin avanzar un solo byte en este tiempo
+  var TRIES = 3;
+  function stalled(what, ms) {
+    var e = new Error("Telegram no respondió en " + Math.round(ms / 1000) + " s (" + what + ")");
+    e.stalled = true;
+    return e;
+  }
+  function guard(promise, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var t = setTimeout(function () { reject(stalled(what, ms)); }, ms);
+      promise.then(function (v) { clearTimeout(t); resolve(v); }, function (er) { clearTimeout(t); reject(er); });
+    });
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
   async function upload(list, T, p, signal, qid) {
     var c = T.client;
@@ -309,69 +392,103 @@
       paint();
       var since = Date.now() - 120000;
       var sentStage = false;
-      prog(qid, it.key, { state: "subiendo", sent: 0, error: "" });
-      try {
-        if (it.kind === "thumbs") {
-          var th = it.thumbs;
-          var sheets = [];
-          for (var si = 0; si < th.sheets.length; si += 1) { sheets.push(await P.readBytes("/api/media/" + th.sheets[si].id)); }
-          sentStage = true;
-          for (var g0 = 0; g0 < sheets.length; g0 += 10) {
-            await c.sendMediaGroup(peer, sheets.slice(g0, g0 + 10).map(function (b, j) {
-              var n = g0 + j + 1;
-              return { type: "document", file: b, fileMime: "image/jpeg", caption: it.caption,
-                fileName: P.tgShort(it.base, " miniaturas " + th.every + "s " + th.w + "x" + th.h + " " + th.cols + "x" + th.rows + " hoja " + n + " de " + th.sheets.length, ".jpg") };
-            }));
-          }
-        } else if (it.kind === "photo") {
-          var bytes = await P.readBytes("/api/media/" + it.img.id);
-          sentStage = true;
-          await c.sendMedia(peer, { type: "photo", file: bytes, fileName: it.key.slice(4) + ".jpg", caption: it.caption });
-        } else if (it.kind === "sub") {
-          var sb = await P.readBytes("/api/media/" + it.sub.id);
-          sentStage = true;
-          await c.sendMedia(peer, { type: "document", file: sb, fileName: it.fileName, fileMime: "text/plain", caption: it.caption });
-        } else {
-          var f = it.f;
-          var res = await fetch("/api/media/" + f.id);
-          var tStart = Date.now();
-          var up = await c.uploadFile({
-            file: res.body, fileSize: f.size, fileName: P.tgName(f.name), fileMime: f.mime, abortSignal: signal,
-            progressCallback: function (u) {
-              var secs = (Date.now() - tStart) / 1000;
-              var rate = secs > 1 ? u / secs : 0;
-              p.sent = u;
-              p.speed = rate ? (rate / 1048576).toFixed(1) + " MB/s" : "";
-              prog(qid, it.key, { state: "subiendo", sent: u, speed: rate ? (rate / 1048576).toFixed(1) + " MB/s · faltan ~" + P.clock((f.size - u) / rate) : "" });
-              paint();
-            }
-          });
-          p.done += f.size;
-          p.sent = 0;
-          sentStage = true;
-          var thumb = f.thumb ? await P.readBytes("/api/media/" + f.thumb) : undefined;
-          await c.sendMedia(peer, f.mime === "video/mp4" ?
-            { type: "video", file: up, thumb: thumb, fileName: P.tgName(f.name), fileMime: f.mime, duration: f.duration, width: f.width, height: f.height, supportsStreaming: true, caption: it.caption } :
-            { type: "document", file: up, thumb: thumb, fileName: P.tgName(f.name), fileMime: f.mime, caption: it.caption });
-        }
-        prog(qid, it.key, { state: "listo", on: false });
-      } catch (e) {
-        /* Telegram pudo haberlo publicado y fallar después: si ya está en el grupo, cuenta como hecho */
-        if (!(sentStage && await P.landed(it, since))) {
+      var done = false;
+      for (var attempt = 1; !done; attempt += 1) {
+        p.sent = 0;
+        prog(qid, it.key, { state: "subiendo", sent: 0, error: attempt > 1 ? "Telegram no respondía: reintento " + attempt + " de " + TRIES + "…" : "" });
+        try {
+          await sendOne(it, c, peer, p, qid, signal, function () { sentStage = true; });
+          done = true;
+        } catch (e) {
+          if (signal.aborted && !e.stalled) { throw e; }
+          /* Telegram pudo haberlo publicado y fallar después: si ya está en el grupo, cuenta como hecho */
+          if (sentStage && await P.landed(it, since)) { done = true; break; }
+          if (e.stalled && attempt < TRIES && !signal.aborted) { await sleep(4000); continue; }
           prog(qid, it.key, { state: "error", error: P.errText(e) });
           throw e;
         }
-        prog(qid, it.key, { state: "listo", on: false });
       }
+      prog(qid, it.key, { state: "listo", on: false });
+      if (it.f) { p.sent = 0; } else { p.done += SMALL; }
     }
     p.speed = "";
     p.time = Date.now() - t0;
+  }
+
+  /* un archivo de la lista, con sus tiempos máximos; marca con «sent()» el momento en que ya empezó a salir hacia el grupo */
+  async function sendOne(it, c, peer, p, qid, signal, sent) {
+    if (it.kind === "thumbs") {
+      var th = it.thumbs;
+      var sheets = [];
+      for (var si = 0; si < th.sheets.length; si += 1) { sheets.push(await guard(P.readBytes("/api/media/" + th.sheets[si].id), STALL_SMALL, "leer la hoja " + (si + 1))); }
+      sent();
+      for (var g0 = 0; g0 < sheets.length; g0 += 10) {
+        await guard(c.sendMediaGroup(peer, sheets.slice(g0, g0 + 10).map(function (b, j) {
+          var n = g0 + j + 1;
+          return { type: "document", file: b, fileMime: "image/jpeg", caption: it.caption,
+            fileName: P.tgShort(it.base, " miniaturas " + th.every + "s " + th.w + "x" + th.h + " " + th.cols + "x" + th.rows + " hoja " + n + " de " + th.sheets.length, ".jpg") };
+        })), STALL_SMALL, "enviar las miniaturas");
+      }
+    } else if (it.kind === "photo") {
+      var bytes = await guard(P.readBytes("/api/media/" + it.img.id), STALL_SMALL, "leer la imagen");
+      sent();
+      await guard(c.sendMedia(peer, { type: "photo", file: bytes, fileName: it.key.slice(4) + ".jpg", caption: it.caption }), STALL_SMALL, "enviar la imagen");
+    } else if (it.kind === "sub") {
+      var sb = await guard(P.readBytes("/api/media/" + it.sub.id), STALL_SMALL, "leer el subtítulo");
+      sent();
+      await guard(c.sendMedia(peer, { type: "document", file: sb, fileName: it.fileName, fileMime: "text/plain", caption: it.caption }), STALL_SMALL, "enviar el subtítulo");
+    } else {
+      var f = it.f;
+      /* el video: si pasan STALL_VIDEO sin que avance ni un byte, se corta esta subida (y el llamador la reintenta) */
+      var ctl = new AbortController();
+      var onStop = function () { ctl.abort(); };
+      signal.addEventListener("abort", onStop);
+      var lastMove = Date.now();
+      var hung = false;
+      var dog = setInterval(function () {
+        if (Date.now() - lastMove > STALL_VIDEO) { hung = true; ctl.abort(); }
+      }, 5000);
+      try {
+        var res = await guard(fetch("/api/media/" + f.id), STALL_SMALL, "abrir el video");
+        var tStart = Date.now();
+        var up = await c.uploadFile({
+          file: res.body, fileSize: f.size, fileName: P.tgName(f.name), fileMime: f.mime, abortSignal: ctl.signal,
+          progressCallback: function (u) {
+            lastMove = Date.now();
+            var secs = (Date.now() - tStart) / 1000;
+            var rate = secs > 1 ? u / secs : 0;
+            p.sent = u;
+            p.speed = rate ? (rate / 1048576).toFixed(1) + " MB/s" : "";
+            prog(qid, it.key, { state: "subiendo", sent: u, speed: rate ? (rate / 1048576).toFixed(1) + " MB/s · faltan ~" + P.clock((f.size - u) / rate) : "" });
+            paint();
+          }
+        });
+        p.done += f.size;
+        p.sent = 0;
+        sent();
+        var thumb = f.thumb ? await guard(P.readBytes("/api/media/" + f.thumb), STALL_SMALL, "leer la miniatura") : undefined;
+        try {
+          await guard(c.sendMedia(peer, f.mime === "video/mp4" ?
+            { type: "video", file: up, thumb: thumb, fileName: P.tgName(f.name), fileMime: f.mime, duration: f.duration, width: f.width, height: f.height, supportsStreaming: true, caption: it.caption } :
+            { type: "document", file: up, thumb: thumb, fileName: P.tgName(f.name), fileMime: f.mime, caption: it.caption }), STALL_VIDEO, "publicar el video");
+        } catch (e2) { p.done -= f.size; throw e2; } // si falla al publicar, el reintento vuelve a subirlo: que no cuente doble en la barra
+      } catch (e) {
+        if (hung && !signal.aborted) { throw stalled("la subida de «" + f.name + "» no avanzó", STALL_VIDEO); }
+        throw e;
+      } finally {
+        clearInterval(dog);
+        signal.removeEventListener("abort", onStop);
+      }
+    }
   }
 
   window.COLA = {
     set: set,
     onEvent: onEvent,
     auto: function () { return C.auto; },
+    /* cuántas películas están esperando o renderizándose (con eso, el botón de envío pasa de «Crear versiones» a «＋ Agregar a la cola») */
+    pending: function () { return C.items.filter(function (x) { return x.estado === "espera" || x.estado === "renderizando"; }).length; },
+    all: function () { return C.items.slice(); },
     item: function (id) { return C.items.filter(function (x) { return x.id === id; })[0] || null; },
     /* la película de la cola que publica esa carpeta (para que la pestaña 4 no la vuelva a subir) */
     owner: function (dir) {

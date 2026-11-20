@@ -84,8 +84,8 @@ var UM_ICON = {
   warn: '<svg viewBox="0 0 48 48" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="19"/><path d="M24 14v13M24 33v.5"/></svg>'
 };
 
-function umBtn(cls, action, label, extra) {
-  return '<div class="hf2-btn ' + cls + '" data-focusable="true" data-action="' + action + '" data-title="' + esc(label) + '" tabindex="0">' + (extra || "") + esc(label) + "</div>";
+function umBtn(cls, action, label, icon) {
+  return '<div class="hf2-btn icon ' + cls + '" data-focusable="true" data-action="' + action + '" data-title="' + esc(label) + '" tabindex="0"><span class="um-btn-ic">' + (icon || "") + "</span>" + esc(label) + "</div>";
 }
 
 function updateModalHtml() {
@@ -117,29 +117,33 @@ function updateModalHtml() {
   }
 
   if (phase === "bajando" || phase === "lista") {
-    body += '<div class="um-prog' + (phase === "lista" ? " done" : "") + '"><div class="um-bar"><i id="umBar" style="width:' + (phase === "lista" ? 100 : pct) + '%"></i></div>' +
-      '<div class="um-prog-txt"><span id="umPct">' + (phase === "lista" ? "100 %" : pct + " %") + '</span><span id="umMb">' +
+    body += '<div class="um-prog' + (phase === "lista" ? " done" : "") + '"><div class="um-bar"><i class="um-fill" id="umBar" style="transform:scaleX(' + ((phase === "lista" ? 100 : umShown(pct)) / 100) + ')"></i><i class="um-fill ok" id="umBarOk" style="transform:scaleX(' + ((phase === "lista" ? 100 : umShown(pct)) / 100) + ')"></i><i class="um-shine"></i></div>' +
+      '<div class="um-prog-txt"><span id="umPct">' + (phase === "lista" ? "100 %" : Math.round(umShown(pct)) + " %") + '</span><span id="umMb">' +
       (phase === "lista" ? "Se usa al reiniciar la app" : (UPD.total ? umFormatMb(UPD.got) + " de " + umFormatMb(UPD.total) + " MB" : "Descargando…")) + "</span></div></div>";
   }
   if (notes.length) {
     body += '<div class="um-notes"><span class="um-lbl">Novedades</span>' + notes.map(function (n) { return "<p>" + esc(n) + "</p>"; }).join("") + "</div>";
   }
   if (phase === "programa") {
-    body += '<p class="um-warn">Esta versión necesita reinstalar la app: en el teléfono abre Apps2Samsung → Apps instaladas → HomeFlix → Actualizar.</p>';
+    body += window.HF_TV ?
+      '<p class="um-warn">Esta versión necesita instalar la app de nuevo. Pulsa «Instalar» y confirma en la pantalla que se abre; si pide permiso para instalar apps, actívalo para HomeFlix y vuelve a intentarlo.</p>' :
+      '<p class="um-warn">Esta versión necesita reinstalar la app: en el teléfono abre Apps2Samsung → Apps instaladas → HomeFlix → Actualizar.</p>';
   } else if (phase === "error") {
     body += '<p class="um-warn err">' + esc(UPD.error) + "</p>";
   }
 
   if (phase === "bajando") {
-    actions = umBtn("primary off", "upd-wait", "Actualizando…") + umBtn("ghost off", "upd-wait", "Reiniciar ahora");
+    actions = umBtn("primary off", "upd-wait", "Actualizando…", UM_ICON.spin) + umBtn("ghost off", "upd-wait", "Reiniciar ahora", IC.restart);
   } else if (phase === "lista") {
-    actions = umBtn("primary", "upd-restart", "Reiniciar ahora", '<span class="um-btn-ic">' + UM_ICON.ok.replace("um-check", "um-check static") + "</span>") + umBtn("ghost", "upd-close", "Más tarde");
+    actions = umBtn("primary", "upd-restart", "Reiniciar ahora", UM_ICON.ok.replace("um-check", "um-check static")) + umBtn("ghost", "upd-close", "Más tarde", IC.clock);
   } else if (phase === "programa") {
-    actions = umBtn("primary", "upd-close", "Entendido");
+    actions = window.HF_TV ?
+      umBtn("primary", "upd-apk", "Instalar", IC.refresh) + umBtn("ghost", "upd-close", "Más tarde", IC.clock) :
+      umBtn("primary", "upd-close", "Entendido", IC.check);
   } else if (phase === "error") {
-    actions = umBtn("primary", "upd-go", "Reintentar") + umBtn("ghost", "upd-close", "Cerrar");
+    actions = umBtn("primary", "upd-go", "Reintentar", IC.refresh) + umBtn("ghost", "upd-close", "Cerrar", IC.back);
   } else {
-    actions = umBtn("primary", "upd-go", "Actualizar") + umBtn("ghost", "upd-close", "Más tarde");
+    actions = umBtn("primary", "upd-go", "Actualizar", IC.refresh) + umBtn("ghost", "upd-close", "Más tarde", IC.clock);
   }
 
   return '<div class="hf2-modal-card um-' + phase + '">' +
@@ -174,7 +178,8 @@ function openUpdateModal() {
   }
   el = document.createElement("div");
   el.id = "updModal";
-  el.className = "hf2-modal";
+  el.className = "hf2-modal first";
+  setTimeout(function () { el.classList.remove("first"); }, 800);
   appRootEl.appendChild(el);
   UPM.saved = umSnapshot();
   UPM.open = true;
@@ -213,7 +218,7 @@ function closeUpdateModal() {
     clearPreviousFocus();
     updateFocus();
   } else {
-    renderBrowse("top", Math.max(0, MENU.map(function (m) { return m.id; }).indexOf(browse.section)));
+    renderBrowse("top", Math.max(0, menuIndex(browse.section)));
   }
 }
 
@@ -237,13 +242,36 @@ function reattachUpdateModal() {
   renderUpdateModal(cur && cur.name === "upd" ? state.itemIndex : 0);
 }
 
-function paintUpdateProgress() {
+/* La barra no salta con cada trozo que llega: el valor mostrado se acerca al real un poco en cada cuadro (la barra se mueve con
+ * transform, que lo hace la GPU, y el número sube con ella). */
+var UM_SHOW = { v: 0, raf: 0 };
+
+function umShown(pct) {
+  return UPD.state === "lista" ? 100 : Math.min(UM_SHOW.v, pct);
+}
+
+function umTick() {
+  var target = umPercent();
   var bar = byId("umBar");
+  var ok = byId("umBarOk");
   var pct = byId("umPct");
+  var diff = target - UM_SHOW.v;
+  UM_SHOW.raf = 0;
+  if (Math.abs(diff) < 0.08) {
+    UM_SHOW.v = target;
+  } else {
+    UM_SHOW.v += diff * 0.1 + (diff > 0 ? 0.03 : -0.03);
+    UM_SHOW.raf = window.requestAnimationFrame(umTick);
+  }
+  if (bar) { bar.style.transform = "scaleX(" + (UM_SHOW.v / 100) + ")"; }
+  if (ok) { ok.style.transform = "scaleX(" + (UM_SHOW.v / 100) + ")"; }
+  if (pct && UPD.state !== "lista") { pct.textContent = Math.round(UM_SHOW.v) + " %"; }
+}
+
+function paintUpdateProgress() {
   var mb = byId("umMb");
-  if (bar) { bar.style.width = umPercent() + "%"; }
-  if (pct) { pct.textContent = umPercent() + " %"; }
   if (mb) { mb.textContent = UPD.total ? umFormatMb(UPD.got) + " de " + umFormatMb(UPD.total) + " MB" : "Descargando…"; }
+  if (!UM_SHOW.raf) { UM_SHOW.raf = window.requestAnimationFrame(umTick); }
 }
 
 function startUpdate() {
@@ -254,6 +282,7 @@ function startUpdate() {
   UPD.state = "bajando";
   UPD.error = "";
   UPD.got = 0;
+  UM_SHOW.v = 0;
   UPD.total = (info.manifest && info.manifest.web && info.manifest.web.bytes) || 0;
   renderUpdateModal(0);
   setSyncBadge();
@@ -269,9 +298,10 @@ function startUpdate() {
     if (bar) { bar.classList.add("done"); }
     setTimeout(function () {
       UPD.state = "lista";
+      UM_SHOW.v = 100;
       setSyncBadge();
       renderUpdateModal(0);
-    }, 450);
+    }, 900);
   }, function (e) {
     UPD.state = "";
     UPD.error = (e && e.message) || String(e);
@@ -284,6 +314,13 @@ function handleUpdateSelect(el) {
   var action = el.getAttribute("data-action");
   if (action === "upd-go") { startUpdate(); }
   else if (action === "upd-restart") { HFUpdate.restart(); }
+  else if (action === "upd-apk") {
+    /* Android TV: baja el APK nuevo y abre el instalador del sistema */
+    if (!HFUpdate.installNative((UPD.info || {}).manifest || {})) {
+      UPD.error = "No se pudo abrir el instalador. Vuelve a instalar HomeFlix desde el enlace de descarga.";
+      renderUpdateModal(0);
+    }
+  }
   else if (action === "upd-close") { closeUpdateModal(); }
 }
 
@@ -329,5 +366,187 @@ function restoreBrowseView(k) {
   if (cur && cur.holdPage && pageState.el && pageState.offset !== k.page) {
     pageState.offset = k.page; // en el menú de arriba la página no se mueve sola
     pageState.el.style.transform = "translate3d(0," + (-k.page) + "px,0)";
+  }
+}
+
+
+/* ===================== Modal de confirmación =====================
+ * askConfirm({title, text, okLabel, cancelLabel, danger, onOk, onCancel}): una tarjeta centrada, con el mismo estilo del cuadro de
+ * actualización, para confirmar algo que no se puede deshacer (p. ej. borrar un perfil). El foco empieza en «Cancelar» (lo seguro);
+ * BACK también cancela. Al cerrarse el foco, la página y los carruseles quedan como estaban. */
+var CONF = { open: false, saved: null, opts: null };
+
+var CF_ICON = {
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
+
+function confirmHtml() {
+  var o = CONF.opts;
+  return '<div class="hf2-modal-card cf' + (o.danger ? " danger" : "") + '">' +
+    '<div class="um-head"><div class="um-ic">' + UM_ICON.warn + '</div><div class="um-titles"><div class="um-title">' + esc(o.title) + "</div></div></div>" +
+    '<p class="cf-text">' + esc(o.text) + "</p>" +
+    '<div class="um-actions">' +
+      umBtn((o.danger ? "danger" : "primary"), "conf-ok", o.okLabel || "Aceptar", o.danger ? CF_ICON.trash : IC.check) +
+      umBtn("ghost", "conf-cancel", o.cancelLabel || "Cancelar", CF_ICON.x) +
+    "</div></div>";
+}
+
+function askConfirm(opts) {
+  var el;
+  if (CONF.open || !appRootEl) { return; }
+  el = document.createElement("div");
+  el.id = "confModal";
+  el.className = "hf2-modal first";
+  appRootEl.appendChild(el);
+  setTimeout(function () { el.classList.remove("first"); }, 800);
+  CONF.opts = opts;
+  CONF.saved = umSnapshot();
+  CONF.open = true;
+  el.innerHTML = confirmHtml();
+  setAreas([{ name: "conf", items: el.querySelectorAll("[data-focusable]"), dir: "h" }], "conf", 1);
+  setHints("◀ ▶ Elegir · OK Seleccionar · BACK Cancelar");
+}
+
+/* Cierra el modal y devuelve el foco, la página y los carruseles a como estaban; luego corre lo que se haya elegido. */
+function closeConfirm(ok) {
+  var s = CONF.saved;
+  var o = CONF.opts;
+  var el = byId("confModal");
+  if (!CONF.open) { return; }
+  if (el && el.parentNode) { el.parentNode.removeChild(el); }
+  CONF.open = false;
+  CONF.saved = null;
+  CONF.opts = null;
+  setHints(routeHints[currentRoute] || "");
+  if (s && s.areas.length) {
+    areas = s.areas;
+    state.areaIndex = s.state.areaIndex;
+    state.itemIndex = s.state.itemIndex;
+    pageState.el = s.page.el;
+    pageState.viewH = s.page.viewH;
+    pageState.contentH = s.page.contentH;
+    pageState.offset = s.page.offset;
+    clearPreviousFocus();
+    updateFocus();
+  }
+  if (o) {
+    if (ok && o.onOk) { o.onOk(); }
+    else if (!ok && o.onCancel) { o.onCancel(); }
+  }
+}
+
+function handleConfirmSelect(el) {
+  var action = el.getAttribute("data-action");
+  if (action === "conf-ok") { closeConfirm(true); }
+  else { closeConfirm(false); }
+}
+
+
+/* ===================== Modal «Siguiente capítulo» (por perfil) =====================
+ * Cuándo pasa solo al siguiente capítulo, tamaño del aviso y transparencia de su fondo. Con una vista previa de la pantalla (1920×1080 a
+ * escala) donde se ve el aviso tal como quedará en la esquina inferior derecha. */
+var NXM = { open: false, saved: null, profile: null };
+
+var NX_ROWS = [
+  { key: "skip", label: "Pasar al siguiente", opts: [[0, "Al terminar"], [5, "5 s antes"], [10, "10 s antes"]] },
+  { key: "size", label: "Tamaño del aviso", opts: [["s", "Pequeño"], ["m", "Mediano"], ["l", "Grande"]] },
+  { key: "alpha", label: "Transparencia", opts: [[100, "Sólido"], [80, "80 %"], [60, "60 %"], [40, "40 %"]] }
+];
+
+function nxValue(key) {
+  var pid = NXM.profile.id;
+  return key === "skip" ? nextSkip(pid) : key === "size" ? nxSize(pid) : nxAlpha(pid);
+}
+
+function nxPreviewHtml() {
+  var pid = NXM.profile.id;
+  return '<div class="nx-stage"><div class="nx-screen"><div class="nx-film"></div>' +
+    '<div class="hf2-next nx-fake" id="nxFake" data-size="' + nxSize(pid) + '" style="--nx-a:' + (nxAlpha(pid) / 100) + '">' +
+    '<div class="hf2-next-art">' + fallbackArt() + '<span class="hf2-ep-num">2</span></div>' +
+    '<div class="hf2-next-body"><div class="hf2-kicker">Siguiente capítulo</div><div class="hf2-next-title">T1:E2 · Título del capítulo</div>' +
+    '<div class="hf2-next-desc">Así se verá el aviso sobre la imagen mientras terminan los créditos.</div>' +
+    '<div class="hf2-next-count"><span class="bar"><i style="width:60%"></i></span><span>Empieza en 6 s</span></div>' +
+    '<div class="hf2-next-actions"><span class="nx-fb primary">Ver ahora</span><span class="nx-fb">Ver créditos</span></div></div></div></div></div>';
+}
+
+function nextModalHtml() {
+  var rows = NX_ROWS.map(function (r) {
+    return '<div class="nx-row"><div class="nx-lab">' + r.label + '</div><div class="nx-chips">' + r.opts.map(function (o) {
+      return '<div class="nx-chip' + (String(nxValue(r.key)) === String(o[0]) ? " on" : "") + '" data-focusable="true" data-nx="' + r.key + '" data-val="' + o[0] + '" data-title="' + esc(r.label + ": " + o[1]) + '" tabindex="0">' + o[1] + "</div>";
+    }).join("") + "</div></div>";
+  }).join("");
+  return '<div class="hf2-modal-card nx">' +
+    '<div class="um-head"><div class="um-ic">' + IC.next + '</div><div class="um-titles"><div class="um-title">Siguiente capítulo</div><div class="um-sub">Solo para el perfil ' + esc(NXM.profile.name) + "</div></div></div>" +
+    '<div class="nx-body"><div class="nx-cols">' + rows + "</div>" + nxPreviewHtml() + "</div>" +
+    '<div class="um-actions">' + umBtn("primary", "nx-done", "Listo", IC.check) + "</div></div>";
+}
+
+function openNextModal(profile) {
+  var el;
+  var rows;
+  var defs;
+  if (NXM.open || !appRootEl) { return; }
+  el = document.createElement("div");
+  el.id = "nxModal";
+  el.className = "hf2-modal first";
+  appRootEl.appendChild(el);
+  setTimeout(function () { el.classList.remove("first"); }, 800);
+  NXM.profile = profile;
+  NXM.saved = umSnapshot();
+  NXM.open = true;
+  el.innerHTML = nextModalHtml();
+  rows = el.querySelectorAll(".nx-chips");
+  defs = [].slice.call(rows).map(function (r, i) {
+    return { name: "nx" + i, items: r.querySelectorAll("[data-focusable]"), dir: "h" };
+  });
+  defs.push({ name: "nxdone", items: el.querySelectorAll(".um-actions [data-focusable]"), dir: "h" });
+  setAreas(defs, "nx0", Math.max(0, [].slice.call(rows[0].children).map(function (c) { return c.className.indexOf(" on") >= 0; }).indexOf(true)));
+  setHints("◀ ▶ Elegir · ▲ ▼ Cambiar de ajuste · OK Aplicar · BACK Listo");
+}
+
+function closeNextModal() {
+  var s = NXM.saved;
+  var el = byId("nxModal");
+  if (!NXM.open) { return; }
+  if (el && el.parentNode) { el.parentNode.removeChild(el); }
+  NXM.open = false;
+  NXM.saved = null;
+  NXM.profile = null;
+  setHints(routeHints[currentRoute] || "");
+  if (s && s.areas.length) {
+    areas = s.areas;
+    state.areaIndex = s.state.areaIndex;
+    state.itemIndex = s.state.itemIndex;
+    pageState.el = s.page.el;
+    pageState.viewH = s.page.viewH;
+    pageState.contentH = s.page.contentH;
+    pageState.offset = s.page.offset;
+    clearPreviousFocus();
+    updateFocus();
+  }
+}
+
+function handleNextModalSelect(el) {
+  var key = el.getAttribute("data-nx");
+  var val = el.getAttribute("data-val");
+  var pid;
+  var fake;
+  var kids;
+  var i;
+  if (!key) { closeNextModal(); return; }
+  pid = NXM.profile.id;
+  if (key === "skip") { setNextSkip(Number(val), pid); }
+  else if (key === "size") { setNxPref("size", val, pid); }
+  else { setNxPref("alpha", Number(val), pid); }
+  kids = el.parentNode.children;
+  for (i = 0; i < kids.length; i += 1) {
+    kids[i].className = "nx-chip" + (kids[i] === el ? " on" : "");
+  }
+  el.setAttribute("data-focused", "true");
+  fake = byId("nxFake");
+  if (fake) {
+    fake.setAttribute("data-size", nxSize(pid));
+    fake.style.setProperty("--nx-a", String(nxAlpha(pid) / 100));
   }
 }

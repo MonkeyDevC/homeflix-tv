@@ -1,0 +1,32 @@
+# HomeFlix en este computador (el VPS ya no existe): servidor Node + motor de recomendaciones, todo en Docker.
+#   bash local/levantar.sh        (crea la red, los .env con secretos al azar la primera vez, y levanta todo)
+# El servidor queda en http://192.168.1.12:4500/productos/HomeFlix para toda la red de la casa (ver local/README.md).
+name: homeflix-local
+
+include:
+  - path: ../recomendador/docker-compose.yml
+    env_file: ../recomendador/.env
+
+services:
+  homeflix:
+    build: ../servidor
+    image: homeflix-servidor:local
+    container_name: homeflix
+    restart: unless-stopped
+    env_file: ../servidor/.env
+    environment:
+      DATA_DIR: /data
+      VERSIONS_DIR: /versiones
+      PORT: "3000"
+      RECO_URL: http://reco-api:8000
+    ports:
+      # Toda la red de la casa: la TV y el celular hablan con este Mac (http://192.168.1.12:4500). Las rutas piden la llave de la cuenta.
+      - "4500:3000"
+    volumes:
+      - homeflix-datos:/data
+      - ./versiones:/versiones:ro
+    mem_limit: 256m
+    networks: [default, reco-interna]
+
+volumes:
+  homeflix-datos:

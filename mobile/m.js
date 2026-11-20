@@ -26,10 +26,26 @@ var HFMobile = (function () {
     login: { cc: "+57", phone: "", code: "", password: "", error: "", busy: false, hash: "", via: "app", length: 5, until: 0, hint: "", qr: "", qrNote: "", qrAbort: null, pwResolve: null, showPw: false },
     season: 0, search: "", category: "",
     chats: null, chatsError: "", chatFilter: "all", chatQ: "", firstTime: false,
-    pin: null, edit: null,
+    pin: null, edit: null, add: null,
     syncing: false, syncError: "",
     player: null
   };
+
+  /* ===================== Ajustes por perfil (como en la TV) =====================
+   * Se guardan en este celular por cuenta y perfil: vista de tarjetas, cuándo pasa al siguiente capítulo, y tamaño y transparencia del aviso. */
+  function prefKey(name) { return "hf.m." + name + "." + HFLibrary.accountId() + "." + (profile ? profile.id : ""); }
+  function prefGet(name, def) {
+    try { var v = window.localStorage.getItem(prefKey(name)); return v === null ? def : v; } catch (e) { return def; }
+  }
+  function prefSet(name, v) { try { window.localStorage.setItem(prefKey(name), String(v)); } catch (e) { /* nada */ } }
+  function cardView() { return prefGet("cardview", "vertical") === "horizontal" ? "horizontal" : "vertical"; }
+  function applyCardView() { document.documentElement.classList.toggle("m-vcards", cardView() === "vertical"); }
+  function nextSkip() { var v = Number(prefGet("nextskip", "0")) || 0; return v === 5 || v === 10 ? v : 0; }
+  function nxSize() { var v = prefGet("nxsize", "l"); return v === "s" || v === "m" ? v : "l"; }
+  function nxAlpha() { var v = Number(prefGet("nxalpha", "100")) || 100; return v === 80 || v === 60 || v === 40 ? v : 100; }
+  function nextPrefsText() {
+    return (nextSkip() ? nextSkip() + " s antes del final" : "Al terminar") + " · aviso " + (nxSize() === "s" ? "pequeño" : nxSize() === "m" ? "mediano" : "grande") + (nxAlpha() < 100 ? " · " + nxAlpha() + " %" : "");
+  }
 
   /* ===================== Utilidades ===================== */
   function esc(s) {
@@ -59,13 +75,20 @@ var HFMobile = (function () {
   function tick() { try { if (android) { android.tick(); } } catch (e) { /* nada */ } }
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
 
-  function titles() { return values(library.titles); }
+  /* El anime (canal fijo «Anime», js/anime.js) no se mezcla con Inicio / Películas / Series: tiene su pestaña. */
+  function titles() { return values(library.titles).filter(function (t) { return !t.anime; }); }
+  function animeTitles() { return library.anime || []; }
+  function animeOn() { return !(profile && profile.kids) && HFAnime.enabled(); }
+  function telegramSources() { return Object.keys(HFLibrary.enabledSources() || {}).filter(function (id) { return id !== HFAnime.SOURCE; }); }
+  function onlyAnime() { return animeOn() && !telegramSources().length; }
   function movies() { return titles().filter(function (t) { return t.type === "movie"; }); }
   function series() { return titles().filter(function (t) { return t.type === "series"; }); }
   function byDate(a, b) { return (b.date || 0) - (a.date || 0); }
   function titleOf(key) { return library.titles[key] || null; }
   function itemChat(it) { return String(it.chatId || String(it.key || "").split(":")[0]); }
   function entryKey(e) { return e.video ? e.video.key : e.key; }
+  /* «T1:E7» en lo de Telegram; «Cap. 7» en el anime (capítulos seguidos, sin temporadas) */
+  function epLabel(e) { return e.anime ? HFAnime.tag(e) : "T" + e.season + ":E" + e.episode; }
 
   /* Lo visto de un título: la marca de progreso más reciente entre sus videos. */
   function itemKeysOf(t) {
@@ -109,30 +132,48 @@ var HFMobile = (function () {
   function card(t, opts) {
     opts = opts || {};
     var p = opts.progress;
-    var sub = opts.sub || (t.type === "series" ? plural((t.seasons || []).length, "temporada", "temporadas") : [t.year || "", dur(lengthOf(t))].filter(Boolean).join(" · "));
-    return '<button class="m-card' + (opts.wide ? " wide" : "") + '" data-' + (opts.wide ? "play" : "open") + '="' + esc(t.titleKey) + '">' +
-      '<div class="img"' + img(t.imageKey || (t.video && t.video.key)) + ">" +
+    var sub = opts.sub || (t.anime ? [t.year || "", t.format || "", t.es ? "Subt. ES" : ""].filter(Boolean).join(" · ") : t.type === "series" ? plural((t.seasons || []).length, "temporada", "temporadas") : [t.year || "", dur(lengthOf(t))].filter(Boolean).join(" · "));
+    return '<button class="m-card' + (opts.wide ? " wide" : "") + (opts.tile ? " tile" : "") + '" data-open="' + esc(t.titleKey) + '">' +
+      '<div class="img"' + img((!opts.wide && !opts.tile && t.verticalKey && cardView() === "vertical" ? t.verticalKey : t.imageKey) || (t.video && t.video.key)) + ">" +
       (t.imageKey ? "" : '<div class="fallback">' + esc(t.name) + "</div>") +
-      '<span class="badge">' + (t.type === "series" ? "SERIE" : "PELÍCULA") + "</span>" +
+      '<span class="badge">' + (t.anime ? "ANIME" : t.type === "series" ? "SERIE" : "PELÍCULA") + "</span>" +
       (t.kids && !opts.wide ? '<span class="kid">★</span>' : "") +
       (opts.wide ? '<span class="play"><b>' + I.play + "</b></span>" : "") +
       (p ? '<div class="bar"><i style="width:' + Math.min(100, Math.round((p.t / Math.max(1, p.d)) * 100)) + '%"></i></div>' : "") +
       "</div>" + '<div class="t">' + esc(t.name) + '</div><div class="s">' + esc(sub) + "</div></button>";
   }
 
+  /* opts.cap + opts.all: la fila enseña solo los primeros «cap» y termina en una tarjeta «Ver todo» que abre la lista completa
+   * (ACT.category). Una fila de 600 tarjetas nadie la recorre y pesaba miles de nodos en cada repintado. */
+  var ROW_CAP = 24;
+  var ALL_MOVIES = "Todas las películas";
+  var ALL_SERIES = "Todas las series";
   function row(title, list, opts) {
+    var shown = list;
+    var more = "";
     opts = opts || {};
     if (!list.length) { return ""; }
+    if (opts.all && list.length > (opts.cap || ROW_CAP)) {
+      shown = list.slice(0, opts.cap || ROW_CAP);
+      more = '<button class="m-card more" data-act="category" data-c="' + esc(opts.all) + '"><div class="img"><div class="mo"><b>' + list.length + "</b><span>Ver todo</span></div></div></button>";
+    }
     return '<section class="m-row"><div class="m-row-head"><h2>' + esc(title) + "</h2>" + (opts.note ? "<small>" + esc(opts.note) + "</small>" : "") + "</div>" +
-      '<div class="m-track">' + list.map(function (x) { return opts.render ? opts.render(x) : card(x); }).join("") + "</div></section>";
+      '<div class="m-track">' + shown.map(function (x) { return opts.render ? opts.render(x) : card(x); }).join("") + more + "</div></section>";
   }
 
   /* Barra inferior: cápsula flotante; la pestaña activa se expande con su nombre, las demás solo llevan ícono.
    * navPop: se acaba de tocar una pestaña, así que la activa entra con una animación corta (y no en cada redibujado). */
   var navPop = false;
-  function nav(on) {
-    var tabs = [["home", "Inicio", I.home], ["movies", "Películas", I.film], ["series", "Series", I.tv], ["live", "TV en vivo", I.live], ["search", "Buscar", I.search], ["mylist", "Mi lista", I.bookmark]];
+  function tabList() {
+    var tabs = [["home", "Inicio", I.home], ["movies", "Películas", I.film], ["series", "Series", I.tv], ["live", "TV", I.live], ["search", "Buscar", I.search], ["mylist", "Mi lista", I.bookmark]];
     if (profile && profile.kids) { tabs = tabs.filter(function (x) { return x[0] !== "live"; }); }
+    if (animeOn()) { tabs.splice(3, 0, ["anime", "Anime", I.anime]); }
+    if (onlyAnime()) { tabs = tabs.filter(function (x) { return x[0] !== "home" && x[0] !== "movies" && x[0] !== "series"; }); }
+    return tabs;
+  }
+  function nav(on) {
+    var tabs = tabList();
+    if (window.HFMTheme && HFMTheme.themed()) { return HFMTheme.nav(themeKit(), tabs, on); } // apariencia con barra propia (mobile/themes.js)
     return '<nav class="m-nav' + (navPop ? " pop" : "") + '">' + tabs.map(function (x) {
       return '<button class="' + (x[0] === on ? "on" : "") + '" data-tab="' + x[0] + '" aria-label="' + x[1] + '">' + x[2] + "<span>" + x[1] + "</span></button>";
     }).join("") + "</nav>";
@@ -166,7 +207,7 @@ var HFMobile = (function () {
   var V = {};
 
   V.boot = function () {
-    return '<div class="m-center m-boot">' + logo(true) + '<div class="m-spin"></div><p>' + esc(S.bootNote || "Conectando con Telegram…") + "</p>" +
+    return '<div class="m-center m-boot">' + logo(true) + (S.bootError ? "" : '<div class="m-spin"></div><p>' + esc(S.bootNote || "Conectando con Telegram…") + "</p>") +
       (S.bootError ? errorBox(S.bootError) + '<button class="m-btn primary" data-act="boot">Reintentar</button>' : "") + "</div>";
   };
 
@@ -178,9 +219,9 @@ var HFMobile = (function () {
 
   V.login = function () {
     var L = S.login;
-    return wall() + '<div class="m-login">' + logo(true) +
-      "<h1>Tu biblioteca de Telegram,<br>en el celular</h1>" +
-      '<p class="lead">Entra con tu cuenta de Telegram. No hay que crear nada nuevo.</p>' +
+    return (S.add ? "" : wall()) + '<div class="m-login">' + (S.add ? '<div class="m-head"><button class="m-iconbtn" data-back>' + I.back + "</button></div>" : "") + logo(true) +
+      (S.add ? "<h1>Conectar otra<br>cuenta de Telegram</h1>" : "<h1>Tu biblioteca de Telegram,<br>en el celular</h1>") +
+      (S.add ? '<p class="lead">Sus perfiles verán solo los chats y videos de esa cuenta.</p>' : '<p class="lead">Entra con tu cuenta de Telegram. No hay que crear nada nuevo.</p>') +
       '<div class="m-field"><label for="phone">Número de teléfono</label><div class="m-input">' +
       '<input class="cc" id="cc" data-model="login.cc" type="tel" inputmode="tel" value="' + esc(L.cc) + '" aria-label="Indicativo"/>' +
       '<input id="phone" data-model="login.phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="300 123 4567" value="' + esc(L.phone) + '"/></div></div>' +
@@ -250,13 +291,36 @@ var HFMobile = (function () {
 
   /* ----- Perfiles ----- */
   V.profiles = function () {
-    var list = HFLibrary.profiles();
+    pruneEmptyAccounts();
+    HFAnime.resetAccount();
+    HFLibrary.ensureAnimeProfile(); // perfil «Anime» (js/library.js); no hace nada si ya existe, no hay lugar o se borró
+    var accs = accountList();
+    var multi = accs.length > 1;
+    var list = [];
+    accs.forEach(function (a) { HFLibrary.profilesOf(a.id).forEach(function (p) { list.push({ p: p, a: a }); }); });
     return '<div class="m-center m-profiles">' + logo(true) + "<h1>¿Quién está viendo?</h1>" +
-      '<div class="m-pgrid">' + list.map(function (p) {
-        return '<button data-act="profile" data-id="' + esc(p.id) + '"><span class="av" style="background-image:url(' + avatarUrl(p.avatar) + ')">' +
-          (p.kids ? "<em>INFANTIL</em>" : "") + (p.pin ? '<span class="lockb">' + I.lock + "</span>" : "") + "</span>" + esc(p.name) + "</button>";
-      }).join("") + (list.length < HFLibrary.MAX_PROFILES ? '<button data-act="new-profile"><span class="av add">' + I.plus + "</span>Agregar</button>" : "") + "</div>" +
+      '<div class="m-pgrid">' + list.map(function (e) {
+        var p = e.p;
+        return '<button data-act="profile" data-id="' + esc(p.id) + '" data-acc="' + esc(e.a.id) + '"><span class="av" style="background-image:url(' + avatarUrl(p.avatar) + ')">' +
+          (p.kids ? "<em>INFANTIL</em>" : "") + (p.pin ? '<span class="lockb">' + I.lock + "</span>" : "") + "</span>" + esc(p.name) +
+          (multi ? '<small class="pacc">' + esc(e.a.name) + "</small>" : "") + "</button>";
+      }).join("") + (list.length < HFLibrary.MAX_TOTAL_PROFILES ? '<button data-act="new-profile"><span class="av add">' + I.plus + "</span>Agregar</button>" : "") + "</div>" +
       "</div>";
+  };
+
+  /* Elegir la cuenta de Telegram del perfil nuevo (como en la TV). */
+  V["account-pick"] = function () {
+    var accs = accountList();
+    return topTitle("Perfil nuevo") + '<div class="m-scroll m-form">' +
+      '<h2 class="m-ap-title">¿En qué cuenta de Telegram va el perfil?</h2>' +
+      '<p class="m-sub">Cada cuenta tiene sus propios chats y videos. Un perfil solo ve lo de su cuenta.</p>' +
+      '<div class="m-group">' + accs.map(function (a, i) {
+        var n = HFLibrary.profilesOf(a.id).length;
+        var full = n >= HFLibrary.MAX_PROFILES;
+        return '<button class="m-opt chat" data-act="pick-account" data-id="' + esc(a.id) + '"' + (full ? ' style="opacity:.5"' : "") + '><span class="ci">' + esc(String(a.name || "?").charAt(0).toUpperCase()) +
+          "</span><div><b>" + esc(a.name) + (i === 0 ? " · Principal" : "") + "</b><small>" + (a.username ? "@" + esc(a.username) + " · " : "") + (full ? "ya tiene el máximo de perfiles" : plural(n, "perfil", "perfiles")) + "</small></div>" + I.chev + "</button>";
+      }).join("") +
+      '<button class="m-opt chat" data-act="connect-account"><span class="ci">+</span><div><b>Conectar otra cuenta de Telegram</b><small>Sus perfiles verán solo los chats y videos de esa cuenta</small></div>' + I.chev + "</button></div></div>";
   };
 
   V.pin = function () {
@@ -292,7 +356,8 @@ var HFMobile = (function () {
   /* ----- Catálogo ----- */
   function heroCard(t) {
     var p = progressOf(t);
-    var tags = [t.year, t.type === "series" ? plural((t.seasons || []).length, "temporada", "temporadas") : dur(lengthOf(t))].concat(mainCat(t) ? [mainCat(t)] : []).filter(Boolean).slice(0, 4);
+    var tags = (t.anime ? [t.year, t.format, t.episodeCount ? plural(t.episodeCount, "capítulo", "capítulos") : "", t.score ? "★ " + (t.score / 10).toFixed(1) : ""]
+      : [t.year, t.type === "series" ? plural((t.seasons || []).length, "temporada", "temporadas") : dur(lengthOf(t))].concat(mainCat(t) ? [mainCat(t)] : [])).filter(Boolean).slice(0, 4);
     /* El banner es 16:9 (hecho para la TV): se muestra entero arriba y la misma imagen, desenfocada, tiñe el fondo de la tarjeta. */
     var art = t.bannerKey || t.imageKey;
     return '<div class="m-hero"><div class="amb"' + img(art) + '></div><div class="art"' + img(art) + "></div>" +
@@ -314,28 +379,177 @@ var HFMobile = (function () {
         return '<button data-act="hero-dot" data-i="' + k + '" aria-label="Destacado ' + (k + 1) + '"' + (k === heroPick % items.length ? ' class="on"' : "") + "></button>";
       }).join("") + "</div>";
   }
+  /* El destacado cambia con «Circle blur» (beui.dev/components/motion/theme-toggle): el título nuevo aparece dentro de un círculo que crece desde donde se tocó
+   * (el punto o el final del deslizamiento) saliendo del desenfoque, sobre el anterior que se queda quieto debajo. Como en la TV, si te quedas unos
+   * segundos en un destacado empieza una vista previa de la película sobre su imagen (sin sonido: el celular no deja arrancar con sonido solo). */
+  var heroGo = null;
+  function heroReveal(el, cx, cy) {
+    var r;
+    var o = "50% 100%";
+    if (!el || !el.animate || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) { return; }
+    r = el.getBoundingClientRect();
+    if (cx !== undefined && cx !== null) { o = Math.round(cx - r.left) + "px " + Math.round(cy - r.top) + "px"; }
+    try {
+      el.animate([{ clipPath: "circle(0% at " + o + ")", filter: "blur(8px)" }, { clipPath: "circle(150% at " + o + ")", filter: "blur(0px)" }],
+        { duration: 700, easing: "cubic-bezier(0.4, 0, 0.2, 1)" });
+    } catch (e) { /* sin animación: el cambio queda instantáneo */ }
+  }
   function heroSetup() {
     var box = byId("heros");
     var dots = byId("heroDots");
-    if (!box) { return; }
-    var n = box.children.length;
+    var n;
+    var cur;
+    var busy = null;
+    var sx = 0;
+    var sy = 0;
     var paint = function (i) {
       if (!dots) { return; }
       Array.prototype.forEach.call(dots.children, function (d, k) { d.className = k === i ? "on" : ""; });
     };
-    var start = heroPick % n;
-    box.scrollLeft = box.children[start].offsetLeft - box.children[0].offsetLeft;
-    paint(start);
-    var t = null;
-    box.addEventListener("scroll", function () {
-      clearTimeout(t);
-      t = setTimeout(function () {
-        var w = box.children[0].offsetWidth + 10;
-        var i = Math.max(0, Math.min(n - 1, Math.round(box.scrollLeft / w)));
-        if (i !== heroPick % n) { heroPick = i; paint(i); }
-      }, 60);
+    heroPvCancel();
+    heroGo = null;
+    if (!box) { heroPvArm(); return; }
+    n = box.children.length;
+    cur = heroPick % n;
+    Array.prototype.forEach.call(box.children, function (c) { c.classList.remove("cur", "under"); });
+    box.children[cur].classList.add("cur");
+    paint(cur);
+    heroGo = function (i, cx, cy) {
+      var prev;
+      var next;
+      if (i === cur || i < 0 || i >= n) { return; }
+      clearTimeout(busy);
+      Array.prototype.forEach.call(box.children, function (c) { c.classList.remove("under"); });
+      prev = box.children[cur];
+      next = box.children[i];
+      prev.classList.remove("cur");
+      prev.classList.add("under");
+      next.classList.add("cur");
+      cur = i;
+      heroPick = i;
+      paint(i);
+      heroPvCancel();
+      heroReveal(next, cx, cy);
+      heroPvArm();
+      busy = setTimeout(function () { prev.classList.remove("under"); }, 760);
+    };
+    box.addEventListener("touchstart", function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+    box.addEventListener("touchend", function (e) {
+      var t = e.changedTouches[0];
+      var dx = t.clientX - sx;
+      var dy = t.clientY - sy;
+      if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy) * 1.3) { return; }
+      heroGo((cur + (dx < 0 ? 1 : -1) + n) % n, t.clientX, t.clientY);
     }, { passive: true });
+    heroPvArm();
   }
+
+  /* ----- Vista previa del destacado (como en la TV): mismo motor del reproductor, la versión más liviana, arranca a ~30 % ----- */
+  var HERO_PV_DELAY = 400;
+  var HERO_PV_LEN = 45000;
+  var HeroPv = { timer: null, end: null, el: null, wrap: null, engine: null, ref: "", token: 0 };
+  function heroPvSupported() {
+    return typeof Player !== "undefined" && typeof window.MediaSource !== "undefined" && typeof HFTelegram !== "undefined" && HFTelegram.available && HFTelegram.available() &&
+      typeof HFTelegram.source === "function";
+  }
+  function heroCurEl() {
+    var box = byId("heros");
+    return box ? (box.querySelector(".m-hero.cur") || box.children[0]) : document.querySelector(".m-hero");
+  }
+  function heroPvCancel() {
+    var wrap = HeroPv.wrap;
+    var eng = HeroPv.engine;
+    HeroPv.token += 1;
+    clearTimeout(HeroPv.timer);
+    clearTimeout(HeroPv.end);
+    HeroPv.timer = null;
+    HeroPv.end = null;
+    HeroPv.el = null;
+    HeroPv.wrap = null;
+    HeroPv.engine = null;
+    HeroPv.ref = "";
+    if (wrap) { wrap.classList.remove("on"); }
+    if (wrap || eng) {
+      setTimeout(function () {
+        try { if (eng) { eng.close(); } } catch (e) { /* ya estaba cerrado */ }
+        if (wrap && wrap.parentNode) { wrap.parentNode.removeChild(wrap); }
+      }, 900);
+    }
+  }
+  function heroPvArm() {
+    var card = heroCurEl();
+    var btn = card && card.querySelector("[data-play]");
+    var ref = btn ? btn.getAttribute("data-play") : "";
+    var t = ref ? titleOf(ref) : null;
+    if (!card || !t || t.anime || (S.view !== "home") || S.sheet || S.overlay || !heroPvSupported()) { return; }
+    if (HeroPv.ref === ref && (HeroPv.timer || HeroPv.engine)) { return; }
+    heroPvCancel();
+    HeroPv.ref = ref;
+    HeroPv.timer = setTimeout(function () { HeroPv.timer = null; heroPvStart(); }, HERO_PV_DELAY);
+  }
+  function heroPvPick(t) {
+    var it = t.type === "series" ? HFLibrary.nextEpisode(t).episode : t;
+    var list;
+    var low;
+    var v;
+    var part;
+    var total;
+    if (!it || !it.video) { return null; }
+    list = (it.versions || []).filter(function (x) { return x && x.key; });
+    low = list.filter(function (x) { return x.h <= 720; }).sort(function (a, b) { return b.h - a.h; })[0] || list.sort(function (a, b) { return a.h - b.h; })[0];
+    v = low || { key: it.video.key, parts: [{ key: it.video.key, dur: it.video.duration }] };
+    part = (v.parts && v.parts[0]) || { key: v.key, dur: it.video.duration };
+    total = part.dur || it.video.duration || 0;
+    if (!part.key || total < 240) { return null; }
+    return { key: part.key, startAt: Math.max(30, Math.min(total * 0.3, total - 150)) };
+  }
+  function heroPvStart() {
+    var card = heroCurEl();
+    var btn = card && card.querySelector("[data-play]");
+    var t = btn ? titleOf(btn.getAttribute("data-play")) : null;
+    var art = card && card.querySelector(".art");
+    var pick = t && heroPvPick(t);
+    var my = HeroPv.token;
+    var video;
+    var wrap;
+    var engine;
+    if (!card || !art || !pick || S.view !== "home" || S.sheet || S.overlay || window.scrollY > card.offsetHeight * 0.6) { return; }
+    video = document.createElement("video");
+    video.muted = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    wrap = document.createElement("div");
+    wrap.className = "m-pv";
+    wrap.appendChild(video);
+    art.appendChild(wrap);
+    HeroPv.el = video;
+    HeroPv.wrap = wrap;
+    engine = Player.create(video, function () { /* registro interno */ }, function (phase) {
+      if (my !== HeroPv.token) { return; }
+      if (phase === "playing") {
+        wrap.classList.add("on");
+        if (!HeroPv.end) { HeroPv.end = setTimeout(heroPvCancel, HERO_PV_LEN); }
+      } else if (phase === "error") {
+        heroPvCancel();
+      }
+    });
+    HeroPv.engine = engine;
+    HFTelegram.source(pick.key).then(function (src) {
+      if (my !== HeroPv.token) { return null; }
+      return engine.open(src, { startAt: pick.startAt, onTracks: function () {}, onSub: function () {} });
+    }).then(function () {
+      if (my !== HeroPv.token) { return; }
+      try { video.play(); } catch (e) { /* el motor ya la inicia */ }
+    }, function () { if (my === HeroPv.token) { heroPvCancel(); } });
+  }
+  /* se corta al bajar la página, al esconder la app y al irse de Inicio */
+  window.addEventListener("scroll", function () {
+    var card;
+    if (!HeroPv.timer && !HeroPv.engine) { return; }
+    card = heroCurEl();
+    if (!card || window.scrollY > card.offsetHeight * 0.6) { heroPvCancel(); }
+  }, { passive: true });
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") { heroPvCancel(); } }, false);
 
   /* Categorías sin repetir aunque una venga con tilde y otra sin ella («Accion» = «Acción»), como en la TV.
    * Se muestra la forma con tilde si alguna la trae. */
@@ -359,7 +573,7 @@ var HFMobile = (function () {
     return catsOf(list).map(function (c) {
       /* Marvel: en el orden de la historia (js/library.js sortForCategory); las demás, tal cual */
       var g = HFLibrary.sortForCategory(c, list.filter(function (t) { return inCategory(t, c); }));
-      return row(c, g, { note: plural(g.length, "título", "títulos") + (HFLibrary.isChronoCategory(c) ? " · orden cronológico" : "") });
+      return row(c, g, { all: c, note: plural(g.length, "título", "títulos") + (HFLibrary.isChronoCategory(c) ? " · orden cronológico" : "") });
     }).join("");
   }
 
@@ -386,11 +600,45 @@ var HFMobile = (function () {
           var p = progressOf(t);
           return card(t, { wide: true, progress: p, sub: "Quedan " + dur(Math.max(0, p.d - p.t)) });
         } }) +
-        row("Agregados recientemente", all.slice(0, 5), { note: "los últimos 5" }) +
+        forYouRow() +
+        row("Agregados recientemente", all.slice(0, 10), { note: "los últimos 10" }) +
         categoryRows(all) +
-        row("Todas las películas", movies().sort(byDate)) +
-        row("Series", series())) +
+        row(ALL_MOVIES, movies().sort(byDate), { all: ALL_MOVIES }) +
+        row("Series", series(), { all: ALL_SERIES })) +
       "</div>" + nav("home");
+  };
+
+  /* «Para ti» y «Similares» del motor de recomendaciones (js/reco.js): la razón va como subtítulo de la tarjeta.
+   * Con menos de 4 (o sin servidor) no hay fila. */
+  function forYouRow() {
+    var list = typeof HFReco !== "undefined" ? HFReco.paraTi(library, 24) : [];
+    if (list.length < 4) { return ""; }
+    return row("Para ti", list, { note: "según lo que ves", render: function (e) { return card(e.item, { sub: e.sub }); } });
+  }
+  function similarRow(t) {
+    if (t.anime || typeof HFReco === "undefined") { return ""; }
+    var list = HFReco.similares(t.titleKey, library).filter(function (e) { return e.item !== t; });
+    if (list.length < 3) { return ""; }
+    return row("Similares", list, { render: function (e) { return card(e.item, { sub: e.sub }); } });
+  }
+
+  /* ----- Anime ----- */
+  function animeEmpty() {
+    var err = HFAnime.lastError();
+    return '<div class="m-empty">' + (err ? I.tv + "<b>No se pudo cargar el catálogo de Anime</b>" + esc(err) + '<br><button class="m-btn ghost" style="margin-top:14px" data-act="anime-reload">Reintentar</button>'
+      : '<div class="m-spin"></div><b>Cargando el catálogo de Anime…</b>Lo más visto, lo nuevo y por género.') + "</div>";
+  }
+  V.anime = function () {
+    var rows = HFAnime.rows();
+    var cont = animeTitles().filter(function (t) { return progressOf(t); }).sort(function (a, b) { return (progressOf(b).at || 0) - (progressOf(a).at || 0); });
+    var featured = rows.length ? rows[0].titles.filter(function (t) { return t.bannerKey || t.imageKey; }) : [];
+    return topbar() + '<div class="m-scroll">' + (!rows.length ? animeEmpty() :
+      heroSlider(featured) +
+      row("Continuar viendo", cont, { render: function (t) {
+        var p = progressOf(t);
+        return card(t, { progress: p, sub: "Quedan " + dur(Math.max(0, p.d - p.t)) });
+      } }) +
+      rows.map(function (r) { return row(r.name, r.titles, { note: r.note }); }).join("")) + "</div>" + nav("anime");
   };
 
   function section(kind) {
@@ -400,7 +648,7 @@ var HFMobile = (function () {
       '<div class="m-chips"><button class="m-chip on" data-tab="home">' + (kind === "series" ? "Series" : "Películas") + ' <span class="x">×</span></button>' +
       '<button class="m-chip" data-act="categories">Categorías ' + I.down + "</button></div>" +
       (feat ? heroHtml(feat) : "") +
-      (list.length ? categoryRows(list) + row(kind === "series" ? "Todas las series" : "Todas las películas", list)
+      (list.length ? categoryRows(list) + row(kind === "series" ? ALL_SERIES : ALL_MOVIES, list, { all: kind === "series" ? ALL_SERIES : ALL_MOVIES })
         : !titles().length ? emptyLibrary()
         : '<div class="m-empty">' + I.tv + "<b>Todavía no hay " + (kind === "series" ? "series" : "películas") + "</b>Publica un capítulo con <code>serie(1/1)#Nombre#…</code> en tu grupo y aparecerá aquí.</div>") +
       "</div>" + nav(kind);
@@ -410,7 +658,8 @@ var HFMobile = (function () {
 
   V.category = function () {
     var c = S.category;
-    var list = HFLibrary.sortForCategory(c, titles().filter(function (t) { return inCategory(t, c); }).sort(byDate));
+    var list = c === ALL_MOVIES ? movies().sort(byDate) : c === ALL_SERIES ? series().sort(byDate)
+      : HFLibrary.sortForCategory(c, titles().filter(function (t) { return inCategory(t, c); }).sort(byDate));
     return topTitle(c) + '<div class="m-scroll"><div class="m-sub">' + plural(list.length, "título", "títulos") + (HFLibrary.isChronoCategory(c) ? " · en orden cronológico" : "") + '</div><div class="m-grid">' +
       list.map(function (t) { return card(t); }).join("") + "</div></div>" + nav("");
   };
@@ -429,10 +678,29 @@ var HFMobile = (function () {
       return '<div class="m-sub">Lo más nuevo</div><div class="m-grid">' + titles().sort(byDate).slice(0, 10).map(function (t) { return card(t); }).join("") + "</div>";
     }
     var res = titles().filter(function (t) { return norm(t.name).indexOf(q) >= 0 || norm(t.description).indexOf(q) >= 0; });
+    if (animeOn()) {
+      /* lo que la app ya conoce del canal Anime + lo que devolvió la búsqueda en su catálogo completo */
+      var seenA = {};
+      HFAnime.cachedSearch(S.search).concat(animeTitles().filter(function (t) { return norm(t.name).indexOf(q) >= 0; })).forEach(function (t) {
+        if (!seenA[t.titleKey]) { seenA[t.titleKey] = 1; res.push(t); }
+      });
+    }
     var rest = titles().filter(function (t) { return res.indexOf(t) < 0; }).sort(byDate);
     return '<div class="m-sub">' + (res.length ? plural(res.length, "resultado", "resultados") : "Nada con «" + esc(S.search) + "»") + "</div>" +
       '<div class="m-grid">' + res.map(function (t) { return card(t); }).join("") + "</div>" +
       (rest.length ? '<div class="m-sub" style="margin-top:22px">También te puede gustar</div><div class="m-grid">' + rest.slice(0, 6).map(function (t) { return card(t); }).join("") + "</div>" : "");
+  }
+  /* Busca también en el catálogo completo del canal Anime (en el servidor) y repinta si lo escrito sigue igual. */
+  var animeSearchTimer = null;
+  function searchAnimeOnline(raw) {
+    var q = String(raw || "").trim();
+    clearTimeout(animeSearchTimer);
+    if (!animeOn() || q.length < 2 || HFAnime.cachedSearch(q).length) { return; }
+    animeSearchTimer = setTimeout(function () {
+      HFAnime.search(q).then(function (list) {
+        if (list.length && S.view === "search" && String(S.search || "").trim() === q && byId("results")) { byId("results").innerHTML = searchResults(); hydrate(); }
+      }, function () { /* sin red: quedan los que ya conoce la app */ });
+    }, 350);
   }
   V.search = function () {
     return '<div class="m-search"><div class="m-input">' + I.search + '<input id="q" data-model="search" type="search" enterkeyhint="search" placeholder="Película o serie" value="' + esc(S.search) + '"/></div></div>' +
@@ -452,11 +720,307 @@ var HFMobile = (function () {
     var inList = HFLibrary.inMyList(t.titleKey);
     return '<div class="m-acts"><button data-act="mylist" data-key="' + esc(t.titleKey) + '">' + (inList ? I.check : I.plus) + "Mi lista</button>" +
       (t.versions && t.versions.length > 1 ? '<button data-act="sheet" data-sheet="quality">' + I.quality + "Calidad</button>" : "") +
+      (cardView() === "vertical" && t.galleryKeys && t.galleryKeys.length ? '<button data-act="gallery" data-key="' + esc(t.titleKey) + '">' + I.gallery + "Galería</button>" : "") +
       '<button data-act="sheet" data-sheet="info">' + I.info + "Detalles</button></div>";
   }
 
   /* Acciones de los botones (data-act): se declara aquí, antes de que cualquier bloque registre las suyas */
   var ACT = {};
+
+  /* ===================== Galería de escenas =====================
+   * Fotos publicadas con #galeria1, #galeria2… (ver docs/formato-comentarios.md). Carrusel con tres efectos (3D, pila, abanico), arrastre con
+   * inercia, fondo desenfocado que cambia con cada foto, brillo que cruza, presentación automática y «ver completa» al tocar la del centro. */
+  var G = null;
+  /* S.arg de la galería: «claveDelTítulo» o «claveDelTítulo|ep|temporada:capítulo» */
+  function galSource() {
+    var parts = String(S.arg || "").split("|ep|");
+    var t = titleOf(parts[0]);
+    var ep = null;
+    if (t && parts[1]) {
+      (t.seasons || []).forEach(function (se) { (se.episodes || []).forEach(function (e) { if (e.season + ":" + e.episode === parts[1]) { ep = e; } }); });
+    }
+    var src = ep || t;
+    return { t: t, ep: ep, keys: (src && src.galleryKeys) || [], name: t ? (ep ? t.name + " · T" + ep.season + ":E" + ep.episode : t.name) : "" };
+  }
+  var GAL_MODES = [["flow", "Carrusel 3D"], ["stack", "Pila"], ["fan", "Abanico"]];
+  V.gallery = function () {
+    var g = galSource();
+    var t = g.t;
+    var keys = g.keys;
+    return '<div class="m-gal" id="mgal" data-mode="flow" data-fit="tall">' +
+      '<div class="gbg" id="gbg0"></div><div class="gbg" id="gbg1"></div><div class="gshade"></div>' +
+      '<header class="gtop"><button class="m-iconbtn" data-back aria-label="Volver">' + I.back + '</button><div class="gt"><b>' + esc(g.name) + '</b><small id="gcount"></small></div>' +
+      '<button class="m-iconbtn" data-act="gal-fit" aria-label="Foto completa">' + I.expand + '</button><button class="m-iconbtn" data-act="gal-mode" aria-label="Cambiar efecto">' + I.sparkle + '</button><button class="m-iconbtn" data-act="gal-play" id="gplay" aria-label="Presentación">' + I.play + "</button></header>" +
+      '<div class="gstage" id="gstage">' + keys.map(function (k, i) {
+        return '<div class="gcard" data-i="' + i + '"><div class="gimg"></div><i class="gshine"></i></div>';
+      }).join("") + "</div>" +
+      '<div class="gstrip" id="gstrip">' + keys.map(function (k, i) { return '<i data-i="' + i + '"></i>'; }).join("") + "</div></div>";
+  };
+  ACT.gallery = function (el) {
+    var t = titleOf(el.getAttribute("data-key"));
+    if (t && t.galleryKeys && t.galleryKeys.length) { go("gallery", t.titleKey); }
+  };
+  /* la galería de un capítulo (botón a la derecha del capítulo) */
+  ACT["gallery-ep"] = function (el) {
+    var t = titleOf(el.getAttribute("data-key"));
+    var id = el.getAttribute("data-ep");
+    var has = false;
+    if (t) { (t.seasons || []).forEach(function (se) { (se.episodes || []).forEach(function (e) { if (e.season + ":" + e.episode === id && e.galleryKeys && e.galleryKeys.length) { has = true; } }); }); }
+    if (has) { go("gallery", t.titleKey + "|ep|" + id); }
+  };
+  function galleryStart() {
+    var keys = galSource().keys;
+    var stage = byId("gstage");
+    if (!stage || !keys.length) { return; }
+    G = { keys: keys, cards: [].slice.call(stage.children), pos: 0, target: 0, drag: null, raf: 0, mode: "flow", urls: {}, asked: {}, play: 0, bg: 0, bgIdx: -1, wide: false, vel: 0, z: { s: 1, x: 0, y: 0 }, ptrs: {}, pinch: null, pan: null, lastTap: 0 };
+    stage.addEventListener("pointerdown", galDown);
+    stage.addEventListener("pointermove", galMove);
+    stage.addEventListener("pointerup", galUp);
+    stage.addEventListener("pointercancel", galUp);
+    byId("gstrip").addEventListener("click", function (e) {
+      var i = e.target.getAttribute && e.target.getAttribute("data-i");
+      if (i !== null && i !== undefined) { G.target = Number(i); galKick(); }
+    });
+    galPaint();
+    galEnsure(0);
+  }
+  function galStop() {
+    if (!G) { return; }
+    cancelAnimationFrame(G.raf);
+    clearInterval(G.play);
+    G = null;
+  }
+  function galKick() { if (G && !G.raf) { G.raf = requestAnimationFrame(galTick); } }
+  function galTick() {
+    if (!G) { return; }
+    G.raf = 0;
+    if (!G.drag) {
+      var diff = G.target - G.pos;
+      G.pos += diff * 0.16;
+      if (Math.abs(diff) < 0.002) { G.pos = G.target; }
+    }
+    galPaint();
+    if (G.drag || Math.abs(G.target - G.pos) > 0.001) { G.raf = requestAnimationFrame(galTick); }
+  }
+  function galDown(e) {
+    if (!G) { return; }
+    G.ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(G.ptrs);
+    if (G.wide && ids.length === 2) {
+      /* dos dedos: pellizcar para acercar */
+      var pa = G.ptrs[ids[0]];
+      var pb = G.ptrs[ids[1]];
+      G.pinch = { d0: Math.hypot(pa.x - pb.x, pa.y - pb.y) || 1, s0: G.z.s };
+      G.drag = null;
+      G.pan = null;
+      return;
+    }
+    if (G.wide && G.z.s > 1) {
+      /* con zoom: arrastrar mueve la foto, no cambia de foto */
+      G.pan = { x: e.clientX, y: e.clientY, x0: G.z.x, y0: G.z.y, moved: 0 };
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* nada */ }
+      return;
+    }
+    G.drag = { x: e.clientX, y: e.clientY, pos0: G.pos, t: Date.now(), moved: 0, lastX: e.clientX, lastT: Date.now() };
+    G.vel = 0;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* nada */ }
+    galKick();
+  }
+  function galZoomClamp() {
+    var st = byId("gstage");
+    var mx = (G.z.s - 1) * st.clientWidth / 2;
+    var my = (G.z.s - 1) * st.clientHeight / 2;
+    G.z.x = Math.max(-mx, Math.min(mx, G.z.x));
+    G.z.y = Math.max(-my, Math.min(my, G.z.y));
+  }
+  function galMove(e) {
+    if (!G) { return; }
+    if (G.ptrs[e.pointerId]) { G.ptrs[e.pointerId] = { x: e.clientX, y: e.clientY }; }
+    if (G.pinch) {
+      var ids = Object.keys(G.ptrs);
+      if (ids.length >= 2) {
+        var pa = G.ptrs[ids[0]];
+        var pb = G.ptrs[ids[1]];
+        G.z.s = Math.max(1, Math.min(5, G.pinch.s0 * (Math.hypot(pa.x - pb.x, pa.y - pb.y) / G.pinch.d0)));
+        galZoomClamp();
+        galKick();
+      }
+      return;
+    }
+    if (G.pan) {
+      G.pan.moved = Math.max(G.pan.moved, Math.abs(e.clientX - G.pan.x) + Math.abs(e.clientY - G.pan.y));
+      G.z.x = G.pan.x0 + (e.clientX - G.pan.x);
+      G.z.y = G.pan.y0 + (e.clientY - G.pan.y);
+      galZoomClamp();
+      galKick();
+      return;
+    }
+    var d = G.drag;
+    if (!d) { return; }
+    var step = Math.max(120, byId("gstage").clientWidth * (G.mode === "flow" ? 0.5 : 0.42));
+    d.moved = Math.max(d.moved, Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y));
+    var now = Date.now();
+    if (now > d.lastT) { G.vel = (G.vel * 0.6) + ((d.lastX - e.clientX) / step / (now - d.lastT)) * 0.4 * 1000; }
+    d.lastX = e.clientX;
+    d.lastT = now;
+    G.pos = Math.max(-0.35, Math.min(G.keys.length - 0.65, d.pos0 + (d.x - e.clientX) / step));
+    G.target = G.pos;
+  }
+  function galZoomSet(s, cx, cy) {
+    var st = byId("gstage");
+    G.z.s = s;
+    if (s <= 1) { G.z.x = 0; G.z.y = 0; } else {
+      /* el punto tocado queda donde estaba */
+      G.z.x = (st.clientWidth / 2 - cx) * (s - 1);
+      G.z.y = (st.clientHeight / 2 - cy) * (s - 1);
+      galZoomClamp();
+    }
+    byId("mgal").setAttribute("data-zoom", s > 1 ? "1" : "0");
+    galKick();
+  }
+  function galChrome() { byId("mgal").classList.toggle("calm"); }
+  function galUp(e) {
+    if (!G) { return; }
+    delete G.ptrs[e.pointerId];
+    if (G.pinch) {
+      if (Object.keys(G.ptrs).length < 2) {
+        G.pinch = null;
+        if (G.z.s < 1.08) { galZoomSet(1, 0, 0); } else { byId("mgal").setAttribute("data-zoom", "1"); }
+      }
+      return;
+    }
+    if (G.pan) {
+      var moved = G.pan.moved;
+      G.pan = null;
+      if (moved >= 8) { return; }
+      /* toque con zoom: dos toques seguidos vuelven al tamaño normal */
+      var nowP = Date.now();
+      if (nowP - G.lastTap < 320) { G.lastTap = 0; galZoomSet(1, 0, 0); } else { G.lastTap = nowP; }
+      return;
+    }
+    var d = G.drag;
+    if (!d) { return; }
+    G.drag = null;
+    if (d.moved < 8 && G.wide) {
+      /* foto completa: un toque muestra u oculta los controles; dos toques seguidos acercan la foto */
+      var now = Date.now();
+      if (now - G.lastTap < 320) { G.lastTap = 0; galChrome(); galZoomSet(2.6, e.clientX, e.clientY); } else { G.lastTap = now; galChrome(); }
+      galKick();
+      return;
+    }
+    if (d.moved < 8) {
+      /* toque: la del centro alterna «ver completa»; otra foto se trae al centro */
+      var card = e.target.closest && e.target.closest(".gcard");
+      var i = card ? Number(card.getAttribute("data-i")) : Math.round(G.pos);
+      if (i === Math.round(G.pos)) { galFit(); } else { G.target = i; }
+    } else {
+      G.target = Math.max(0, Math.min(G.keys.length - 1, Math.round(G.pos + Math.max(-2.5, Math.min(2.5, G.vel * 0.22)))));
+    }
+    galKick();
+  }
+  function galFit() {
+    G.wide = !G.wide;
+    byId("mgal").setAttribute("data-fit", G.wide ? "wide" : "tall");
+    byId("mgal").classList.remove("calm");
+    galZoomSet(1, 0, 0);
+    toast(G.wide ? "Foto completa · pellizca o toca dos veces para acercar" : "Vista de carrusel");
+    galKick();
+  }
+  ACT["gal-fit"] = function () { if (G) { galFit(); } };
+  function galPaint() {
+    if (!G) { return; }
+    var mode = G.mode;
+    var c = Math.max(0, Math.min(G.keys.length - 1, Math.round(G.pos)));
+    G.cards.forEach(function (el, i) {
+      var d = i - G.pos;
+      var ad = Math.abs(d);
+      var tr;
+      var op;
+      var z;
+      if (ad > 3.2) { el.style.visibility = "hidden"; return; }
+      el.style.visibility = "visible";
+      if (G.wide) {
+        /* foto completa: las fotos solo se deslizan, sin giros, zoom, desvanecido ni brillos encima */
+        if (ad > 1.6) { el.style.visibility = "hidden"; return; }
+        tr = "translate3d(" + d * 104 + "%,0,0)";
+        op = 1;
+        z = 200 - Math.round(ad * 10);
+      } else if (mode === "stack") {
+        if (d < 0) { tr = "translate3d(" + d * 125 + "%," + -ad * 18 + "px,0) rotate(" + d * 16 + "deg)"; op = Math.max(0, 1 + d * 1.1); z = 200 + i; }
+        else { tr = "translate3d(0," + d * 15 + "px," + -d * 70 + "px) scale(" + (1 - d * 0.06) + ")"; op = Math.max(0, 1 - d * 0.2); z = 200 - i; }
+      } else if (mode === "fan") {
+        tr = "translate3d(" + d * 44 + "%," + ad * ad * 14 + "px,0) rotate(" + d * 13 + "deg)";
+        op = Math.max(0, 1 - ad * 0.22);
+        z = 200 - Math.round(ad * 10);
+      } else {
+        tr = "translate3d(" + d * 56 + "%,0," + -ad * 170 + "px) rotateY(" + Math.max(-1.3, Math.min(1.3, -d)) * 40 + "deg) scale(" + (1 - Math.min(ad, 2) * 0.05) + ")";
+        op = Math.max(0, 1 - ad * 0.24);
+        z = 200 - Math.round(ad * 10);
+      }
+      el.style.transform = tr;
+      el.style.opacity = String(op);
+      el.style.zIndex = String(z);
+      var img = el.firstChild;
+      img.style.transform = G.wide ? (i === c && G.z.s > 1 ? "translate3d(" + G.z.x.toFixed(1) + "px," + G.z.y.toFixed(1) + "px,0) scale(" + G.z.s.toFixed(3) + ")" : "none") : "translate3d(" + (-d * 9).toFixed(2) + "%,0,0) scale(1.18)";
+      el.lastChild.style.transform = "translate3d(" + (d * 160).toFixed(1) + "%,0,0)";
+    });
+    if (c !== G.bgIdx) { G.bgIdx = c; galBg(c); galEnsure(c); }
+  }
+  function galEnsure(c) {
+    for (var i = Math.max(0, c - 2); i <= Math.min(G.keys.length - 1, c + 2); i += 1) {
+      (function (n) {
+        if (G.asked[n]) { return; }
+        G.asked[n] = 1;
+        Promise.resolve(imageSource(G.keys[n], 1600)).then(function (url) {
+          if (!url || !G) { return; }
+          G.urls[n] = url;
+          G.cards[n].firstChild.style.backgroundImage = "url(" + url + ")";
+          G.cards[n].classList.add("ready");
+          /* la proporción real de la foto: en «foto completa» la tarjeta toma esa forma y no se recorta nada */
+          var probe = new Image();
+          probe.onload = function () { if (G && probe.width && probe.height) { G.cards[n].style.setProperty("--ar", String(probe.width / probe.height)); } };
+          probe.src = url;
+          if (n === G.bgIdx) { galBg(n); }
+        });
+      })(i);
+    }
+  }
+  function galBg(c) {
+    var url = G.urls[c];
+    var cnt = byId("gcount");
+    if (cnt) { cnt.textContent = (c + 1) + " de " + G.keys.length; }
+    [].slice.call(byId("gstrip").children).forEach(function (d, i) { d.className = i === c ? "on" : ""; });
+    if (!url) { return; }
+    G.bg = 1 - G.bg;
+    var on = byId("gbg" + G.bg);
+    var off = byId("gbg" + (1 - G.bg));
+    on.style.backgroundImage = "url(" + url + ")";
+    on.classList.add("show");
+    off.classList.remove("show");
+  }
+  ACT["gal-mode"] = function () {
+    var i = (GAL_MODES.map(function (m) { return m[0]; }).indexOf(G.mode) + 1) % GAL_MODES.length;
+    G.mode = GAL_MODES[i][0];
+    byId("mgal").setAttribute("data-mode", G.mode);
+    toast("Efecto: " + GAL_MODES[i][1]);
+    galKick();
+  };
+  ACT["gal-play"] = function () {
+    var b = byId("gplay");
+    if (G.play) {
+      clearInterval(G.play);
+      G.play = 0;
+      b.innerHTML = I.play;
+      return;
+    }
+    b.innerHTML = I.pause;
+    G.play = setInterval(function () {
+      if (!G || G.drag) { return; }
+      G.target = (Math.round(G.pos) + 1) % G.keys.length;
+      galKick();
+    }, 2800);
+    toast("Presentación automática");
+  };
 
   V.detail = function () {
     var t = titleOf(S.arg);
@@ -465,7 +1029,8 @@ var HFMobile = (function () {
     var q = qualityOf(t);
     var more = titles().filter(function (x) { return x !== t; }).sort(byDate);
     var meta = (t.year ? '<span class="year">' + esc(t.year) + "</span>" : "") +
-      (t.type === "series" ? "<span>" + plural((t.seasons || []).length, "temporada", "temporadas") + "</span>" : "<span>" + dur(lengthOf(t)) + "</span>") +
+      (t.anime ? (t.format ? "<span>" + esc(t.format) + "</span>" : "") + (t.episodeCount ? "<span>" + plural(t.episodeCount, "capítulo", "capítulos") + "</span>" : "") + (t.statusText ? "<span>" + esc(t.statusText) + "</span>" : "") + (t.es ? '<span class="q">ES</span>' : "") + (t.score ? '<span class="q">★ ' + (t.score / 10).toFixed(1) + "</span>" : "")
+        : t.type === "series" ? "<span>" + plural((t.seasons || []).length, "temporada", "temporadas") + "</span>" : "<span>" + dur(lengthOf(t)) + "</span>") +
       (q ? '<span class="q">' + esc(q) + "</span>" : "") + (t.kids ? '<span class="kids">INFANTIL</span>' : "");
     var body;
     if (t.type === "series") {
@@ -474,13 +1039,16 @@ var HFMobile = (function () {
       var si = Math.min(S.season, (t.seasons || []).length - 1);
       var season = (t.seasons || [])[Math.max(0, si)] || { episodes: [] };
       var epP = ep && next.started && next.resume > 0 ? HFLibrary.progress(entryKey(ep)) : null;
-      body = playButtons(t, ep ? (next.started ? "Continuar" : "Ver") + " T" + ep.season + ":E" + ep.episode : "Reproducir", epP && !epP.done ? epP : null) +
+      body = (t.anime && !ep ? '<button class="m-btn primary block" data-act="anime-reload">' + (t._err ? "Reintentar" : "Cargando capítulos…") + "</button>" : playButtons(t, ep ? (next.started ? "Continuar" : "Ver") + " " + epLabel(ep) : "Reproducir", epP && !epP.done ? epP : null)) +
         (ep && ep.description ? '<p class="m-desc"><b>' + ep.episode + ". " + esc(ep.title) + "</b> · " + esc(ep.description) + "</p>" : t.description ? '<p class="m-desc">' + esc(t.description) + "</p>" : "") +
         actions(t) +
-        ((t.seasons || []).length > 1 ? '<div class="m-seasons">' + t.seasons.map(function (s, i) { return '<button data-act="season" data-i="' + i + '" class="' + (i === si ? "on" : "") + '">Temporada ' + s.number + "</button>"; }).join("") + "</div>" : '<div class="m-gtitle" style="margin-top:18px">Temporada ' + (season.number || 1) + "</div>") +
+        (t.anime && !t.loaded ? '<p class="m-desc">' + esc(t._err || "Cargando los capítulos…") + "</p>" : "") +
+        ((t.seasons || []).length > 1 ? '<div class="m-seasons">' + t.seasons.map(function (s, i) { return '<button data-act="season" data-i="' + i + '" class="' + (i === si ? "on" : "") + '">' + esc(s.label || "Temporada " + s.number) + "</button>"; }).join("") + "</div>" : t.loaded || !t.anime ? '<div class="m-gtitle" style="margin-top:18px">' + esc(season.label || "Temporada " + (season.number || 1)) + "</div>" : "") +
         season.episodes.map(function (e) {
           var ep2 = HFLibrary.progress(entryKey(e));
-          return '<button class="m-ep' + (ep && ep.key === e.key ? " now" : "") + '" data-act="play-ep" data-key="' + esc(e.key) + '"><div class="img"' + img(entryKey(e)) + '><span class="play"><b>' + I.play + "</b></span>" +
+          var hasG = cardView() === "vertical" && e.galleryKeys && e.galleryKeys.length;
+          return '<button class="m-ep' + (ep && ep.key === e.key ? " now" : "") + (hasG ? " hasg" : "") + '" data-act="play-ep" data-key="' + esc(e.key) + '">' +
+            (hasG ? '<span class="m-epg" role="button" tabindex="0" data-act="gallery-ep" data-key="' + esc(t.titleKey) + '" data-ep="' + e.season + ":" + e.episode + '" aria-label="Ver la galería del capítulo">' + I.gallery + "</span>" : "") + '<div class="img"' + img(e.coverKey || entryKey(e)) + '><span class="play"><b>' + I.play + "</b></span>" +
             (ep2 && !ep2.done && ep2.t ? '<div class="bar"><i style="width:' + Math.round((ep2.t / Math.max(1, ep2.d)) * 100) + '%"></i></div>' : "") + "</div>" +
             '<div><div class="n">' + e.episode + ". " + esc(e.title || "Capítulo " + e.episode) + '</div><div class="d">' + dur(e.video ? e.video.duration : 0) + (ep2 && ep2.done ? " · Visto" : "") + "</div></div>" +
             (e.description ? "<p>" + esc(e.description) + "</p>" : "") + "</button>";
@@ -491,10 +1059,11 @@ var HFMobile = (function () {
         (mainCat(t) ? '<div class="m-cats"><button data-act="category" data-c="' + esc(mainCat(t)) + '">' + esc(mainCat(t)) + '</button></div>' : '') +
         actions(t);
     }
-    var from = (t.video && t.video.chatTitle) || chatTitles()[0] || "tus chats";
+    var from = t.anime ? "Anime" : (t.video && t.video.chatTitle) || chatTitles()[0] || "tus chats";
     return '<div class="m-scroll"><div class="m-dt-art"' + img(t.bannerKey || t.imageKey) + '><div class="bar-top"><button class="m-iconbtn" data-back>' + I.back + "</button></div></div>" +
       '<div class="m-dt"><h1>' + esc(t.name) + '</h1><div class="m-meta">' + meta + "</div>" + body + '<div class="m-sep"></div></div>' +
-      row("También de " + from, more.slice(0, 10)) + "</div>" + nav(t.type === "series" ? "series" : "movies");
+      similarRow(t) +
+      row("También de " + from, (t.anime ? animeTitles().filter(function (x) { return x !== t; }) : more).slice(0, 10)) + "</div>" + nav(t.anime ? "anime" : t.type === "series" ? "series" : "movies");
   };
 
   /* ----- Hojas (sobre la vista actual) ----- */
@@ -518,6 +1087,19 @@ var HFMobile = (function () {
       I.info + note);
   }
   var SHEETS = {
+    theme: function () { return HFMTheme.sheet(themeKit()); },
+    nextprefs: function () {
+      function sec(title, key, cur, opts) {
+        return '<div class="sh-sec">' + title + "</div>" + opts.map(function (o) {
+          return radio(o[1], "", String(cur) === String(o[0]), 'data-act="nx-set" data-k="' + key + '" data-v="' + o[0] + '"');
+        }).join("");
+      }
+      return sheetHtml("Siguiente capítulo",
+        sec("Pasar al siguiente", "nextskip", nextSkip(), [[0, "Al terminar"], [5, "5 s antes del final"], [10, "10 s antes del final"]]) +
+        sec("Tamaño del aviso", "nxsize", nxSize(), [["s", "Pequeño"], ["m", "Mediano"], ["l", "Grande"]]) +
+        sec("Transparencia del aviso", "nxalpha", nxAlpha(), [[100, "Sólido"], [80, "80 %"], [60, "60 %"], [40, "40 %"]]),
+        I.info + "Solo para el perfil " + esc(profile ? profile.name : "") + ".");
+    },
     quality: function () {
       var t = titleOf(S.arg) || (S.player && S.player.title);
       var vs = ((t && t.versions) || []).slice().sort(function (a, b) { return b.h - a.h; });
@@ -563,21 +1145,24 @@ var HFMobile = (function () {
       '<div id="chatList">' + chatList() + "</div>" +
       (S.firstTime ? '<button class="m-btn primary block" data-act="chats-done"' + (active ? "" : " disabled") + ">" + (active ? "Listo, ver mi biblioteca" : "Elige al menos un chat") + "</button>" : "") + "</div>";
   };
-  var KIND = { saved: "Guardados", channel: "Canal", group: "Grupo", user: "Chat privado", bot: "Bot" };
+  var KIND = { saved: "Guardados", channel: "Canal", group: "Grupo", user: "Chat privado", bot: "Bot", anime: "Fijo · en línea" };
+  /* El canal «Anime» está siempre, en todas las cuentas y arriba: no es un chat de Telegram (js/anime.js). */
+  function withAnimeChat(list) {
+    return [{ id: HFAnime.SOURCE, title: HFAnime.NAME, kind: "anime" }].concat((list || []).filter(function (c) { return String(c.id) !== HFAnime.SOURCE; }));
+  }
   function chatList() {
-    if (S.chatsError) { return errorBox(S.chatsError) + '<button class="m-btn ghost block" data-act="load-chats">Reintentar</button>'; }
-    if (!S.chats) { return '<div class="m-empty"><div class="m-spin"></div>Cargando tus chats…</div>'; }
+    if (!S.chats && !S.chatsError) { return '<div class="m-empty"><div class="m-spin"></div>Cargando tus chats…</div>'; }
     var src = HFLibrary.enabledSources() || {};
     var q = norm(S.chatQ).trim();
-    var list = S.chats.filter(function (c) {
+    var list = withAnimeChat(S.chats || []).filter(function (c) {
       if (q && norm(c.title).indexOf(q) < 0) { return false; }
-      if (S.chatFilter === "group") { return c.kind === "group"; }
+      if (S.chatFilter === "group") { return c.kind === "group" || c.kind === "anime"; }
       if (S.chatFilter === "channel") { return c.kind === "channel"; }
       if (S.chatFilter === "on") { return !!src[c.id]; }
       return c.kind !== "bot";
     });
     if (!list.length) { return '<div class="m-sub">No hay chats con ese filtro.</div>'; }
-    return '<div class="m-group">' + list.map(function (c) {
+    return (S.chatsError ? errorBox(S.chatsError) + '<button class="m-btn ghost block" data-act="load-chats">Reintentar</button>' : "") + '<div class="m-group">' + list.map(function (c) {
       return '<button class="m-opt chat" data-act="chat" data-id="' + esc(c.id) + '"><span class="ci">' + esc((c.title || "?").slice(0, 1).toUpperCase()) + '</span><div><b>' + esc(c.title) + "</b><small>" + (KIND[c.kind] || "") + "</small></div>" + toggle(!!src[c.id]) + "</button>";
     }).join("") + "</div>";
   }
@@ -593,14 +1178,20 @@ var HFMobile = (function () {
       '<button class="m-opt" data-go="settings"><div><b>Chats de la biblioteca</b><small>' + esc(chatTitles().join(", ") || "Ninguno") + "</small></div>" + I.chev + "</button>" +
       '<button class="m-opt" data-act="edit-profile"><div><b>Editar perfil</b><small>Nombre, avatar y PIN</small></div>' + I.chev + "</button>" +
       '<button class="m-opt" data-act="switch-profile"><div><b>Cambiar de perfil</b></div>' + I.chev + "</button>" +
+      (window.HFMTheme ? '<button class="m-opt" data-act="sheet" data-sheet="theme"><div><b>Apariencia</b><small>' + esc(HFMTheme.nombre()) + " · solo este " + (android ? "celular" : "navegador") + "</small></div>" + I.chev + "</button>" : "") +
+      '<button class="m-opt" data-act="card-view"><div><b>Vista de tarjetas</b><small>' + (cardView() === "vertical" ? "Vertical (póster)" : "Horizontal") + " · solo este perfil</small></div>" + I.chev + "</button>" +
+      '<button class="m-opt" data-act="sheet" data-sheet="nextprefs"><div><b>Siguiente capítulo</b><small>' + esc(nextPrefsText()) + "</small></div>" + I.chev + "</button>" +
       '<button class="m-opt" data-act="sync"><div><b>Actualizar biblioteca</b><small>' + (S.syncing ? "Actualizando…" : "Vuelve a leer los chats") + "</small></div>" + I.refresh + "</button></div>" +
       (profile && profile.kids ? "" : '<div class="m-gtitle">TV en vivo</div><div class="m-group"><button class="m-opt" data-go="iptv"><div><b>Lista IPTV (enlace M3U)</b><small>' +
         esc(HFLibrary.iptv() ? iptvShort(HFLibrary.iptv().url) + " · se ve en la TV" : "Sin lista · pon el enlace de tu proveedor") + "</small></div>" + I.chev + "</button></div>") +
       '<div class="m-gtitle">Sincronización</div><div class="m-group"><div class="m-opt"><div><b>Mi lista, progreso y perfiles</b><small>' + esc(syncText()) + "</small></div></div></div>" +
       '<div class="m-gtitle">Actualizaciones</div><div class="m-group">' + updateRow() + "</div>" +
+      '<div class="m-gtitle">Servidor</div><div class="m-group"><button class="m-opt" data-go="servidor"><div><b>Servidor de HomeFlix</b><small>' +
+        esc(HFSync.server.replace(/^https?:\/\//, "").replace(/\/productos\/HomeFlix$/, "")) + " · sincronización, recomendaciones y actualizaciones</small></div>" + I.chev + "</button></div>" +
       '<div class="m-gtitle">Cuenta</div><div class="m-group">' +
       '<button class="m-opt danger" data-act="sheet" data-sheet="logout"><div><b>Cerrar sesión</b><small>Se borra la sesión de este celular</small></div></button></div>' +
-      '<div class="m-foot">HomeFlix' + (typeof HF_VERSION !== "undefined" && HF_VERSION ? " v" + esc(HF_VERSION) : "") + (ver && ver !== HF_VERSION ? " · programa v" + esc(ver) : "") + " · celular</div></div>" + nav("");
+      '<div class="m-foot">HomeFlix' + (typeof HF_VERSION !== "undefined" && HF_VERSION ? " v" + esc(HF_VERSION) : "") + (ver && ver !== HF_VERSION ? " · programa v" + esc(ver) : "") + " · celular" +
+        '<br><span style="opacity:.7">Este producto usa la API de TMDB pero no está respaldado ni certificado por TMDB.</span></div></div>' + nav("");
   };
 
   /* ----- TV en vivo (IPTV): el enlace M3U de la cuenta; se sincroniza y la TV lo usa en «TV en vivo» ----- */
@@ -628,6 +1219,46 @@ var HFMobile = (function () {
     S.iptvUrl = undefined;
     render(true);
   };
+  /* ----- Servidor de HomeFlix (js/config.js hfServidor): desde 2026-11 vive en el Mac de la casa (local/README.md) ----- */
+  V.servidor = function () {
+    if (S.srvUrl === undefined) { S.srvUrl = HFSync.server; }
+    return topTitle("Servidor de HomeFlix") + '<div class="m-scroll m-form">' +
+      '<p class="m-intro">La dirección del servidor de la casa (el Mac con Docker). Guarda Mi lista, el progreso, «Ver en la TV», las recomendaciones y las actualizaciones. ' +
+      "Se guarda también en tu cuenta de Telegram: <b>la TV la toma sola</b> la próxima vez que la abras.</p>" +
+      '<div class="m-field"><label for="srvUrl">Dirección</label><div class="m-input"><input id="srvUrl" data-model="srvUrl" type="url" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="http://192.168.1.12:4500/productos/HomeFlix" value="' + esc(S.srvUrl) + '"/></div></div>' +
+      errorBox(S.srvError) +
+      '<button class="m-btn primary block" data-act="servidor-save">' + (S.srvBusy ? "Probando…" : "Probar y guardar") + "</button>" +
+      '<button class="m-btn ghost block" style="margin-top:12px" data-act="servidor-defecto">Usar la de fábrica</button>' +
+      '<p class="m-sub" style="margin-top:22px">Si el Mac cambia de dirección (IP), ponla aquí. Lo ideal es reservarle una IP fija en el router.</p></div>' + nav("");
+  };
+  function probarServidor(url) {
+    return fetch(url.replace(/\/+$/, "") + "/", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || d.app !== "homeflix") { throw new Error("no_es_homeflix"); }
+    });
+  }
+  function guardarServidor(url) {
+    return HFSync.setServidor(url).then(function () {
+      toast("Servidor guardado. Reiniciando…");
+      setTimeout(function () { window.location.reload(); }, 900);
+    });
+  }
+  ACT["servidor-save"] = function () {
+    var url = String(S.srvUrl || "").trim().replace(/\/+$/, "");
+    if (!hfServidorValido(url)) { S.srvError = "Escribe una dirección que empiece con http:// o https://"; render(true); return; }
+    S.srvError = "";
+    S.srvBusy = true;
+    render(true);
+    probarServidor(url).then(function () { return guardarServidor(url); }, function () {
+      S.srvBusy = false;
+      S.srvError = "No respondió un servidor de HomeFlix en esa dirección. ¿Está prendido el Mac (Docker) y el celular en el mismo Wi-Fi?";
+      render(true);
+    });
+  };
+  ACT["servidor-defecto"] = function () {
+    S.srvUrl = HF_SERVIDOR_DEFECTO;
+    ACT["servidor-save"]();
+  };
+
   ACT["iptv-del"] = function () {
     HFLibrary.setIptv("");
     S.iptvUrl = "";
@@ -703,6 +1334,7 @@ var HFMobile = (function () {
     return '<div class="m-player np' + (P.locked ? " locked" : "") + '" id="pl"><div class="frame" id="plPoster"' + img(P.poster) + '></div><div class="scrim"></div>' +
       '<div class="ptop"><button class="m-iconbtn" data-act="close-player" aria-label="Volver">' + I.back + "</button>" +
       '<div class="ttl"><b>' + esc(big) + "</b>" + (small ? "<small>" + esc(small) + "</small>" : "") + "</div>" +
+      '<button class="m-iconbtn" data-act="rotate" aria-label="Girar la pantalla">' + I.rotate + "</button>" +
       '<button class="m-iconbtn" data-act="cast" aria-label="Ver en la TV">' + I.cast + "</button>" +
       '<button class="m-iconbtn" data-act="lock" aria-label="Bloquear la pantalla">' + I.lockOpen + "</button></div>" +
       (brightAvailable() ? '<div class="bright" id="plBright">' + I.sun + '<div class="vtrack" id="plBrightTrack"><i id="plBrightFill"></i></div></div>' : "") +
@@ -723,27 +1355,92 @@ var HFMobile = (function () {
   };
 
   /* ===================== Navegación ===================== */
-  var TABS = { home: 1, movies: 1, series: 1, live: 1, search: 1, mylist: 1 };
+  /* ----- Apariencias (mobile/themes.js): lo que el tema le pide a este archivo ----- */
+  function lobbyOf(view) {
+    var all = titles().sort(byDate);
+    var c;
+    var cont;
+    var list;
+    var name = "Todo";
+    if (view === "movies") { list = movies().sort(byDate); name = "Películas"; }
+    else if (view === "series") { list = series().sort(byDate); name = "Series"; }
+    else if (view === "mylist") { list = HFLibrary.myList().map(titleOf).filter(Boolean); name = "Mi lista"; }
+    else if (view === "category") {
+      c = S.category;
+      name = c;
+      list = c === ALL_MOVIES ? movies().sort(byDate) : c === ALL_SERIES ? series().sort(byDate)
+        : HFLibrary.sortForCategory(c, titles().filter(function (t) { return inCategory(t, c); }).sort(byDate));
+    } else {
+      cont = all.filter(function (t) { return progressOf(t); }).sort(function (a, b) { return (progressOf(b).at || 0) - (progressOf(a).at || 0); });
+      list = cont.concat(all.filter(function (t) { return !progressOf(t); })); // primero lo que ya empezaste, como en la TV
+    }
+    return { name: name, list: list || [] };
+  }
+  function themeKit() {
+    return {
+      S: S, I: I, esc: esc, plural: plural, nav: nav, topbar: topbar, tabs: tabList, card: card, progress: progressOf, lobby: lobbyOf,
+      sheetHtml: sheetHtml, radio: radio, render: render,
+      closeSheet: function () { S.sheet = null; render(true); }
+    };
+  }
+
+  var TABS = { home: 1, movies: 1, series: 1, anime: 1, live: 1, search: 1, mylist: 1 };
 
   /* Scroll de la hoja abierta y de sus columnas, para no perderlo si se vuelve a pintar con la misma hoja. */
   function sheetScroll() {
     return Array.prototype.map.call(root.querySelectorAll(".m-sheet, .m-sheet .sh-col"), function (el) { return el.scrollTop; });
   }
+  /* Lo último que se pintó de la pantalla (sin la hoja, el aviso ni la barra del cast): si el HTML nuevo es idéntico, el DOM ya está bien. */
+  var paintedView = "";
+  var paintedViewName = "";
+  var paintedNodes = 0;
+  function rowScrolls() {
+    return Array.prototype.map.call(root.querySelectorAll(".m-track, #heros"), function (el) { return el.scrollLeft; });
+  }
   function render(keepScroll) {
+    applyCardView();
     var y = window.scrollY;
     var sheetWas = root.getAttribute("data-sheet") || "";
     var sy = sheetScroll();
+    var vh;
+    var tail;
+    var rs = null;
     if (S.view === "live" && byId("mlList")) { S.live.scroll = byId("mlList").scrollTop; }
     root.setAttribute("data-view", S.view);
     root.setAttribute("data-sheet", S.sheet || "");
-    root.innerHTML = (V[S.view] || V.home)() + castBar() + (S.sheet && SHEETS[S.sheet] ? SHEETS[S.sheet]() : "") + overlayHtml() + (S.toast ? '<div class="m-toast">' + esc(S.toast) + "</div>" : "");
+    root.classList.toggle("lt", !!(window.HFMTheme && HFMTheme.light(S.view))); // apariencia clara (mobile/themes.js)
+    document.documentElement.classList.toggle("hf-lt", root.classList.contains("lt"));
+    vh = (window.HFMTheme && HFMTheme.view(S.view, themeKit())) || (V[S.view] || V.home)();
+    tail = castBar() + (S.sheet && SHEETS[S.sheet] ? SHEETS[S.sheet]() : "") + overlayHtml() + (S.toast ? '<div class="m-toast">' + esc(S.toast) + "</div>" : "");
+    if (keepScroll && CATALOG[S.view] && paintedNodes && vh === paintedView && S.view === paintedViewName && root.childNodes.length >= paintedNodes) {
+      /* misma pantalla (solo cambió una hoja, un aviso, el cast…): no se toca el catálogo. Las filas conservan su desplazamiento, las
+       * portadas siguen pintadas y no se vuelve a calcular el diseño de miles de tarjetas. */
+      while (root.childNodes.length > paintedNodes) { root.removeChild(root.lastChild); }
+      root.insertAdjacentHTML("beforeend", tail);
+      navPop = false;
+      if (S.sheet && S.sheet === sheetWas) {
+        Array.prototype.forEach.call(root.querySelectorAll(".m-sheet, .m-sheet .sh-col"), function (el, i) { el.scrollTop = sy[i] || 0; });
+      }
+      return;
+    }
+    if (keepScroll && CATALOG[S.view] && S.view === paintedViewName) { rs = rowScrolls(); }
+    root.innerHTML = vh;
+    paintedNodes = root.childNodes.length;
+    paintedView = vh;
+    paintedViewName = S.view;
+    root.insertAdjacentHTML("beforeend", tail);
     navPop = false;
     hydrate();
     window.scrollTo(0, keepScroll ? y : 0);
+    if (rs) {
+      Array.prototype.forEach.call(root.querySelectorAll(".m-track, #heros"), function (el, i) { if (rs[i]) { el.scrollLeft = rs[i]; } });
+    }
     if (S.sheet && S.sheet === sheetWas) {
       Array.prototype.forEach.call(root.querySelectorAll(".m-sheet, .m-sheet .sh-col"), function (el, i) { el.scrollTop = sy[i] || 0; });
     }
+    if (CATALOG[S.view]) { paintedSig = catalogSig(); }
     if (AFTER[S.view]) { AFTER[S.view](); }
+    if (window.HFMTheme) { HFMTheme.after(root); }
   }
 
   function go(view, arg, opts) {
@@ -770,6 +1467,7 @@ var HFMobile = (function () {
     if (S.sheet) { S.sheet = null; render(true); return true; }
     if (S.overlay) { S.overlay = null; render(true); return true; }
     if (S.view === "live" && S.live.full) { liveFull(false); return true; }
+    if (S.view === "live" && S.live.searching) { liveSearchClose(); return true; }
     if (S.view === "player" && S.player && S.player.locked) { showUnlock(); return true; }
     if (S.view === "player" && S.player && S.player.clip) { if (S.player.clip.saving) { clipRecStop(false); } else { clipExit(); } return true; }
     if (S.view === "player") { closePlayer(); return true; }
@@ -790,7 +1488,10 @@ var HFMobile = (function () {
 
   /* Al salir de una vista: cortar lo que esté corriendo (QR, contador del código). */
   function leave(next) {
+    heroPvCancel(); // la vista previa del destacado libera el motor de video al irse de Inicio
     S.castLive = null;
+    if (S.view === "gallery" && next !== "gallery") { galStop(); }
+    if (S.add && next !== "login" && next !== "login-code" && next !== "login-password" && next !== "login-qr" && S.view.indexOf("login") === 0) { cancelAddAccount(); }
     if (S.view === "live" && next !== "live" && next !== "iptv" && HFLive.current()) { liveStop(); }
     if (S.view === "live" && next !== "live") { document.documentElement.classList.remove("m-live-on"); }
     if (S.view === "login-qr" && next !== "login-password" && S.login.qrAbort) {
@@ -826,7 +1527,14 @@ var HFMobile = (function () {
   var codeTimer = null;
   var AFTER = {
     home: function () { heroSetup(); },
+    anime: function () { heroSetup(); animeLoad(); },
+    detail: function () {
+      var t = titleOf(S.arg);
+      if (t && t.anime) { loadAnimeTitle(t); }
+      else if (t) { HFTelegram.warm(HFLibrary.videoKeys(t)); } // al darle a reproducir ya no se espera a Telegram (~3,5 s)
+    },
     login: function () { var p = byId("phone"); if (p && !S.login.phone) { p.focus(); } },
+    gallery: function () { galleryStart(); },
     "login-code": function () {
       var c = byId("code");
       if (c) { c.focus(); }
@@ -976,7 +1684,98 @@ var HFMobile = (function () {
     });
   }
 
+  /* ----- Varias cuentas de Telegram en este celular (igual que en la TV) ----- */
+  function accountList() {
+    var list = HFLibrary.accounts();
+    if (!list.length && account) {
+      list = [{ slot: HFTelegram.MAIN_SLOT, id: String(account.id), name: account.name, username: account.username || "" }];
+    }
+    return list;
+  }
+  function accountById(id) {
+    return accountList().filter(function (a) { return String(a.id) === String(id); })[0] || null;
+  }
+  function switchAccount(acc, force) {
+    if (!acc) { return; }
+    if (!force && String(acc.id) === HFLibrary.accountId() && HFTelegram.slot() === acc.slot) { return; }
+    HFTelegram.useSlot(acc.slot);
+    account = { id: acc.id, name: acc.name, username: acc.username };
+    HFLibrary.setAccount(acc.id);
+    profile = null;
+    items = HFLibrary.cachedItems() || [];
+    HFSync.start();
+    HFRemote.start();
+  }
+  function removeAccount(a) {
+    var cur = HFTelegram.slot();
+    HFLibrary.forgetAccount(a.slot);
+    HFTelegram.useSlot(a.slot);
+    var p = HFTelegram.logout();
+    HFTelegram.useSlot(cur === a.slot ? HFTelegram.MAIN_SLOT : cur);
+    p.then(function () { HFTelegram.forgetSlot(a.slot); }, function () { /* nada */ });
+  }
+  /* Una cuenta agregada sin perfiles (se canceló el primero) se desconecta. */
+  function pruneEmptyAccounts() {
+    var accs = HFLibrary.accounts();
+    accs.slice(1).forEach(function (a) {
+      if (!HFLibrary.profilesOf(a.id).length) { removeAccount(a); }
+    });
+    accs = HFLibrary.accounts();
+    if (accs.length && !accountById(HFLibrary.accountId())) { switchAccount(accs[0], true); }
+  }
+  function startAddAccount() {
+    var prev = accountById(HFLibrary.accountId()) || accountList()[0];
+    var slotName = HFTelegram.newSlotName();
+    S.add = { slot: slotName, prev: prev };
+    HFTelegram.useSlot(slotName);
+    S.login.phone = "";
+    S.login.code = "";
+    S.login.password = "";
+    S.login.error = "";
+    S.login.qr = "";
+    go("login");
+  }
+  /* Se salió del login sin conectar nada: se vuelve a la cuenta de antes. */
+  function cancelAddAccount() {
+    var m = S.add;
+    S.add = null;
+    if (!m) { return; }
+    HFTelegram.useSlot(m.prev ? m.prev.slot : HFTelegram.MAIN_SLOT);
+    HFTelegram.forgetSlot(m.slot);
+  }
+  function finishAddAccount(user) {
+    var m = S.add;
+    var existing = accountById(user.id);
+    S.add = null;
+    S.login.password = "";
+    S.login.code = "";
+    S.login.qr = "";
+    S.stack = [{ view: "profiles", arg: null, y: 0 }];
+    if (existing) {
+      /* esa cuenta ya estaba: se cierra la sesión repetida y el perfil nuevo va en la que ya estaba */
+      HFTelegram.logout().then(function () {
+        HFTelegram.forgetSlot(m.slot);
+        switchAccount(existing, true);
+        newProfileForm();
+        go("profile-edit", null, { replace: true });
+        toast("Esa cuenta ya estaba conectada: el perfil nuevo queda en " + existing.name);
+      });
+      return;
+    }
+    account = user;
+    HFLibrary.setAccount(user.id);
+    HFLibrary.rememberAccount({ slot: HFTelegram.slot(), id: user.id, name: user.name, username: user.username }, HFTelegram.MAIN_SLOT);
+    profile = null;
+    items = HFLibrary.cachedItems() || [];
+    HFSync.start();
+    HFRemote.start();
+    newProfileForm();
+    go("profile-edit", null, { replace: true });
+    toast("Cuenta " + user.name + " conectada. Crea su primer perfil.");
+  }
+
   function loggedIn(user) {
+    if (S.add) { finishAddAccount(user); return; }
     account = user;
     HFLibrary.setAccount(user.id);
     HFLibrary.rememberAccount({ slot: HFTelegram.slot(), id: user.id, name: user.name, username: user.username }, HFTelegram.MAIN_SLOT);
@@ -996,7 +1795,7 @@ var HFMobile = (function () {
   }
 
   /* Llegaron cambios de otro dispositivo: volver a armar y pintar, salvo donde se está escribiendo o viendo algo. */
-  var QUIET = { player: 1, login: 1, "login-code": 1, "login-password": 1, "login-qr": 1, "profile-edit": 1, pin: 1, search: 1, settings: 1, boot: 1 };
+  var QUIET = { servidor: 1, gallery: 1, player: 1, login: 1, "login-code": 1, "login-password": 1, "login-qr": 1, "profile-edit": 1, pin: 1, search: 1, settings: 1, boot: 1 };
   function onSyncRemote() {
     if (profile) {
       var p = HFLibrary.profiles().filter(function (x) { return x.id === profile.id; })[0];
@@ -1009,14 +1808,22 @@ var HFMobile = (function () {
       profile = p;
     }
     rebuild();
-    if (!QUIET[S.view] && !S.sheet) { render(true); }
+    if (!QUIET[S.view] && !S.sheet) { if (CATALOG[S.view]) { repaintCatalog(); } else { render(true); } }
   }
   if (!DESIGN) { HFSync.onRemote(onSyncRemote); }
+  /* Llegaron recomendaciones: Inicio se repinta por su huella; la ficha se vuelve a dibujar para mostrar «Similares». */
+  if (!DESIGN && typeof HFReco !== "undefined") {
+    HFReco.onChange(function () {
+      if (S.sheet || S.overlay) { return; }
+      if (S.view === "home") { repaintCatalog(); } else if (S.view === "detail") { render(true); }
+    });
+  }
 
   ACT.boot = function () { boot(); };
 
   /* ----- Perfiles y PIN ----- */
   ACT.profile = function (el) {
+    if (el.getAttribute("data-acc")) { switchAccount(accountById(el.getAttribute("data-acc"))); }
     var p = HFLibrary.profiles().filter(function (x) { return x.id === el.getAttribute("data-id"); })[0];
     if (!p) { return; }
     if (p.pin) {
@@ -1055,6 +1862,7 @@ var HFMobile = (function () {
   function enterProfile(p) {
     profile = p;
     HFLibrary.setProfile(p.id);
+    applyCardView();
     rebuild();
     var src = HFLibrary.enabledSources();
     if (!src || !Object.keys(src).length) {
@@ -1064,14 +1872,26 @@ var HFMobile = (function () {
       return;
     }
     S.firstTime = false;
-    go("home", null, { root: true });
+    go(onlyAnime() ? "anime" : "home", null, { root: true });
     sync();
   }
 
-  ACT["new-profile"] = function () {
+  function newProfileForm() {
     S.edit = { id: "", name: "", avatar: "05-Capitan_America", kids: false, error: "" };
-    go("profile-edit");
+  }
+  ACT["new-profile"] = function () { go("account-pick"); };
+  ACT["pick-account"] = function (el) {
+    var acc = accountById(el.getAttribute("data-id"));
+    if (!acc) { return; }
+    if (HFLibrary.profilesOf(acc.id).length >= HFLibrary.MAX_PROFILES) {
+      toast("La cuenta " + acc.name + " ya tiene el máximo de " + HFLibrary.MAX_PROFILES + " perfiles");
+      return;
+    }
+    switchAccount(acc);
+    newProfileForm();
+    go("profile-edit", null, { replace: true });
   };
+  ACT["connect-account"] = function () { startAddAccount(); };
   ACT["edit-profile"] = function () {
     var p = profile || HFLibrary.profiles()[0];
     S.edit = { id: p.id, name: p.name, avatar: p.avatar, kids: !!p.kids, hasPin: !!p.pin, error: "" };
@@ -1088,6 +1908,7 @@ var HFMobile = (function () {
       rebuild();
     }
     toast("Perfil guardado");
+    if (!E.id) { go("profiles", null, { root: true }); return; }
     back();
   };
   ACT["edit-pin"] = function () {
@@ -1107,6 +1928,16 @@ var HFMobile = (function () {
     S.sheet = null;
     go("profiles", null, { root: true });
   };
+  ACT["card-view"] = function () {
+    prefSet("cardview", cardView() === "vertical" ? "horizontal" : "vertical");
+    applyCardView();
+    render(true);
+    toast("Tarjetas en vista " + (cardView() === "vertical" ? "vertical" : "horizontal"));
+  };
+  ACT["nx-set"] = function (el) {
+    prefSet(el.getAttribute("data-k"), el.getAttribute("data-v"));
+    render(true);
+  };
   ACT["switch-profile"] = function () { go("profiles", null, { root: true }); };
 
   /* ----- Chats ----- */
@@ -1125,9 +1956,10 @@ var HFMobile = (function () {
   ACT.chat = function (el) {
     var id = el.getAttribute("data-id");
     var map = HFLibrary.enabledSources() || {};
-    var c = (S.chats || []).filter(function (x) { return x.id === id; })[0];
+    var c = withAnimeChat(S.chats || []).filter(function (x) { return x.id === id; })[0];
     if (map[id]) { delete map[id]; } else { map[id] = c ? c.title : id; }
     HFLibrary.setEnabledSources(map);
+    if (id === HFAnime.SOURCE) { rebuild(); animeLoad(true); }
     chatsChanged = true;
     tick();
     render(true);
@@ -1146,10 +1978,9 @@ var HFMobile = (function () {
   /* ----- Catálogo y ficha ----- */
   ACT.categories = function () { S.overlay = "categories"; render(true); };
   ACT["hero-dot"] = function (el) {
-    var box = byId("heros");
     var i = Number(el.getAttribute("data-i")) || 0;
-    if (!box || !box.children[i]) { return; }
-    box.scrollTo({ left: box.children[i].offsetLeft - box.children[0].offsetLeft, behavior: "smooth" });
+    var r = el.getBoundingClientRect();
+    if (heroGo) { heroGo(i, r.left + r.width / 2, r.top + r.height / 2); }
   };
   ACT["close-overlay"] = function () { S.overlay = null; render(true); };
   ACT.category = function (el) { S.category = el.getAttribute("data-c"); S.overlay = null; go("category"); };
@@ -1170,7 +2001,15 @@ var HFMobile = (function () {
     toast("Cerrando sesión…");
     if (S.cast) { castEnd(""); }
     HFRemote.stop();
-    HFSync.stop().then(function () { return HFTelegram.logout(); }).then(function () {
+    HFSync.stop().then(function () {
+      var jobs = accountList().map(function (a) {
+        HFTelegram.useSlot(a.slot);
+        return HFTelegram.logout().then(function () { HFTelegram.forgetSlot(a.slot); });
+      });
+      HFTelegram.useSlot(HFTelegram.MAIN_SLOT);
+      return Promise.all(jobs);
+    }).then(function () {
+      HFLibrary.forgetAllAccounts();
       /* se recarga para que la próxima cuenta empiece con el motor de Telegram limpio (js/telegram.js logout) */
       window.location.reload();
     });
@@ -1194,7 +2033,18 @@ var HFMobile = (function () {
 
   function play(t, opts) {
     opts = opts || {};
+    heroPvCancel(); // el reproductor necesita el motor libre
     if (!t) { return; }
+    if (window.HF_NO_VIDEO) { toast(window.HF_NO_VIDEO); return; } // solo la web en un iPhone sin ManagedMediaSource (web/ios.js)
+    if (t.anime && !t.loaded && !HFAnime.quick(t)) {
+      /* anime sin cuenta de capítulos conocida: se espera la lista del servidor */
+      toast("Cargando los capítulos…");
+      HFAnime.touch(t);
+      HFAnime.ensure(t).then(function () {
+        if (t.loaded) { play(t, opts); } else { toast("Este anime todavía no tiene capítulos disponibles"); }
+      }, function (e) { toast(String((e && e.message) || e)); });
+      return;
+    }
     var entry = t;
     var series = null;
     var start = 0;
@@ -1210,11 +2060,12 @@ var HFMobile = (function () {
       start = opts.fromStart ? 0 : (p && !p.done ? p.t : 0);
     }
     var nextEp = series ? HFLibrary.episodeAfter(series, entry) : null;
+    if (nextEp && !entry.anime) { HFTelegram.warm(HFLibrary.videoKeys(nextEp)); } // el siguiente capítulo se va adelantando
     S.player = {
       entry: entry, series: series, title: t, start: start, nextEp: nextEp,
       name: series ? series.name : t.name,
-      sub: series ? "T" + entry.season + ":E" + entry.episode + (entry.title ? " · " + entry.title : "") : [t.year, qualityOf(t)].filter(Boolean).join(" · "),
-      poster: series ? entryKey(entry) : (t.bannerKey || t.imageKey),
+      sub: series ? epLabel(entry) + (entry.title ? " · " + entry.title : "") : [t.year, qualityOf(t)].filter(Boolean).join(" · "),
+      poster: entry.anime ? (entry.coverKey || t.bannerKey || t.imageKey) : series ? entryKey(entry) : (t.bannerKey || t.imageKey),
       qualities: (entry.versions || []).length > 1,
       lastSave: 0, nextShown: false
     };
@@ -1238,10 +2089,33 @@ var HFMobile = (function () {
     hideTimer = setTimeout(function () { if (HFPlayback.playing() && byId("pl") && !S.sheet) { byId("pl").classList.add("idle"); } }, 3500);
   }
 
+  /* ----- Girar la pantalla del reproductor -----
+   * Los videos tipo «short» se ven mejor en vertical. La elección se guarda por serie (o película) y se repite en los capítulos siguientes. */
+  function orientKey() {
+    var P = S.player;
+    var t = P && (P.series || P.title);
+    return "hf.m.orient." + HFLibrary.accountId() + "." + ((t && t.titleKey) || (P && P.name) || "");
+  }
+  function orientPortrait() { try { return window.localStorage.getItem(orientKey()) === "portrait"; } catch (e) { return false; } }
+  function orientCan() { try { return !!android && typeof android.setPlayerOrientation === "function"; } catch (e) { return false; } }
+  function applyOrient() {
+    if (!S.player || !orientCan()) { return; }
+    try { android.setPlayerOrientation(orientPortrait()); } catch (e) { /* nada */ }
+  }
+  ACT.rotate = function () {
+    if (!orientCan()) { toast("Instala la versión nueva de la app (APK) para poder girar la pantalla"); return; }
+    var portrait = !orientPortrait();
+    try { window.localStorage.setItem(orientKey(), portrait ? "portrait" : "land"); } catch (e) { /* nada */ }
+    applyOrient();
+    toast(portrait ? "Pantalla vertical · se recuerda para los siguientes capítulos" : "Pantalla horizontal");
+    showChrome();
+  };
+
   function startPlayback() {
     var P = S.player;
     if (!P) { return; }
-    try { if (android) { android.setPlayerMode(true); } } catch (e) { /* nada */ }
+    playerMode(true);
+    applyOrient();
     var host = byId("mplayer");
     host.hidden = false;
     var pref = qualityPref();
@@ -1261,7 +2135,10 @@ var HFMobile = (function () {
           P.lastSave = Date.now();
           HFLibrary.setProgress(entryKey(P.entry), t, d);
         }
-        if (P.nextEp && d - t <= 15 && d - t > 0) { showNext(Math.ceil(d - t)); }
+        if (P.nextEp && d - t <= 15 && d - t > 0) {
+          showNext(Math.ceil(d - t));
+          if (nextSkip() > 0 && d - t <= nextSkip() && !P.skipping) { P.skipping = true; ACT["next-ep"](); }
+        }
       },
       onState: function (s) {
         P.state = s;
@@ -1314,7 +2191,9 @@ var HFMobile = (function () {
     var el = byId("plNext");
     if (!el || !P.nextEp) { return; }
     el.hidden = false;
-    el.innerHTML = '<div class="img"' + img(entryKey(P.nextEp)) + '><span class="cd">' + sec + '</span></div><div class="tx"><small>Siguiente capítulo</small><b>T' + P.nextEp.season + ":E" + P.nextEp.episode + (P.nextEp.title ? " · " + esc(P.nextEp.title) : "") + "</b>" +
+    el.setAttribute("data-size", nxSize());
+    el.style.setProperty("--nx-a", String(nxAlpha() / 100));
+    el.innerHTML = '<div class="img"' + img(P.nextEp.coverKey || entryKey(P.nextEp)) + '><span class="cd">' + Math.max(0, sec - nextSkip()) + '</span></div><div class="tx"><small>Siguiente capítulo</small><b>T' + P.nextEp.season + ":E" + P.nextEp.episode + (P.nextEp.title ? " · " + esc(P.nextEp.title) : "") + "</b>" +
       '<div class="bt"><button class="m-btn primary" data-act="next-ep">' + I.play + 'Ver ahora</button><button class="m-btn ghost" data-act="hide-next">Ver créditos</button></div></div>';
     hydrate();
   }
@@ -1327,7 +2206,7 @@ var HFMobile = (function () {
     byId("mplayer").hidden = true;
     byId("mplayer").classList.remove("clip");
     clipUnfit();
-    try { if (android) { android.setPlayerMode(false); } } catch (e) { /* nada */ }
+    playerMode(false);
     S.player = null;
     S.sheet = null;
     if (typeof then === "string") {
@@ -1457,7 +2336,7 @@ var HFMobile = (function () {
       '<div class="m-eplist">' + season.episodes.map(function (e) {
         var pr = HFLibrary.progress(entryKey(e));
         var now = cur && e.key === cur.key;
-        return '<button class="m-ep' + (now ? " now" : "") + '" data-act="' + (now ? "close-sheet" : "pl-ep") + '" data-key="' + esc(e.key) + '"><div class="img"' + img(entryKey(e)) + '><span class="play"><b>' + I.play + "</b></span>" +
+        return '<button class="m-ep' + (now ? " now" : "") + '" data-act="' + (now ? "close-sheet" : "pl-ep") + '" data-key="' + esc(e.key) + '"><div class="img"' + img(e.coverKey || entryKey(e)) + '><span class="play"><b>' + I.play + "</b></span>" +
           (pr && !pr.done && pr.t ? '<div class="bar"><i style="width:' + Math.round((pr.t / Math.max(1, pr.d)) * 100) + '%"></i></div>' : "") + "</div>" +
           '<div><div class="n">' + e.episode + ". " + esc(e.title || "Capítulo " + e.episode) + '</div><div class="d">' + (now ? "Viendo ahora" : dur(e.video ? e.video.duration : 0) + (pr && pr.done ? " · Visto" : "")) + "</div>" +
           (e.description ? "<p>" + esc(e.description) + "</p>" : "") + "</div></button>";
@@ -2038,7 +2917,7 @@ var HFMobile = (function () {
   function castSend(msg) {
     var C = S.cast;
     if (!C) { return Promise.resolve(); }
-    return HFRemote.send(C.id, msg).catch(function () { castEnd("Se perdió la conexión con la TV"); });
+    return HFRemote.send(C.id, msg).catch(function () { castEnd("Se perdió la conexión con " + (C.tipo === "pc" ? "el computador" : "la TV")); });
   }
 
   /* ----- TVs de la casa con HomeFlix cerrada (solo en la app de Android: MainActivity.tvScan / tvLaunch) -----
@@ -2086,14 +2965,15 @@ var HFMobile = (function () {
     } else if (S.castErr) {
       body = errorBox(S.castErr) + '<button class="m-btn ghost block" style="margin-top:12px" data-act="cast">' + I.refresh + "Buscar otra vez</button>";
     } else if (!S.castList) {
-      body = '<div class="m-cast-wait"><div class="m-spin"></div>Buscando televisores…</div>';
+      body = '<div class="m-cast-wait"><div class="m-spin"></div>Buscando televisores y computadores…</div>';
     } else if (!S.castList.length && !lan.length && !S.castScanning) {
-      body = '<div class="m-cast-none">' + I.tv + "<b>No hay ninguna TV disponible</b>Abre HomeFlix en la TV, con esta misma cuenta de Telegram, y vuelve a buscar.</div>" +
+      body = '<div class="m-cast-none">' + I.tv + "<b>No hay ninguna pantalla disponible</b>Abre HomeFlix en la TV o en el navegador del computador, con esta misma cuenta de Telegram, y vuelve a buscar.</div>" +
         '<button class="m-btn ghost block" data-act="cast">' + I.refresh + "Buscar otra vez</button>";
     } else {
       body = S.castList.map(function (d) {
-        return '<button class="m-opt" data-act="cast-to" data-id="' + esc(d.id) + '" data-name="' + esc(tvLabel(d.nombre)) + '">' + I.tv +
-          "<div><b>" + esc(tvLabel(d.nombre)) + "</b><small>HomeFlix abierta</small></div>" + I.chev + "</button>";
+        var pc = d.tipo === "pc";
+        return '<button class="m-opt" data-act="cast-to" data-id="' + esc(d.id) + '" data-tipo="' + esc(d.tipo) + '" data-name="' + esc(pc ? d.nombre : tvLabel(d.nombre)) + '">' + (pc ? I.pc : I.tv) +
+          "<div><b>" + esc(pc ? d.nombre : tvLabel(d.nombre)) + "</b><small>" + (pc ? "Computador" + (d.navegador ? " · " + esc(d.navegador) : "") + " · HomeFlix abierta" : "HomeFlix abierta") + "</small></div>" + I.chev + "</button>";
       }).join("") +
         lan.map(function (t) {
           var off = t.power !== "on";
@@ -2103,7 +2983,7 @@ var HFMobile = (function () {
         }).join("") +
         (S.castScanning ? '<div class="m-cast-scan"><span class="m-spin sm"></span>Buscando TVs en tu red…</div>' : "");
     }
-    return sheetHtml("Ver en la TV", body, I.info + "Sigue en la TV desde este minuto, con este perfil, y el celular queda como control remoto.");
+    return sheetHtml("Ver en la TV", body, I.info + "Sigue en la TV o el computador desde este minuto, con este perfil, y el celular queda como control remoto.");
   };
 
   ACT.cast = function () {
@@ -2115,7 +2995,7 @@ var HFMobile = (function () {
     S.castScanning = !!(android && android.tvScan);
     render(true);
     var online = HFRemote.devices().then(function (list) {
-      S.castList = list.filter(function (d) { return d.tipo === "tv"; });
+      S.castList = list.filter(function (d) { return d.tipo === "tv" || d.tipo === "pc"; }); // pantallas que pueden reproducir: TV y computador
     }, function (e) {
       S.castList = [];
       if (!S.castScanning) {
@@ -2183,8 +3063,11 @@ var HFMobile = (function () {
   };
 
   ACT["cast-to"] = function (el) {
-    castTo({ id: el.getAttribute("data-id"), nombre: el.getAttribute("data-name") || "TV" });
+    castTo({ id: el.getAttribute("data-id"), tipo: el.getAttribute("data-tipo") || "tv", nombre: el.getAttribute("data-name") || "TV" });
   };
+
+  /* «la TV» / «el computador» según a quién se le mandó el video */
+  function quienCast(tipo) { return tipo === "pc" ? "El computador" : "La TV"; }
 
   function castTo(dev) {
     if (S.castLive) { liveCastTo(dev); return; }
@@ -2198,7 +3081,7 @@ var HFMobile = (function () {
     S.castSending = dev;
     render(true);
     var reply = new Promise(function (resolve) {
-      var noAnswer = function () { resolve({ t: "error", m: "La TV no respondió. ¿Sigue abierta HomeFlix en la TV?" }); };
+      var noAnswer = function () { resolve({ t: "error", m: dev.tipo === "pc" ? "El computador no respondió. ¿Sigue abierta la pestaña de HomeFlix?" : "La TV no respondió. ¿Sigue abierta HomeFlix en la TV?" }); };
       castWaiter = {
         id: dev.id,
         done: resolve,
@@ -2207,17 +3090,17 @@ var HFMobile = (function () {
         wait: function (m) {
           clearTimeout(castWaiter.timer);
           castWaiter.timer = setTimeout(noAnswer, 90000);
-          S.castSending = { nombre: dev.nombre, msg: m || "La TV está actualizando su catálogo…" };
+          S.castSending = { nombre: dev.nombre, msg: m || quienCast(dev.tipo) + " está actualizando su catálogo…" };
           if (S.sheet === "cast") { render(true); }
         }
       };
     });
     HFRemote.send(dev.id, msg).then(function () { return reply; }).then(function (r) {
       castWaiter = null;
-      if (!r || r.t !== "ok") { throw new Error((r && r.m) || "La TV no pudo abrir el video"); }
+      if (!r || r.t !== "ok") { throw new Error((r && r.m) || quienCast(dev.tipo) + " no pudo abrir el video"); }
       S.castSending = null;
       S.cast = {
-        id: dev.id, nombre: dev.nombre, key: msg.key, name: P.name, sub: P.sub, poster: P.poster,
+        id: dev.id, tipo: dev.tipo, nombre: dev.nombre, key: msg.key, name: P.name, sub: P.sub, poster: P.poster,
         state: "loading", error: "", time: start, dur: HFPlayback.duration(), at: Date.now(), tracks: tr
       };
       castStartTick();
@@ -2243,7 +3126,7 @@ var HFMobile = (function () {
     }
     var C = S.cast;
     if (!C || de.id !== C.id) { return; }
-    if (msg.t === "closed") { castEnd("La TV dejó de reproducir"); return; }
+    if (msg.t === "closed") { castEnd(quienCast(C.tipo) + " dejó de reproducir"); return; }
     if (msg.t !== "state") { return; }
     var newVideo = msg.key && msg.key !== C.key;
     var tracksChanged = JSON.stringify(msg.tracks || {}) !== JSON.stringify(C.tracks || {});
@@ -2403,7 +3286,7 @@ var HFMobile = (function () {
   var LIVE_MAX = 300; // filas por categoría
   var liveCtlTimer = null;
 
-  S.live = { data: null, loading: false, error: "", group: "__all", ch: null, st: "", detail: "", full: false, ui: true, scroll: 0, epg: false, tabScroll: 0 };
+  S.live = { data: null, loading: false, error: "", group: "__all", ch: null, st: "", detail: "", full: false, ui: true, scroll: 0, epg: false, tabScroll: 0, searching: false, q: "", fresh: false };
 
   /* En el celular la página está en https: el lector nativo baja la M3U / la guía desde Java. */
   if (android && typeof android.httpText === "function") {
@@ -2416,12 +3299,37 @@ var HFMobile = (function () {
   function liveGroups() {
     var d = S.live.data;
     var favN = Object.keys(HFLibrary.iptvFavs()).length;
-    var out = [{ id: "__all", label: "Destacado", count: d ? d.channels.length : 0 }];
-    if (favN) { out.push({ id: "__fav", label: "Favoritos", count: favN }); }
+    var out = [{ id: "__all", label: "Destacado", count: d ? d.channels.length : 0 }, { id: "__fav", label: "Favoritos", count: favN }];
     (d ? d.groups : []).forEach(function (g) { out.push({ id: g.name, label: g.name, count: g.count }); });
     return out;
   }
-  function liveList() { return S.live.data ? HFIptv.byGroup(S.live.data, S.live.group).slice(0, LIVE_MAX) : []; }
+  function liveList() {
+    var L = S.live;
+    if (!L.data) { return []; }
+    return (L.searching ? liveSearchResults(L.q) : HFIptv.byGroup(L.data, L.group)).slice(0, LIVE_MAX);
+  }
+  /* Canales cuyo nombre, grupo o número contienen TODAS las palabras escritas (sin tildes ni mayúsculas); primero los que empiezan igual. */
+  function liveSearchResults(q) {
+    var words = HFIptv.norm(q).split(" ").filter(function (w) { return w; });
+    var first = HFIptv.norm(q);
+    var out = [];
+    if (!words.length || !S.live.data) { return []; }
+    S.live.data.channels.forEach(function (c) {
+      var hay = HFIptv.norm(c.name + " " + c.group + " " + c.num);
+      if (words.every(function (w) { return hay.indexOf(w) >= 0; })) { out.push(c); }
+    });
+    return out.map(function (c, i) { return { c: c, i: i, p: HFIptv.norm(c.name).indexOf(first) === 0 ? 0 : 1 }; })
+      .sort(function (a, b) { return a.p - b.p || a.i - b.i; })
+      .map(function (x) { return x.c; });
+  }
+  function liveListInner() {
+    var L = S.live;
+    var favs = HFLibrary.iptvFavs();
+    var list = liveList();
+    if (list.length) { return list.map(function (c) { return liveRow(c, favs, L.ch && L.ch.key); }).join(""); }
+    if (L.searching) { return '<div class="m-chnone">' + (L.q.trim() ? "No hay canales que coincidan con «" + esc(L.q.trim()) + "»." : "Escribe el nombre de un canal, su grupo o su número.") + "</div>"; }
+    return '<div class="m-chnone">' + (L.group === "__fav" ? "Aún no tienes favoritos. Toca el corazón de un canal para agregarlo aquí." : "Este grupo no tiene canales.") + "</div>";
+  }
   function liveChannel() { return S.live.ch; }
   function hm(ms) { var d = new Date(ms); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
   function liveInitial(c) { return esc((c.name || "?").replace(/^[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/, "").slice(0, 2).toUpperCase()); }
@@ -2435,6 +3343,8 @@ var HFMobile = (function () {
     paintLive();
     HFIptv.load({ force: !!force }).then(function (d) {
       L.loading = false;
+      L.searching = false;
+      L.q = "";
       L.data = d;
       if (L.group !== "__all" && L.group !== "__fav" && !d.groups.some(function (g) { return g.name === L.group; })) { L.group = "__all"; }
       paintLive();
@@ -2451,11 +3361,10 @@ var HFMobile = (function () {
     var thumb = n && n.icon ? n.icon : c.logo;
     var on = playingKey === c.key;
     return '<div class="m-chrow' + (on ? " on" : "") + '" data-act="live-play" data-k="' + esc(c.key) + '" role="button" tabindex="0">' +
-      '<span class="lg"' + (c.logo ? ' style="' + bgUrl(c.logo) + '"' : "") + ">" + (c.logo ? "" : "<i>" + liveInitial(c) + "</i>") + "</span>" +
-      '<span class="th' + (n && n.icon ? "" : " plain") + '"' + (thumb ? ' style="' + bgUrl(thumb) + '"' : "") + ">" + (on ? '<em class="eq"><u></u><u></u><u></u></em>' : "") + "</span>" +
+      '<span class="th' + (n && n.icon ? "" : " plain") + '"' + (thumb ? ' style="' + bgUrl(thumb) + '"' : "") + ">" + (thumb ? "" : "<i>" + liveInitial(c) + "</i>") + (on ? '<em class="eq"><u></u><u></u><u></u></em>' : "") + "</span>" +
       '<span class="tx"><b>' + esc(n && n.title ? n.title : c.name) + "</b><small>" + (n ? esc(HFIptv.leftText(n.left)) : '<i class="dot"></i>En vivo · ' + esc(c.group)) + "</small>" +
       (n ? '<span class="bar"><i style="width:' + Math.round(n.pct) + '%"></i></span>' : "") + "</span>" +
-      (favs[c.key] ? '<span class="fv">' + I.heartOn + "</span>" : "") +
+      '<button class="fvb' + (favs[c.key] ? " on" : "") + '" data-act="live-rowfav" data-k="' + esc(c.key) + '" aria-label="' + (favs[c.key] ? "Quitar de favoritos" : "Agregar a favoritos") + '">' + (favs[c.key] ? I.heartOn : I.heart) + "</button>" +
       '<button class="inf" data-act="live-info" data-k="' + esc(c.key) + '" aria-label="Información">' + I.info + "</button></div>";
   }
 
@@ -2486,7 +3395,6 @@ var HFMobile = (function () {
   function liveBodyHtml() {
     var L = S.live;
     var cfg = HFIptv.config();
-    var favs = HFLibrary.iptvFavs();
     var list;
     if (!cfg) {
       return '<div class="m-chempty">' + I.live + "<h2>TV en vivo</h2><p>Pon el enlace M3U de <b>tu proveedor de IPTV</b> y tus canales aparecen aquí y en la TV.</p>" +
@@ -2496,13 +3404,19 @@ var HFMobile = (function () {
     if (L.error && !L.data) {
       return '<div class="m-chempty">' + errorBox(L.error) + '<button class="m-btn primary" data-act="live-reload">' + I.refresh + 'Reintentar</button><button class="m-btn ghost" data-go="iptv">Cambiar el enlace</button></div>';
     }
-    list = liveList();
-    return '<div class="m-chtabs" id="mlTabs">' + liveGroups().map(function (g) {
+    var fresh = L.fresh;
+    L.fresh = false;
+    if (L.searching) {
+      /* la lupa se expandió: el campo ocupa toda la fila (nace del botón y crece hacia la derecha) */
+      return '<div class="m-chtabs search" id="mlTabs"><div class="m-sfield"><i class="sbg"></i>' + I.search +
+        '<input id="mlSearch" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Buscar entre los ' + L.data.channels.length + ' canales" value="' + esc(L.q) + '"/>' +
+        '<button class="sx" data-act="live-search-close" aria-label="Cerrar la búsqueda">' + I.x + "</button></div></div>" +
+        '<div class="m-chlist" id="mlList">' + liveListInner() + "</div>";
+    }
+    return '<div class="m-chtabs' + (fresh ? " fresh" : "") + '" id="mlTabs"><button class="sbtn" data-act="live-search" aria-label="Buscar un canal">' + I.search + "</button>" + liveGroups().map(function (g) {
       return '<button class="' + (g.id === L.group ? "on" : "") + '" data-act="live-group" data-g="' + esc(g.id) + '">' + esc(g.label) + "</button>";
     }).join("") + "</div>" +
-      '<div class="m-chlist" id="mlList">' + (list.length ? list.map(function (c) { return liveRow(c, favs, L.ch && L.ch.key); }).join("") :
-        '<div class="m-chnone">' + (L.group === "__fav" ? "Aún no tienes favoritos. Toca el corazón mientras ves un canal." : "Este grupo no tiene canales.") + "</div>") +
-      "</div>";
+      '<div class="m-chlist" id="mlList">' + liveListInner() + "</div>";
   }
 
   V.live = function () {
@@ -2526,6 +3440,10 @@ var HFMobile = (function () {
     var tabs = byId("mlTabs");
     if (tabs) { L.tabScroll = tabs.scrollLeft; }
     ctl.innerHTML = liveCtlHtml();
+    if (L.searching && byId("mlSearch") && document.activeElement === byId("mlSearch")) {
+      if (list) { list.innerHTML = liveListInner(); list.scrollTop = L.scroll; }
+      return;
+    }
     body.innerHTML = liveBodyHtml();
     var m = root.querySelector(".m-live");
     if (m) { m.classList.toggle("idle", !L.ch); m.classList.toggle("full", L.full); }
@@ -2597,11 +3515,33 @@ var HFMobile = (function () {
     document.documentElement.classList.remove("m-live-on");
   }
 
+  /* Reproductor a pantalla completa y en horizontal. En el APK lo hace la parte nativa (HFAndroid); en el navegador
+   * (la web) se pide al navegador: pantalla completa siempre que se pueda y giro donde lo permite (Android Chrome).
+   * En iPhone el navegador no deja poner la página entera a pantalla completa: se ve igual, dentro de Safari. */
+  function playerMode(on) {
+    var d = document;
+    var el = d.documentElement;
+    try {
+      if (android) { android.setPlayerMode(on); return; }
+      if (on) {
+        var req = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (req && !(d.fullscreenElement || d.webkitFullscreenElement)) {
+          Promise.resolve(req.call(el)).then(function () {
+            if (screen.orientation && screen.orientation.lock) { screen.orientation.lock("landscape").catch(function () { /* no se puede girar aquí */ }); }
+          }, function () { /* sin pantalla completa */ });
+        }
+      } else {
+        if (screen.orientation && screen.orientation.unlock) { try { screen.orientation.unlock(); } catch (e) { /* nada */ } }
+        if (d.fullscreenElement || d.webkitFullscreenElement) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); }
+      }
+    } catch (e) { /* nada */ }
+  }
+
   function liveFull(on) {
     var L = S.live;
     L.full = on;
     L.ui = true;
-    try { if (android) { android.setPlayerMode(on); } } catch (e) { /* nada */ }
+    playerMode(on);
     if (S.view === "live") {
       root.classList.toggle("nav-hidden", on);
       paintLive();
@@ -2627,9 +3567,44 @@ var HFMobile = (function () {
     var c = S.live.data && S.live.data.channels.filter(function (x) { return x.key === k; })[0];
     if (c) { livePlay(c); }
   };
+  ACT["live-search"] = function () {
+    var L = S.live;
+    if (!L.data) { return; }
+    L.searching = true;
+    L.q = "";
+    L.scroll = 0;
+    paintLive();
+    var inp = byId("mlSearch");
+    if (inp) { inp.focus(); }
+  };
+  ACT["live-search-close"] = function () { liveSearchClose(); };
+  function liveSearchClose() {
+    var L = S.live;
+    L.searching = false;
+    L.q = "";
+    L.fresh = true;
+    L.scroll = 0;
+    paintLive();
+  }
+  /* al escribir solo se repinta la lista (un instante después de dejar de teclear) */
+  var liveSearchTimer = null;
+  root.addEventListener("input", function (e) {
+    if (!e.target || e.target.id !== "mlSearch") { return; }
+    clearTimeout(liveSearchTimer);
+    liveSearchTimer = setTimeout(function () {
+      var inp = byId("mlSearch");
+      var list = byId("mlList");
+      if (!inp || !list || !S.live.searching) { return; }
+      S.live.q = inp.value;
+      list.innerHTML = liveListInner();
+      list.scrollTop = 0;
+    }, 160);
+  });
   ACT["live-group"] = function (el) {
     S.live.group = el.getAttribute("data-g");
     S.live.scroll = 0;
+    S.live.searching = false;
+    S.live.q = "";
     paintLive();
   };
   ACT["live-reload"] = function () { liveLoad(true); };
@@ -2642,6 +3617,14 @@ var HFMobile = (function () {
     if (!c) { return; }
     HFLibrary.toggleIptvFav(c.key);
     toast(HFLibrary.iptvFavs()[c.key] ? "Agregado a favoritos" : "Quitado de favoritos");
+    paintLive();
+  };
+  ACT["live-rowfav"] = function (el) {
+    var k = el.getAttribute("data-k");
+    var now;
+    HFLibrary.toggleIptvFav(k);
+    now = !!HFLibrary.iptvFavs()[k];
+    toast(now ? "Agregado a favoritos" : "Quitado de favoritos");
     paintLive();
   };
   ACT["live-full"] = function () { liveFull(!S.live.full); };
@@ -2745,7 +3728,15 @@ var HFMobile = (function () {
       return;
     }
     if (el.hasAttribute("data-go")) { go(el.getAttribute("data-go")); return; }
-    if (el.hasAttribute("data-open")) { S.season = 0; go("detail", el.getAttribute("data-open")); return; }
+    if (el.hasAttribute("data-open")) {
+      S.season = 0;
+      if (typeof HFReco !== "undefined") {
+        if (S.view === "search" && String(S.search || "").trim()) { HFReco.busqueda(S.search, el.getAttribute("data-open")); }
+        HFReco.click(el.getAttribute("data-open"));
+      }
+      go("detail", el.getAttribute("data-open"));
+      return;
+    }
     if (el.hasAttribute("data-play")) { play(titleOf(el.getAttribute("data-play"))); return; }
     var a = el.getAttribute("data-act");
     if (ACT[a]) { ACT[a](el, e); }
@@ -2768,7 +3759,7 @@ var HFMobile = (function () {
       return;
     }
     obj[key] = v;
-    if (m === "search") { byId("results").innerHTML = searchResults(); hydrate(); }
+    if (m === "search") { byId("results").innerHTML = searchResults(); hydrate(); searchAnimeOnline(v); }
     if (m === "chatQ") { byId("chatList").innerHTML = chatList(); }
     if (S.login.error && path[0] === "login") { S.login.error = ""; var er = root.querySelector(".m-error"); if (er) { er.remove(); } }
   });
@@ -2789,19 +3780,105 @@ var HFMobile = (function () {
     var src = HFLibrary.enabledSources() || {};
     var full = HFLibrary.build(items.filter(function (it) { return !!src[itemChat(it)]; }), HFLibrary.tags());
     library = profile && profile.kids ? HFLibrary.filterKids(full) : full;
+    if (animeOn()) {
+      library = HFAnime.mergeInto(Object.assign({}, library, { titles: Object.assign({}, library.titles), byKey: Object.assign({}, library.byKey) }));
+    } else {
+      library.anime = [];
+    }
   }
 
-  var CATALOG = { home: 1, movies: 1, series: 1, search: 1, mylist: 1, category: 1, detail: 1 };
+  /* Catálogo del canal Anime (servidor): al llegar algo se rearma y se repinta si se está viendo */
+  function animeLoad(force) {
+    if (!animeOn()) { return; }
+    HFAnime.refresh(function () {
+      rebuild();
+      if (S.view === "anime" && !S.sheet) { render(true); }
+    }, force);
+  }
+  ACT["anime-reload"] = function () {
+    var t = S.view === "detail" ? titleOf(S.arg) : null;
+    if (t && t.anime) { t._err = ""; t._ensured = false; loadAnimeTitle(t); render(true); return; }
+    animeLoad(true);
+    render(true);
+  };
+  /* Ficha de anime: trae los capítulos (una vez por apertura de la app) y repinta */
+  function loadAnimeTitle(t) {
+    if (t._loading || t._ensured || t._err) { return; } // con error se espera al botón «Reintentar» (anime-reload): si no, bucle
+    t._loading = true;
+    HFAnime.touch(t);
+    /* capítulos al instante si ya se sabe cuántos hay; la ficha y la lista real (con títulos) llegan sin bloquear */
+    if (!t.loaded && HFAnime.quick(t)) {
+      render(true);
+    }
+    var nx = t.loaded ? (HFLibrary.nextEpisode(t) || {}).episode : null;
+    if (nx) { HFAnime.prefetch(nx); }
+    HFAnime.info(t).then(function () { if (S.view === "detail" && titleOf(S.arg) === t) { render(true); } });
+    HFAnime.ensure(t).then(function () {
+      t._loading = false;
+      t._ensured = true;
+      if (S.view === "detail" && titleOf(S.arg) === t) { render(true); }
+    }, function (e) {
+      t._loading = false;
+      t._err = String((e && e.message) || e);
+      if (S.view === "detail" && titleOf(S.arg) === t) { render(true); }
+    });
+  }
+
+  var CATALOG = { home: 1, movies: 1, series: 1, anime: 1, search: 1, mylist: 1, category: 1, detail: 1 };
+  /* El aro «actualizando» de la barra, sin repintar la pantalla */
+  function syncDot(on) {
+    var right = root.querySelector(".m-top .right");
+    var dot = right && right.querySelector(".m-sync");
+    if (!right) { return; }
+    if (on && !dot) { right.insertAdjacentHTML("afterbegin", '<span class="m-sync" title="Actualizando">' + I.refresh + "</span>"); }
+    if (!on && dot) { dot.remove(); }
+  }
+
+  /* Huella de lo que muestra el catálogo; si no cambió, no se repinta (repintar reinicia las filas y el desplazamiento) */
+  function hashText(s) {
+    var h = 5381;
+    for (var i = 0; i < s.length; i += 1) { h = ((h * 33) ^ s.charCodeAt(i)) | 0; }
+    return (h >>> 0).toString(36);
+  }
+  function catalogSig() {
+    var parts = [];
+    var cont = [];
+    values(library.titles).forEach(function (t) {
+      parts.push(t.titleKey + "|" + (t.imageKey || "") + "|" + (t.bannerKey || "") + "|" + (t.verticalKey || "") + "|" + (typeof HFTelegram !== "undefined" && HFTelegram.imageStamp ? HFTelegram.imageStamp(t.imageKey, t.bannerKey, t.verticalKey) : "") + "|" + (t.date || 0) + "|" + (t.kids ? 1 : 0) + "|" + (t.categories || []).join(",") + "|" +
+        (t.episodeCount || 0) + "|" + ((t.versions && t.versions.length) || 0) + "|" + (t.description || "").length);
+    });
+    titles().forEach(function (t) { if (progressOf(t)) { cont.push(t.titleKey); } });
+    return S.view + "#" + parts.length + "#" + hashText(parts.join("\n")) + "#" + cont.join(",") + "#" + HFLibrary.myList().join(",") + "#" + HFAnime.rows().map(function (r) { return r.id + ":" + r.titles.length; }).join("|") +
+      "#" + (typeof HFReco !== "undefined" ? HFReco.huella() : "");
+  }
+  var paintedSig = "";
+  var lastTouchAt = 0;
+  var repaintTimer = null;
+  ["touchstart", "touchmove", "wheel", "keydown"].forEach(function (ev) {
+    document.addEventListener(ev, function () { lastTouchAt = Date.now(); }, { capture: true, passive: true });
+  });
+  function repaintCatalog() {
+    var sig;
+    clearTimeout(repaintTimer);
+    repaintTimer = null;
+    if (!CATALOG[S.view] || S.sheet || S.overlay) { return; }
+    sig = catalogSig();
+    if (sig === paintedSig) { return; }
+    if (paintedSig && Date.now() - lastTouchAt < 3000) { repaintTimer = setTimeout(repaintCatalog, 1500); return; }
+    render(true);
+  }
+
   function sync(manual) {
-    var ids = Object.keys(HFLibrary.enabledSources() || {});
+    var ids = telegramSources();
     var acc = HFLibrary.accountId();
     var all = [];
+    animeLoad(!!manual);
     var done = {};
     var failed = 0;
     if (S.syncing || !ids.length) { return; }
     S.syncing = true;
     S.syncError = "";
-    if (CATALOG[S.view] || S.view === "account") { render(true); }
+    if (S.view === "account") { render(true); } else { syncDot(true); } // el aro de «actualizando» sin repintar todo el catálogo
     (function next(i) {
       if (HFLibrary.accountId() !== acc) { S.syncing = false; return; }
       if (i >= ids.length) {
@@ -2814,30 +3891,74 @@ var HFMobile = (function () {
         rebuild();
         S.syncing = false;
         S.syncError = failed ? plural(failed, "chat no se pudo leer", "chats no se pudieron leer") : "";
-        if (CATALOG[S.view] || S.view === "account") { render(true); }
+        syncDot(false);
+        if (S.view === "account") { render(true); } else if (CATALOG[S.view]) { repaintCatalog(); }
         if (manual) { toast(S.syncError || "Biblioteca actualizada"); }
         return;
       }
-      HFTelegram.scan(ids[i]).then(function (list) {
-        all = all.concat(list);
+      /* solo lo NUEVO de cada chat (js/catalog.js); la lectura completa, al menos cada 6 h (1 h si se pidió a mano) */
+      HFCatalog.scanChat(ids[i], items.filter(function (it) { return itemChat(it) === String(ids[i]); }), { manual: !!manual }).then(function (r) {
+        all = all.concat(r.items);
         done[String(ids[i])] = true;
       }, function () { failed += 1; }).then(function () { next(i + 1); });
     })(0);
   }
 
   /* ===================== Imágenes ===================== */
-  var imageSource = function (key) { return HFTelegram.image(key, 640); };
+  var imageSource = function (key, w) { return HFTelegram.image(key, w || 640); };
+  var lazyImgs = null;
+  var imgQueue = [];
+  var imgBusy = 0;
+  function applyImg(el, url) {
+    var fb;
+    if (!url) { return; }
+    el.style.backgroundImage = "url(" + url + ")";
+    fb = el.querySelector(".fallback");
+    if (fb) { fb.remove(); }
+  }
+  function pumpImgs() {
+    var it;
+    while (imgBusy < 4 && imgQueue.length) {
+      it = imgQueue.shift();
+      imgBusy += 1;
+      (function (el, key) {
+        Promise.resolve(imageSource(key)).then(function (url) { applyImg(el, url); }, function () { /* sin imagen: queda el respaldo */ }).then(function () {
+          imgBusy -= 1;
+          pumpImgs();
+        });
+      })(it[0], it[1]);
+    }
+  }
+  function paintImg(el, key) {
+    var net = function () { imgQueue.push([el, key]); pumpImgs(); };
+    /* lo que ya está guardado en el celular se pinta enseguida y todo a la vez; solo lo que falta espera en la cola de descargas */
+    if (typeof HFTelegram !== "undefined" && HFTelegram.imageLocal) {
+      HFTelegram.imageLocal(key, 640).then(function (url) { if (url) { applyImg(el, url); } else { net(); } }, net);
+    } else {
+      net();
+    }
+  }
   function hydrate() {
     Array.prototype.forEach.call(root.querySelectorAll("[data-img]"), function (el) {
       var key = el.getAttribute("data-img");
       el.removeAttribute("data-img");
-      Promise.resolve(imageSource(key)).then(function (url) {
-        if (url) {
-          el.style.backgroundImage = "url(" + url + ")";
-          var fb = el.querySelector(".fallback");
-          if (fb) { fb.remove(); }
+      /* ya descargada en esta sesión: se pinta en el acto (antes cada repintado dejaba un parpadeo con el dibujo de respaldo) */
+      var ready = typeof HFTelegram !== "undefined" && HFTelegram.imageReady ? HFTelegram.imageReady(key, 640) : null;
+      if (ready) { applyImg(el, ready); return; }
+      /* las demás se piden al acercarse a la pantalla */
+      if (typeof IntersectionObserver !== "undefined") {
+        if (!lazyImgs) {
+          lazyImgs = new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+              if (en.isIntersecting) { lazyImgs.unobserve(en.target); paintImg(en.target, en.target._hfImg); }
+            });
+          }, { rootMargin: "300px 600px" });
         }
-      }, function () { /* sin imagen: queda el respaldo */ });
+        el._hfImg = key;
+        lazyImgs.observe(el);
+        return;
+      }
+      paintImg(el, key);
     });
   }
 
@@ -2860,6 +3981,7 @@ var HFMobile = (function () {
     /* la intro de marca (js/intro.js) corre mientras se revisa la sesión: no agrega espera */
     var intro = introShown ? Promise.resolve() : HFIntro.play({ base: "../" });
     introShown = true;
+    try { HFTelegram.cleanupSlots(HFLibrary.accounts().map(function (a) { return a.slot; })); } catch (e) { /* nada */ }
     HFTelegram.me().then(function (u) {
       return intro.then(function () {
         if (u) {
@@ -2909,6 +4031,8 @@ var HFMobile = (function () {
         if (/^live/.test(view)) { profile = HFLibrary.profiles().filter(function (p) { return !p.kids; })[0] || profile; }
         items = list;
         library = HFLibrary.build(list, {});
+        if (/^anime/.test(view)) { animeDesign(view); return; }
+        if (view === "home-big") { bigDesign(); return; }
         var hop = titles().filter(function (t) { return /Hoppers/.test(t.name); })[0] || movies()[0];
         var ser = series()[0];
         var L = S.login;
@@ -2926,6 +4050,15 @@ var HFMobile = (function () {
           "sheet-quality": ["detail", hop && hop.titleKey, "quality"], "sheet-tracks": ["detail", hop && hop.titleKey, "info"]
         };
         var m = map[view] || [view];
+        if (view === "detail-series" && ser) {
+          var gpool = titles().map(function (x) { return x.bannerKey || x.imageKey; }).filter(Boolean).slice(0, 7);
+          ser.galleryKeys = gpool;
+          if (ser.seasons[0] && ser.seasons[0].episodes[0]) { ser.seasons[0].episodes[0].galleryKeys = gpool.slice(0, 4); }
+        }
+        if (view === "gallery") {
+          hop.galleryKeys = titles().map(function (x) { return x.bannerKey || x.imageKey; }).filter(Boolean).slice(0, 9);
+          m = ["gallery", hop.titleKey];
+        }
         if (view === "pin") { S.pin = { profile: profile, entered: "12", error: "" }; }
         if (view === "profile-edit") { S.edit = { id: profile.id, name: profile.name, avatar: profile.avatar, kids: false, hasPin: true }; }
         if (view === "categories") { m = ["home"]; S.overlay = "categories"; }
@@ -2948,6 +4081,54 @@ var HFMobile = (function () {
       });
     };
     document.head.appendChild(s);
+  }
+
+  /* Biblioteca grande SIN red (solo desarrollo): sirve para medir cuánto cuesta pintar el catálogo con cientos de películas. */
+  function bigDesign() {
+    var cats = ["Marvel", "Acción", "Terror", "Comedia", "Animadas", "Drama", "Ciencia ficción", "Aventura"];
+    var its = [];
+    var id = 1;
+    var n = Number((/[?&]n=(\d+)/.exec(window.location.search) || [])[1]) || 600;
+    var i;
+    var q;
+    for (i = 0; i < n; i += 1) {
+      for (q = 0; q < 3; q += 1) {
+        its.push({ key: "-100123:" + id, chatId: "-100123", chatTitle: "NETSUCKS", msgId: id, kind: "video", caption: "pelicula#Película número " + i + " (" + (1980 + (i % 45)) + ")#Descripción de la película " + i + " con bastante texto para parecerse a una real. #" + cats[i % cats.length], fileName: "p" + i + ".mp4", duration: 6000 + i, size: 1e9, width: 1920, height: [2160, 1080, 720][q], date: 1.6e12 + id * 1000 });
+        id += 1;
+      }
+      its.push({ key: "-100123:" + id, chatId: "-100123", chatTitle: "NETSUCKS", msgId: id, kind: "photo", caption: "pelicula#Película número " + i + " (" + (1980 + (i % 45)) + ")#portada #portada", fileName: "", duration: 0, size: 0, width: 0, height: 0, date: 1.6e12 + id * 1000 });
+      id += 1;
+    }
+    profile = HFLibrary.profiles()[0];
+    HFLibrary.setProfile(profile.id);
+    HFLibrary.setEnabledSources({ "-100123": "NETSUCKS" });
+    items = its;
+    imageSource = function () { return "data:image/gif;base64,R0lGODlhAQABAAAAACw="; };
+    rebuild();
+    S.view = "home";
+    render();
+    window.__hfm = { render: render, S: S, toast: toast, go: go, titles: titles, library: function () { return library; } };
+    document.documentElement.setAttribute("data-design-ready", "home-big");
+  }
+
+  /* Canal Anime en el tablero: habla con el servidor local (servidor/, puerto 4510), que pregunta a la anime-api. */
+  function animeDesign(view) {
+    var original = imageSource;
+    profile = HFLibrary.profiles()[0];
+    HFLibrary.setProfile(profile.id);
+    HFSync.key = function () { return Promise.resolve("Qx7_" + "k".repeat(40)); };
+    HFSync.server = "http://localhost:4510/productos/HomeFlix";
+    imageSource = function (key) { return /^https?:/.test(key) ? key : original(key); };
+    HFLibrary.setEnabledSources({ "-5479575394": "NETSUCKS", anime: "Anime" });
+    rebuild();
+    S.view = "anime";
+    render();
+    HFAnime.refresh(function () { rebuild(); if (S.view === "anime") { render(true); } }, true).then(function () {
+      var t = HFAnime.rows()[0] && HFAnime.rows()[0].titles[0];
+      if (view === "anime-detail" && t) { rebuild(); S.view = "detail"; S.arg = t.titleKey; render(); }
+      if (view === "anime-search") { rebuild(); S.view = "search"; S.search = "frieren"; render(); searchAnimeOnline("frieren"); }
+      document.documentElement.setAttribute("data-design-ready", view);
+    });
   }
 
   /* El reproductor del tablero: una foto fija con los controles (sin video). */
@@ -3030,6 +4211,10 @@ var HFMobile = (function () {
     design(decodeURIComponent(dm[1]));
   } else {
     boot();
+    /* La interfaz nueva «arrancó bien» a los 3 s de abrir la app, no después de iniciar sesión: si el usuario cierra la app
+     * antes (o la conexión con Telegram tarda), el APK la daba por mala y volvía a la interfaz vieja que trae el programa
+     * (sin Anime, por ejemplo). Una interfaz que de verdad no arranca ni siquiera llega a ejecutar esto. */
+    setTimeout(function () { try { HFUpdate.ok(); } catch (e) { /* sin actualizador */ } }, 3000);
   }
 
   return { back: back, go: go };
