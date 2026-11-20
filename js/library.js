@@ -24,104 +24,7 @@ var HFLibrary = (function () {
   /* «ciencia_ficción» → «Ciencia ficción»; «MARVEL» se respeta tal cual */
   function categoryName(word) {
     var w = String(word).replace(/[_-]+/g, " ").trim();
-    return canonicalCategory(w.charAt(0).toUpperCase() + w.slice(1));
-  }
-
-  /* ===== Catálogo de categorías =====
-   * Cada título sale en UNA sola fila de categoría (no repartido en tres). Las capas, como en las plataformas grandes:
-   * franquicia (Marvel) > público (Infantil, la marca #infantil) > un género principal. El orden de la lista es la
-   * prioridad: si un comentario trae varias, gana la que está más arriba. Los géneros salen de la lista oficial de TMDB,
-   * agrupados para que ninguna fila quede de un solo título. Los alias leen lo que ya está publicado («Accion»,
-   * «CienciaFiccion», «Animadas», «MCU»…) como la categoría correcta. Lo que no está aquí se respeta, al final. */
-  var CATEGORY_CATALOG = [
-    ["Marvel", "mcu|universo marvel|marvel studios|universo cinematografico de marvel"],
-    ["Anime", "anime"],
-    ["Terror", "horror|miedo"],
-    ["Ciencia ficción y fantasía", "ciencia ficcion|cienciaficcion|ciencia ficcion y fantasia|sci fi|scifi|fantasia|fantasy|fantastica"],
-    ["Acción y aventura", "accion|action|aventura|aventuras|accion y aventura|deporte|deportes|artes marciales|belica|guerra|western"],
-    ["Suspenso", "suspense|thriller|misterio|crimen|policial|policiaca|policiaco"],
-    ["Comedia", "comedias|romance|romantica|romanticas|comedia romantica|humor"],
-    ["Drama", "historia|biografia|biografica|musical|musica"],
-    ["Documental", "documentales"],
-    ["Animadas", "animacion|animado|animados|animada|peliculas animadas|dibujos|dibujos animados|familia|familiar"]
-  ];
-  var CATEGORY_NAMES = CATEGORY_CATALOG.map(function (c) { return c[0]; });
-  var categoryAlias = null;
-  function catKey(s) { return norm(s).replace(/ /g, ""); }
-  /* «Accion» → «Acción y aventura»; algo fuera del catálogo queda como vino */
-  function canonicalCategory(name) {
-    var k = catKey(name);
-    if (!categoryAlias) {
-      categoryAlias = {};
-      CATEGORY_CATALOG.forEach(function (c) {
-        [c[0]].concat(c[1].split("|")).forEach(function (a) { categoryAlias[catKey(a)] = c[0]; });
-      });
-    }
-    return categoryAlias[k] || String(name || "");
-  }
-  /* ===== Desde TMDB (preparador) =====
-   * La categoría que le toca a una película según su ficha, con la misma prioridad del catálogo:
-   * Marvel (Marvel Studios, la palabra clave «marvel cinematic universe» o la cronología) > Anime (animación japonesa) >
-   * el PRIMER género de TMDB que tenga fila. Animación y Familia solo cuentan si no hay otro (lo infantil va además a
-   * «Infantil» por la marca). info: {name, year, genres: [nombres en español], lang, companies: [], keywords: []} */
-  var TMDB_GENRE = {
-    "terror": "Terror", "horror": "Terror",
-    "ciencia ficcion": "Ciencia ficción y fantasía", "fantasia": "Ciencia ficción y fantasía", "sci fi fantasy": "Ciencia ficción y fantasía",
-    "accion": "Acción y aventura", "aventura": "Acción y aventura", "belica": "Acción y aventura", "western": "Acción y aventura",
-    "action adventure": "Acción y aventura", "war politics": "Acción y aventura",
-    "suspense": "Suspenso", "misterio": "Suspenso", "crimen": "Suspenso",
-    "comedia": "Comedia", "romance": "Comedia",
-    "drama": "Drama", "historia": "Drama", "musica": "Drama",
-    "documental": "Documental",
-    "animacion": "Animadas", "familia": "Animadas", "kids": "Animadas"
-  };
-  function categoryFromTmdb(info) {
-    var genres = (info && info.genres) || [];
-    var marvel = ((info && info.companies) || []).some(function (c) { return /^marvel studios$/i.test(c); }) ||
-      ((info && info.keywords) || []).some(function (k) { return /marvel cinematic universe|\bmcu\b/i.test(k); }) ||
-      (info && info.name && chronoIndex(info) >= 0);
-    var anim = genres.some(function (g) { return norm(g) === "animacion"; });
-    var main = "";
-    if (marvel) { return "Marvel"; }
-    if (anim && info.lang === "ja") { return "Anime"; }
-    /* animada y familiar (o marcada infantil): «Animadas», como las demás películas animadas para niños */
-    if (anim && (info.kids || genres.some(function (g) { return /familia|kids/.test(norm(g)); }))) { return "Animadas"; }
-    genres.some(function (g) {
-      var c = TMDB_GENRE[norm(g).replace(/ y | & /g, " ")] || TMDB_GENRE[norm(g)];
-      if (c && c !== "Animadas") { main = c; return true; }
-      return false;
-    });
-    return main || (anim || genres.some(function (g) { return /familia|kids/i.test(norm(g)); }) ? "Animadas" : "");
-  }
-  /* ¿Es para el perfil infantil? Por la clasificación por edad: México AA/A, EE. UU. G (o PG si es animada o familiar). */
-  function kidsFromTmdb(info) {
-    var mx = String((info && info.cert && info.cert.MX) || "").toUpperCase();
-    var us = String((info && info.cert && info.cert.US) || "").toUpperCase();
-    var family = ((info && info.genres) || []).some(function (g) { return /animacion|familia|kids/.test(norm(g)); });
-    if (mx === "AA" || us === "G" || us === "TV-Y" || us === "TV-G" || us === "TV-Y7") { return true; }
-    if (mx === "A" || us === "PG" || us === "TV-PG") { return family; }
-    return false;
-  }
-
-  /* La única categoría en la que se muestra un título. withKids: los infantiles van a «Infantil» (perfiles de adultos);
-   * en el perfil Kids (withKids false) se agrupan por su género. Marvel gana siempre, también si el título está en la
-   * historia del Universo Marvel aunque no lo diga el comentario. */
-  function primaryCategory(t, withKids) {
-    var cats = ((t && t.categories) || []).map(canonicalCategory);
-    var best = "";
-    var bestRank = Infinity;
-    if (cats.indexOf("Marvel") >= 0 || (t && t.name && chronoIndex(t) >= 0)) {
-      return "Marvel";
-    }
-    if (withKids && t && t.kids) {
-      return "Infantil";
-    }
-    cats.forEach(function (c, i) {
-      var r = CATEGORY_NAMES.indexOf(c);
-      r = r >= 0 ? r : 100 + i; // fuera del catálogo: después de todas, en el orden en que vienen
-      if (r < bestRank) { bestRank = r; best = c; }
-    });
-    return best;
+    return w.charAt(0).toUpperCase() + w.slice(1);
   }
 
   /* Junta categorías sin repetir (sin importar mayúsculas ni tildes) */
@@ -166,10 +69,7 @@ var HFLibrary = (function () {
     var nl;
     var kids = false;
     var image = "";
-    var galleryN = 0;
     var categories = [];
-    var tmdb = null;
-    var langs = null;
     var mark;
     var cat;
     if (!raw) {
@@ -178,42 +78,15 @@ var HFLibrary = (function () {
     /* Marcas al final, en cualquier orden:
      *   "#infantil" (o #kids / #niños): contenido para el perfil Kids.
      *   "#portada" (o #poster) y "#banner" (o #fondo): en una FOTO, es la imagen de la tarjeta o el fondo grande del título.
-     *   "#vertical" (o #retrato): en una FOTO, es la portada vertical (póster 2:3) para la vista vertical de las tarjetas.
-     *   "#galeria1", "#galeria2"… (o #escena1…): en una FOTO, una escena de la galería del título (el número da el orden).
-     *   En una serie, «serie#Nombre #galeria1» es la galería de la serie y «serie(1/3)#Nombre #galeria1» la de ESE capítulo.
-     *   "#capitulo" (o #episodio): en una FOTO de una serie, es la imagen del capítulo: con «serie(1/3)#Nombre» es la de ese capítulo;
-     *   con «serie#Nombre» (sin números) es una común para todos los capítulos que no tengan la suya.
      *   "#Marvel", "#Terror", "#Ciencia_ficción"…: cualquier otra palabra es una CATEGORÍA y tiene su propia fila
      *   (el guion bajo se muestra como espacio). Las categorías van separadas por un espacio de lo anterior. */
     for (;;) {
-      /* «#audio-spa-eng» / «#subs-spa»: idioma correcto de cada pista, en orden (x = dejar el suyo); la pone el preparador */
-      mark = /\s+#\s*(audio|subs)-((?:[a-z]{1,3}-)*[a-z]{1,3})\s*$/i.exec(raw);
-      if (mark && raw.slice(0, mark.index).indexOf("#") >= 0) {
-        langs = langs || {};
-        langs[mark[1].toLowerCase()] = langs[mark[1].toLowerCase()] || mark[2].toLowerCase().split("-");
-        raw = raw.slice(0, mark.index).replace(/\s+$/, "");
-        continue;
-      }
-      /* «#tmdb603» (película) o «#tmdbtv1399» (serie): su ficha en TMDB; la pone el preparador */
-      mark = /\s+#\s*tmdb(tv)?[_:-]?(\d{1,9})\s*$/i.exec(raw);
-      if (mark && raw.slice(0, mark.index).indexOf("#") >= 0) {
-        tmdb = tmdb || { type: mark[1] ? "tv" : "movie", id: Number(mark[2]) };
-        raw = raw.slice(0, mark.index).replace(/\s+$/, "");
-        continue;
-      }
-      mark = /\s*#\s*(infantil|kids|ni[ñn]os|portada|poster|banner|fondo|vertical|retrato|capitulo|cap[ií]tulo|episodio|galer[ií]a\d{0,3}|escena\d{0,3})\s*$/i.exec(raw);
+      mark = /\s*#\s*(infantil|kids|ni[ñn]os|portada|poster|banner|fondo)\s*$/i.exec(raw);
       if (mark) {
         if (/^(portada|poster)$/i.test(mark[1])) {
           image = image || "portada";
         } else if (/^(banner|fondo)$/i.test(mark[1])) {
           image = image || "banner";
-        } else if (/^(vertical|retrato)$/i.test(mark[1])) {
-          image = image || "vertical";
-        } else if (/^(capitulo|cap[ií]tulo|episodio)$/i.test(mark[1])) {
-          image = image || "capitulo";
-        } else if (/^(galer[ií]a|escena)\d{0,3}$/i.test(mark[1])) {
-          image = image || "galeria";
-          galleryN = Number(String(mark[1]).replace(/\D/g, "")) || 0;
         } else {
           kids = true;
         }
@@ -271,10 +144,7 @@ var HFLibrary = (function () {
       description: "",
       kids: kids,
       image: image,
-      galleryN: galleryN,
-      categories: categories,
-      tmdb: tmdb,
-      langs: langs
+      categories: categories
     };
     if (out.type === "movie") {
       out.description = (fields[1] || "").trim();
@@ -346,8 +216,7 @@ var HFLibrary = (function () {
 
   /* «… [2160p] parte 2 de 7.mp4» (así nombra las partes tools/preparador) → {i: 2, n: 7} */
   function partOf(v) {
-    if (guessedParts[v.key]) { return guessedParts[v.key]; }
-    var m =/\b(?:parte|part|pt)\s*(\d+)\s*(?:de|of|\/)\s*(\d+)\b/i.exec(v.fileName || "");
+    var m = /\b(?:parte|part|pt)\s*(\d+)\s*(?:de|of|\/)\s*(\d+)\b/i.exec(v.fileName || "");
     return m && Number(m[2]) > 1 && Number(m[1]) >= 1 && Number(m[1]) <= Number(m[2]) ? { i: Number(m[1]), n: Number(m[2]) } : null;
   }
 
@@ -391,7 +260,7 @@ var HFLibrary = (function () {
         if (!v.pieces[k]) {
           return;
         }
-        parts.push({ key: v.pieces[k].key, dur: v.pieces[k].duration || 0, size: v.pieces[k].size || 0, langs: v.pieces[k].langs || null });
+        parts.push({ key: v.pieces[k].key, dur: v.pieces[k].duration || 0, size: v.pieces[k].size || 0 });
       }
       v.parts = parts;
       v.key = parts[0].key;
@@ -405,7 +274,7 @@ var HFLibrary = (function () {
       /* solo hay partes sueltas: se muestra igual con la primera que haya (no se podrá ver entera hasta que lleguen todas) */
       list = t.versions.map(function (v) {
         var first = v.pieces[Object.keys(v.pieces).sort(function (a, b) { return a - b; })[0]];
-        return { slot: v.slot, q: v.q, h: v.h, n: 1, key: first.key, video: first, parts: [{ key: first.key, dur: first.duration || 0, size: first.size || 0, langs: first.langs || null }],
+        return { slot: v.slot, q: v.q, h: v.h, n: 1, key: first.key, video: first, parts: [{ key: first.key, dur: first.duration || 0, size: first.size || 0 }],
           dur: first.duration || 0, size: first.size || 0, bps: 0, date: v.date, incomplete: true };
       }).slice(0, 1);
     }
@@ -433,144 +302,27 @@ var HFLibrary = (function () {
   /* items: [{key, chatId, chatTitle, msgId, kind: "video"|"photo", caption, fileName, duration, size, width, height, date}]
    * tags: {videoKey: comentario} etiquetas puestas desde la TV; reemplazan el comentario de Telegram de ese video.
    * → {movies, series, unclassified, recent, byKey, titles} */
-  var THUMBS_RE = /miniaturas[\s_]+(\d+)s[\s_]+(\d+)x(\d+)[\s_]+(\d+)x(\d+)[\s_]+hoja[\s_]+(\d+)[\s_]+de[\s_]+(\d+)\.jpe?g$/i;
-  /* Hojas a las que Telegram les cortó el nombre («Titulo_largo_2025_miniaturas.jpg», antes de que el preparador acortara
-   * los nombres): se toman las del último envío (mensajes seguidos, en orden de hoja) con las medidas fijas del
-   * preparador (tools/preparador/publish.mjs THUMB). Solo si ese título no tiene hojas con el nombre completo. */
-  var THUMBS_CUT = /[\s_]miniaturas\.jpe?g$/i;
-  var THUMB_STD = { every: 10, w: 160, h: 90, cols: 10, rows: 10 };
-  function cutThumbsOf(list) {
-    var desc = list.slice().sort(function (a, b) { return b.msgId - a.msgId; });
-    var run = [];
-    var i;
-    for (i = 0; i < desc.length; i += 1) {
-      if (run.length && run[run.length - 1].msgId - desc[i].msgId !== 1) { break; } // hueco: ahí empieza un envío anterior
-      run.push(desc[i]);
-    }
-    run.reverse();
-    var th = { every: THUMB_STD.every, w: THUMB_STD.w, h: THUMB_STD.h, cols: THUMB_STD.cols, rows: THUMB_STD.rows, n: run.length, sheets: {}, date: run.length ? run[0].date : 0 };
-    run.forEach(function (it, i) { th.sheets[i + 1] = { key: it.key, date: it.date }; });
-    return th;
-  }
-
-  /* Las hojas de miniaturas de un título, listas para usar: {every, w, h, cols, rows, sheets: [key…]} o null si faltan hojas. */
-  function thumbsOf(th) {
-    var keys = [];
-    var i;
-    if (!th) { return null; }
-    for (i = 1; i <= th.n; i += 1) {
-      if (!th.sheets[i]) { return null; }
-      keys.push(th.sheets[i].key);
-    }
-    return { every: th.every, w: th.w, h: th.h, cols: th.cols, rows: th.rows, sheets: keys };
-  }
-
-  /* Partes con el nombre cortado por Telegram: a los nombres largos Telegram los pasa a «palabras_con_guion» y les corta
-   * el final, y «… [1080p] parte 1 de 2.mp4» llega como «…_1080p_parte.mp4» en las dos partes (pasó con lo publicado
-   * antes de que el preparador acortara los nombres). Si un mismo comentario y calidad tiene varios videos así, con
-   * tamaños distintos, son sus partes en el orden en que se publicaron (el preparador las sube en orden). */
-  var guessedParts = {};
-  var CUT_PART = /[\s_](?:parte?|pt)(?:[\s_]+\d+)?(?:[\s_]+de)?\.[a-z0-9]{2,4}$/i;
-  function guessParts(items, tags) {
-    var groups = {};
-    var out = {};
-    (items || []).forEach(function (it) {
-      if (it.kind !== "video" || !CUT_PART.test(it.fileName || "") || /(?:parte|part|pt)\s*\d+\s*(?:de|of|\/)\s*\d+/i.test(it.fileName)) { return; }
-      var cap = tags && Object.prototype.hasOwnProperty.call(tags, it.key) ? tags[it.key] : it.caption;
-      var g = String(it.chatId) + "|" + String(cap || "").trim() + "|" + quality(it) + "|" + it.fileName;
-      (groups[g] = groups[g] || []).push(it);
-    });
-    Object.keys(groups).forEach(function (g) {
-      var bySize = {};
-      groups[g].forEach(function (it) { if (!bySize[it.size] || it.msgId > bySize[it.size].msgId) { bySize[it.size] = it; } });
-      var list = Object.keys(bySize).map(function (k) { return bySize[k]; }).sort(function (a, b) { return a.msgId - b.msgId; });
-      if (list.length < 2) { return; }
-      list.forEach(function (it, i) { out[it.key] = { i: i + 1, n: list.length }; });
-    });
-    return out;
-  }
-
   function build(items, tags) {
-    guessedParts = guessParts(items, tags);
-    var cutThumbs = {};
-    var thumbs = {};
     var movies = {};
     var series = {};
     var infos = {};
-    var epCovers = {};
-    var epGalleries = {};
     var unclassified = [];
     var byKey = {};
     var all = [];
     var list;
 
-    var subFiles = {};
-    /* de cada idioma, el más nuevo */
-    /* de cada idioma (y forzados, y 2.º del mismo idioma), el más nuevo; español primero */
-    function subsFor(k) {
-      var by = {};
-      (subFiles[k] || []).forEach(function (x) {
-        var l = (x.lang || x.key) + (x.forced ? ":f" : "") + (x.n > 1 ? ":" + x.n : "");
-        if (!by[l] || x.date >= by[l].date) { by[l] = x; }
-      });
-      return Object.keys(by).map(function (l) { return by[l]; }).sort(function (a, b) {
-        return (a.lang === "spa" ? 0 : 1) - (b.lang === "spa" ? 0 : 1) || (a.forced ? 1 : 0) - (b.forced ? 1 : 0) || (a.n || 1) - (b.n || 1) || a.date - b.date;
-      });
-    }
-
     (items || []).forEach(function (it) {
       var tagged = !!(tags && Object.prototype.hasOwnProperty.call(tags, it.key));
       var p = parseCaption(tagged ? tags[it.key] : it.caption);
       var key;
-      /* el idioma corregido es de ESTE archivo: cada calidad puede traer otras pistas */
-      it.langs = p && p.langs ? p.langs : null;
       var s;
       var ep;
       var seasonKey;
-      if (it.kind === "thumbs") {
-        /* hojas de miniaturas (tools/preparador): «… miniaturas 10s 160x90 10x10 hoja 2 de 8.jpg» → para «Recortar» */
-        var tm = THUMBS_RE.exec(it.fileName || "");
-        if (p && !tm && THUMBS_CUT.test(it.fileName || "")) {
-          key = p.type === "movie" ? "m:" + norm(p.name) + (p.year ? ":" + p.year : "") : "s:" + norm(p.name) + ":" + (p.season || 0) + ":" + (p.episode || 0);
-          (cutThumbs[key] = cutThumbs[key] || []).push(it);
-          return;
-        }
-        if (p && tm) {
-          key = p.type === "movie" ? "m:" + norm(p.name) + (p.year ? ":" + p.year : "") : "s:" + norm(p.name) + ":" + (p.season || 0) + ":" + (p.episode || 0);
-          var th = thumbs[key];
-          if (!th || (th.n !== Number(tm[7]) || th.every !== Number(tm[1])) && it.date > th.date) {
-            th = thumbs[key] = { every: Number(tm[1]), w: Number(tm[2]), h: Number(tm[3]), cols: Number(tm[4]), rows: Number(tm[5]), n: Number(tm[7]), sheets: {}, date: it.date };
-          }
-          if (!th.sheets[tm[6]] || it.date >= th.sheets[tm[6]].date) { th.sheets[tm[6]] = { key: it.key, date: it.date }; }
-        }
-        return;
-      }
-      if (it.kind === "sub") {
-        /* subtítulos aparte: idioma de la marca (#subs-eng) o del nombre del archivo («Nombre.eng.srt») */
-        if (p) {
-          key = p.type === "movie" ? "m:" + norm(p.name) + (p.year ? ":" + p.year : "") : "s:" + norm(p.name) + ":" + (p.season || 1) + ":" + (p.episode || 1);
-          (subFiles[key] = subFiles[key] || []).push({
-            key: it.key, date: it.date, name: it.fileName,
-            lang: (p.langs && p.langs.subs && p.langs.subs[0] && p.langs.subs[0] !== "x" ? p.langs.subs[0] : "") || subFileLang(it.fileName),
-            forced: /forzad|forced/i.test(it.fileName || "") || !!(p.langs && p.langs.subs && p.langs.subs[1] === "f"),
-            n: Number((/\.(\d)\.(srt|vtt|ass|ssa)$/i.exec(it.fileName || "") || [])[1] || 1)
-          });
-        }
-        return;
-      }
       if (it.kind === "photo") {
         if (p) {
           /* una película sin año en la foto también vale para la película con año (se resuelve en applyInfo) */
           key = (p.type === "movie" ? "m:" + norm(p.name) + (p.year ? ":" + p.year : "") : "s:" + norm(p.name));
-          if (p.image === "galeria" && p.type !== "movie" && p.season && p.episode) {
-            var gk = key + "|" + p.season + "|" + p.episode;
-            (epGalleries[gk] = epGalleries[gk] || []).push({ key: it.key, date: it.date, n: p.galleryN || 0 });
-          } else if (p.image === "capitulo" && p.type !== "movie" && p.season && p.episode) {
-            var ck = key + "|" + p.season + "|" + p.episode;
-            if (!epCovers[ck] || it.date >= epCovers[ck].date) { epCovers[ck] = { key: it.key, date: it.date }; }
-          } else {
-            addInfo(key, p, it);
-          }
+          addInfo(key, p, it);
         }
         return;
       }
@@ -587,13 +339,9 @@ var HFLibrary = (function () {
           movies[key] = {
             type: "movie", titleKey: key, name: p.name, year: p.year, description: p.description, kids: p.kids, tagged: tagged,
             video: it, quality: quality(it), date: it.date, imageKey: it.key, versions: movies[key] ? movies[key].versions : [],
-            categories: movies[key] ? movies[key].categories : [],
-            tmdb: movies[key] ? movies[key].tmdb : null,
-            langs: movies[key] ? movies[key].langs : null
+            categories: movies[key] ? movies[key].categories : []
           };
         }
-        if (p.tmdb && !movies[key].tmdb) { movies[key].tmdb = p.tmdb; }
-        if (p.langs && !movies[key].langs) { movies[key].langs = p.langs; }
         /* las categorías de todas las versiones se suman */
         mergeCategories(movies[key].categories, p.categories);
         addVersion(movies[key], it);
@@ -602,7 +350,7 @@ var HFLibrary = (function () {
       key = "s:" + norm(p.name);
       s = series[key];
       if (!s) {
-        s = series[key] = { type: "series", titleKey: key, name: p.name, year: p.year, description: "", seasons: {}, loose: [], date: 0, imageKey: "", kids: false, categories: [], tmdb: null };
+        s = series[key] = { type: "series", titleKey: key, name: p.name, year: p.year, description: "", seasons: {}, loose: [], date: 0, imageKey: "", kids: false, categories: [] };
       }
       mergeCategories(s.categories, p.categories);
       if (p.kids) {
@@ -610,7 +358,7 @@ var HFLibrary = (function () {
       }
       ep = {
         type: "episode", key: it.key, seriesKey: key, seriesName: p.name, season: p.season, episode: p.episode,
-        title: p.episodeTitle, description: p.description, video: it, quality: quality(it), date: it.date, tagged: tagged, kids: p.kids, versions: [], langs: p.langs
+        title: p.episodeTitle, description: p.description, video: it, quality: quality(it), date: it.date, tagged: tagged, kids: p.kids, versions: []
       };
       if (!p.season || !p.episode) {
         addVersion(ep, it);
@@ -622,10 +370,7 @@ var HFLibrary = (function () {
           /* otra calidad (u otra subida) del mismo capítulo */
           if (it.date >= s.seasons[seasonKey][p.episode].date) {
             ep.versions = s.seasons[seasonKey][p.episode].versions;
-            ep.langs = ep.langs || s.seasons[seasonKey][p.episode].langs;
             s.seasons[seasonKey][p.episode] = ep;
-          } else if (p.langs && !s.seasons[seasonKey][p.episode].langs) {
-            s.seasons[seasonKey][p.episode].langs = p.langs;
           }
           addVersion(s.seasons[seasonKey][p.episode], it);
         } else {
@@ -637,8 +382,6 @@ var HFLibrary = (function () {
         s.date = it.date;
       }
     });
-
-    Object.keys(cutThumbs).forEach(function (k) { if (!thumbs[k]) { thumbs[k] = cutThumbsOf(cutThumbs[k]); } });
 
     /* Series: ordenar temporadas y capítulos; los capítulos sin (T/E) van al final de la temporada 1 por fecha. */
     list = Object.keys(series).map(function (k) {
@@ -667,8 +410,6 @@ var HFLibrary = (function () {
         season.episodes.forEach(function (ep) {
           finishVersions(ep);
           ep.key = ep.video.key;
-          ep.thumbs = thumbsOf(thumbs[k + ":" + ep.season + ":" + ep.episode]);
-          ep.subFiles = subsFor(k + ":" + ep.season + ":" + ep.episode);
           ep.versions.forEach(function (v) { v.parts.forEach(function (x) { byKey[x.key] = ep; }); });
           if (!ep.title) {
             ep.title = "Capítulo " + ep.episode;
@@ -690,11 +431,7 @@ var HFLibrary = (function () {
      * Si hay varias del mismo tipo, gana la más nueva. */
     function addInfo(key, p, it) {
       var info = infos[key] || (infos[key] = {});
-      if (p.image === "galeria") {
-        (info.gallery = info.gallery || []).push({ key: it.key, date: it.date, n: p.galleryN || 0 });
-        return;
-      }
-      var slotName = p.image === "portada" ? "poster" : p.image === "banner" ? "banner" : p.image === "vertical" ? "vertical" : p.image === "capitulo" ? "epall" : "photo";
+      var slotName = p.image === "portada" ? "poster" : p.image === "banner" ? "banner" : "photo";
       if (!info[slotName] || it.date >= info[slotName].date) {
         info[slotName] = { key: it.key, date: it.date };
       }
@@ -722,15 +459,6 @@ var HFLibrary = (function () {
         if (banner) {
           t.bannerKey = banner.key;
         }
-        if (info.vertical) {
-          t.verticalKey = info.vertical.key;
-        }
-        if (info.gallery && info.gallery.length) {
-          /* por número (#galeria1, #galeria2…) y, a igualdad, por fecha; sin repetir */
-          var seenG = {};
-          t.galleryKeys = info.gallery.slice().sort(function (a, b) { return (a.n || 9999) - (b.n || 9999) || a.date - b.date; })
-            .filter(function (g) { if (seenG[g.key]) { return false; } seenG[g.key] = 1; return true; }).map(function (g) { return g.key; });
-        }
         if (info.kids) {
           t.kids = true;
         }
@@ -738,20 +466,6 @@ var HFLibrary = (function () {
         if (info.description) {
           t.description = info.description;
         }
-      }
-      if (t.type === "series") {
-        t.seasons.forEach(function (season) {
-          season.episodes.forEach(function (ep) {
-            var own = epCovers[t.titleKey + "|" + ep.season + "|" + ep.episode];
-            ep.coverKey = own ? own.key : info && info.epall ? info.epall.key : "";
-            var eg = epGalleries[t.titleKey + "|" + ep.season + "|" + ep.episode];
-            if (eg && eg.length) {
-              var seenE = {};
-              ep.galleryKeys = eg.slice().sort(function (a, b) { return (a.n || 9999) - (b.n || 9999) || a.date - b.date; })
-                .filter(function (g) { if (seenE[g.key]) { return false; } seenE[g.key] = 1; return true; }).map(function (g) { return g.key; });
-            }
-          });
-        });
       }
       if (t.type === "series" && !t.description) {
         t.description = t.seasons.length && t.seasons[0].episodes.length ? "" : "";
@@ -761,8 +475,6 @@ var HFLibrary = (function () {
     var movieList = Object.keys(movies).map(function (k) { return movies[k]; });
     movieList.forEach(function (m) {
       finishVersions(m);
-      m.thumbs = thumbsOf(thumbs[m.titleKey]);
-      m.subFiles = subsFor(m.titleKey).concat(m.year ? subsFor("m:" + norm(m.name)) : []);
       m.imageKey = m.video.key;
       applyInfo(m);
       m.versions.forEach(function (v) { v.parts.forEach(function (x) { byKey[x.key] = m; }); });
@@ -910,39 +622,19 @@ var HFLibrary = (function () {
     return list.reduce(function (n, acc) { return n + profilesOf(acc.id).length; }, 0);
   }
 
-  /* Perfiles con los que arranca una cuenta que nunca usó HomeFlix: uno con el nombre de esa cuenta de Telegram y
-   * «Kids». Antes todas las cuentas arrancaban con los mismos cuatro (Familia, Santiago, Kids, Invitado) y una cuenta
-   * nueva parecía tener los perfiles de otra. «factory» = sin tocar: al sincronizar, los perfiles reales de la cuenta
-   * (de otro dispositivo) les ganan (profileAt = 0). */
-  function starterProfiles() {
-    var acc = accounts().filter(function (a) { return String(a.id) === accountId; })[0];
-    var first = clean((acc && acc.name) || "").split(" ")[0] || "Principal";
-    var own = (typeof HF_AVATARES !== "undefined" && HF_AVATARES && HF_AVATARES.length ? HF_AVATARES : [])
-      .map(function (src) { return String(src).replace(/^.*\//, "").replace(/\.[a-z0-9]+$/i, ""); });
-    var h = 0;
-    var i;
-    for (i = 0; i < accountId.length; i += 1) { h = (h * 31 + accountId.charCodeAt(i)) | 0; }
-    var mine = own.length ? own[Math.abs(h) % own.length] : "zorro";
-    var kids = own.filter(function (id) { return /groot/i.test(id); })[0] || (own.length ? own[(Math.abs(h) + 7) % own.length] : "dino");
-    return [
-      { id: "p1", name: first.slice(0, 20), color: "amarillo", avatar: mine, kids: false, factory: true },
-      { id: "p2", name: "Kids", color: "verde", avatar: kids, kids: true, factory: true }
-    ];
-  }
-
   function profiles() {
     var list = load("profiles", null);
     if ((!list || !list.length) && !isMainAccount()) {
       /* una cuenta agregada empieza sin perfiles: el primero es el que se crea al conectarla */
       return [];
     }
-    /* Cuentas que ya arrancaron con los 4 de fábrica de antes (Familia, Santiago, Kids, Invitado) sin tocar ninguno:
-     * pasan a los perfiles iniciales de la cuenta. Si se editó alguno, se dejan como están. */
-    if (list && list.length === 4 && list.every(function (p) { return !p.at && !p.factory && FACTORY[p.id] && profileAt(p) === 0; })) {
-      list = null;
-    }
     if (!list || !list.length) {
-      list = starterProfiles();
+      list = [
+        { id: "p1", name: "Familia", color: "amarillo", avatar: "panda", kids: false },
+        { id: "p2", name: "Santiago", color: "azul", avatar: "zorro", kids: false },
+        { id: "p3", name: "Kids", color: "verde", avatar: "dino", kids: true },
+        { id: "p4", name: "Invitado", color: "cafe", avatar: "buho", kids: false }
+      ];
       save("profiles", list);
     }
     /* perfiles creados antes de los avatares */
@@ -952,32 +644,6 @@ var HFLibrary = (function () {
       }
     });
     return list;
-  }
-
-  /* Perfil «Anime»: cada cuenta lo tiene, con el canal fijo «Anime» (js/anime.js) activo. Se crea una vez, si hay lugar
-   * (hasta MAX_PROFILES por cuenta y MAX_TOTAL_PROFILES en total) y si el usuario no lo borró antes (profilesDel).
-   * Devuelve true si lo creó. Las demás cuentas y dispositivos lo reciben con la sincronización (mismo id). */
-  var ANIME_PROFILE = "anime";
-  function ensureAnimeProfile() {
-    var list;
-    var del;
-    if (!isMainAccount() && !load("profiles", null)) {
-      return false; // cuenta agregada que aún no tiene perfiles: el primero lo crea quien la conectó
-    }
-    list = profiles();
-    del = load("profilesDel", {});
-    if (!list.length || list.some(function (p) { return p.id === ANIME_PROFILE || norm(p.name) === "anime"; }) || del[ANIME_PROFILE]) {
-      return false;
-    }
-    if (list.length >= MAX_PROFILES || totalProfiles() >= MAX_TOTAL_PROFILES) {
-      return false;
-    }
-    list.push({ id: ANIME_PROFILE, name: "Anime", color: "morado", avatar: "gato", kids: false, at: Date.now() });
-    save("profiles", list);
-    save("profilesAt", Date.now());
-    setEnabledSources({ anime: "Anime" }, ANIME_PROFILE);
-    changed("profiles");
-    return true;
   }
 
   function saveProfile(p) {
@@ -1093,73 +759,6 @@ var HFLibrary = (function () {
   }
 
   /* Arma el comentario a partir de los campos del editor de la TV (el mismo formato que en Telegram). */
-  function tmdbTag(t) {
-    return t && t.id ? " #tmdb" + (t.type === "tv" ? "tv" : "") + t.id : "";
-  }
-
-  /* ===== Nombre de las pistas de audio y subtítulos (reproductor de la TV y del celular, y el preparador) =====
-   * list: [{lang, name, channels, isForced}] → ["Español", "Inglés"…] */
-  function langName(code) {
-    var c = String(code || "").toLowerCase();
-    var map = { spa: "Español", es: "Español", eng: "Inglés", en: "Inglés", por: "Portugués", pt: "Portugués", fre: "Francés", fra: "Francés", fr: "Francés",
-      ita: "Italiano", it: "Italiano", ger: "Alemán", deu: "Alemán", de: "Alemán", jpn: "Japonés", ja: "Japonés", kor: "Coreano", ko: "Coreano",
-      chi: "Chino", zho: "Chino", zh: "Chino", rus: "Ruso", ru: "Ruso", lat: "Español latino", und: "" };
-    return map.hasOwnProperty(c) ? map[c] : (c ? c.toUpperCase() : "");
-  }
-
-  /* El título de la pista suele ser el nombre del archivo con que se armó el video («Avengers…_fixed850.aac»):
-   * no se muestra. Se muestra el idioma; del título solo se toma si es latino o de España, o el idioma cuando la
-   * pista no lo trae. */
-  function langFromName(name) {
-    /* gana el último que nombra: «…dual-lat…_track2_eng.aac» es la pista en inglés */
-    /* «dual-lat» es del archivo entero (audio dual, doblaje latino), no de esta pista */
-    var n = String(name || "").toLowerCase().replace(/\.[a-z0-9]{2,4}$/, "").replace(/dual[\s._-]*(latino|lat|spa|esp|castellano|eng|english)/g, "dual");
-    var es = n.search(/(espa[ñn]ol|spanish|latino|castellano|(^|[^a-z])(spa|esp|lat)([^a-z]|$))(?!.*(espa[ñn]ol|spanish|latino|castellano|(^|[^a-z])(spa|esp|lat)([^a-z]|$)))/);
-    var en = n.search(/(english|ingl[eé]s|(^|[^a-z])eng([^a-z]|$))(?!.*(english|ingl[eé]s|(^|[^a-z])eng([^a-z]|$)))/);
-    return es < 0 && en < 0 ? "" : es > en ? "spa" : "eng";
-  }
-
-  function trackLabel(t, i, kind) {
-    var lang = t.lang && !/^und$/i.test(t.lang) ? t.lang : langFromName(t.name);
-    var label = langName(lang);
-    var n = String(t.name || "").toLowerCase();
-    if (label === "Español" && /latin|mexic|(^|[^a-z])lat([^a-z]|$)/.test(n)) { label = "Español latino"; }
-    else if (label === "Español" && /castellan|espa[ñn]a([^a-z]|$)|(^|[^a-z])cast([^a-z]|$)/.test(n)) { label = "Español de España"; }
-    if (!label) { label = (kind === "audio" ? "Audio " : "Subtítulos ") + (i + 1); }
-    if (kind === "subs" && t.isForced) { label += " (forzados)"; }
-    return label;
-  }
-
-  /* Etiquetas de una lista: si dos pistas quedan iguales, se distinguen por canales o por número */
-  function trackLabels(list, kind) {
-    var labels = list.map(function (t, i) { return trackLabel(t, i, kind); });
-    var count = {};
-    labels.forEach(function (l) { count[l] = (count[l] || 0) + 1; });
-    return labels.map(function (l, i) {
-      var t = list[i];
-      var ch;
-      if (count[l] < 2) { return l; }
-      ch = kind === "audio" && t.channels ? (t.channels >= 6 ? "5.1" : t.channels === 2 ? "Estéreo" : t.channels + " canales") : "";
-      return l + " · " + (ch || (list.slice(0, i + 1).filter(function (x, j) { return labels[j] === l; }).length));
-    });
-  }
-
-  /* «Avengers.Age.of.Ultron.eng.srt» → "eng"; «… (Español).srt» → "spa" */
-  function subFileLang(name) {
-    var n = String(name || "").toLowerCase().replace(/\.(srt|vtt|ass|ssa)$/, "").replace(/\.(forzados|forced|\d)$/, "");
-    var m = /[._ -]([a-z]{2,3})$/.exec(n);
-    var iso = { es: "spa", esp: "spa", spa: "spa", lat: "spa", en: "eng", eng: "eng", pt: "por", por: "por", fr: "fre", fre: "fre", fra: "fre", it: "ita", ita: "ita", de: "ger", ger: "ger", deu: "ger", ja: "jpn", jpn: "jpn" };
-    if (m && iso[m[1]]) { return iso[m[1]]; }
-    return langFromName(n);
-  }
-
-  /* {audio:["spa","eng"], subs:["spa"]} → " #audio-spa-eng #subs-spa" */
-  function langsTag(l) {
-    return ["audio", "subs"].map(function (k) {
-      return l && l[k] && l[k].length ? " #" + k + "-" + l[k].join("-") : "";
-    }).join("");
-  }
-
   function composeCaption(f) {
     var name = clean(f.name).replace(/#/g, "");
     var desc = String(f.description || "").replace(/#/g, "").trim();
@@ -1174,103 +773,7 @@ var HFLibrary = (function () {
       /* con título del capítulo hacen falta los dos campos (título#descripción), aunque la descripción esté vacía */
       out = "serie(" + (f.season || 1) + "/" + (f.episode || 1) + ")#" + name + (title ? "#" + title + "#" + desc : (desc ? "#" + desc : ""));
     }
-    return out + (f.categories || []).map(function (c) { return " #" + String(c).replace(/\s+/g, "_"); }).join("") + (f.kids ? " #infantil" : "") + tmdbTag(f.tmdb) + langsTag(f.langs);
-  }
-
-  /* ===== Fila «Marvel» en orden cronológico =====
-   * Las filas de la categoría Marvel (#Marvel o #MCU en el comentario) no van por fecha de publicación sino en el orden
-   * de la historia del Universo Cinematográfico de Marvel (el «Orden cronológico» de Disney+). Así, lo que se suba
-   * después cae en su lugar: si hoy se sube Iron Man y mañana Capitana Marvel, Capitana Marvel queda antes.
-   * Cada título se reconoce por su nombre en español latino, de España o en inglés, y por el año (±1) para no
-   * confundir. Lo que no está en la lista (otro universo, algo nuevo) va al final, por año de estreno.
-   * Para agregar uno nuevo: ponerlo en su lugar de la historia con [año, nombres…]. */
-  var MCU_TIMELINE = [
-    [2011, "Capitán América: El primer vengador", "Captain America: The First Avenger"],
-    [2019, "Capitana Marvel", "Captain Marvel"],
-    [2008, "Iron Man", "Iron Man 1", "Iron Man: El hombre de hierro"],
-    [2010, "Iron Man 2"],
-    [2008, "El increíble Hulk", "The Incredible Hulk", "Increíble Hulk"],
-    [2011, "Thor"],
-    [2012, "Los Vengadores", "Vengadores", "The Avengers", "Avengers", "Marvel's The Avengers", "Los Vengadores 1", "Avengers 1"],
-    [2013, "Thor: Un mundo oscuro", "Thor: El mundo oscuro", "Thor: The Dark World", "Thor 2"],
-    [2013, "Iron Man 3"],
-    [2014, "Capitán América: El soldado del invierno", "Capitán América y el soldado del invierno", "Captain America: The Winter Soldier", "Capitán América 2"],
-    [2014, "Guardianes de la Galaxia", "Guardians of the Galaxy"],
-    [2017, "Guardianes de la Galaxia Vol. 2", "Guardianes de la Galaxia 2", "Guardians of the Galaxy Vol. 2"],
-    [2015, "Avengers: Era de Ultrón", "Vengadores: La era de Ultrón", "Avengers: Age of Ultron"],
-    [2015, "Ant-Man: El hombre hormiga", "Ant-Man", "Ant Man"],
-    [2016, "Capitán América: Civil War", "Capitán América: Guerra civil", "Captain America: Civil War", "Capitán América 3"],
-    [2021, "Viuda Negra", "Black Widow"],
-    [2018, "Pantera Negra", "Black Panther"],
-    [2017, "Spider-Man: De regreso a casa", "Spider-Man: Homecoming"],
-    [2016, "Doctor Strange: Hechicero supremo", "Doctor Strange", "Doctor Extraño"],
-    [2017, "Thor: Ragnarok", "Thor 3"],
-    [2018, "Ant-Man y la Avispa", "Ant-Man and the Wasp"],
-    [2018, "Avengers: Infinity War", "Vengadores: Infinity War", "Avengers: Guerra del Infinito"],
-    [2019, "Avengers: Endgame", "Vengadores: Endgame", "Avengers: Fin del juego"],
-    [2021, "Loki"],
-    [2021, "¿Qué pasaría si...?", "What If...?", "Que pasaria si"],
-    [2021, "WandaVision"],
-    [2021, "Falcon y el Soldado del Invierno", "The Falcon and the Winter Soldier", "Falcon y el Soldado de Invierno"],
-    [2021, "Shang-Chi y la leyenda de los Diez Anillos", "Shang-Chi and the Legend of the Ten Rings", "Shang-Chi"],
-    [2021, "Eternos", "Eternals"],
-    [2019, "Spider-Man: Lejos de casa", "Spider-Man: Far From Home"],
-    [2021, "Spider-Man: Sin camino a casa", "Spider-Man: No Way Home", "Spider-Man: No hay camino a casa"],
-    [2022, "Doctor Strange en el multiverso de la locura", "Doctor Strange in the Multiverse of Madness", "Doctor Strange 2"],
-    [2021, "Ojo de Halcón", "Hawkeye"],
-    [2022, "Moon Knight", "Caballero Luna"],
-    [2022, "Pantera Negra: Wakanda por siempre", "Black Panther: Wakanda Forever", "Pantera Negra 2"],
-    [2024, "Echo"],
-    [2022, "She-Hulk: Abogada Hulka", "She-Hulk: Attorney at Law", "She-Hulk"],
-    [2022, "Ms. Marvel"],
-    [2022, "Thor: Amor y trueno", "Thor: Love and Thunder", "Thor 4"],
-    [2022, "La maldición del hombre lobo", "Werewolf by Night", "Hombre lobo por la noche"],
-    [2022, "Guardianes de la Galaxia: Especial felices fiestas", "The Guardians of the Galaxy Holiday Special"],
-    [2023, "Ant-Man y la Avispa: Quantumanía", "Ant-Man and the Wasp: Quantumania"],
-    [2023, "Guardianes de la Galaxia Vol. 3", "Guardianes de la Galaxia 3", "Guardians of the Galaxy Vol. 3"],
-    [2023, "Invasión secreta", "Secret Invasion"],
-    [2023, "Las Marvels", "The Marvels"],
-    [2024, "Deadpool & Wolverine", "Deadpool y Wolverine", "Deadpool 3"],
-    [2024, "Agatha: ¿Quién si no?", "Agatha All Along", "Agatha"],
-    [2025, "Daredevil: Born Again", "Daredevil: Renace"],
-    [2025, "Capitán América: Un nuevo mundo", "Captain America: Brave New World", "Capitán América 4"],
-    [2025, "Thunderbolts*", "Thunderbolts"],
-    [2025, "Ironheart"],
-    [2025, "Los 4 Fantásticos: Primeros pasos", "Los Cuatro Fantásticos: Primeros pasos", "The Fantastic Four: First Steps"],
-    [2026, "Spider-Man: Un nuevo día", "Spider-Man: Brand New Day"],
-    [2026, "Avengers: Doomsday", "Vengadores: Doomsday"]
-  ];
-  var mcuIndex = null;
-  function mcuKey(s) {
-    return norm(String(s || "").replace(/&/g, " y ").replace(/\bvol\.?\s*/gi, "vol "));
-  }
-  function chronoIndex(t) {
-    var e;
-    if (!mcuIndex) {
-      mcuIndex = {};
-      MCU_TIMELINE.forEach(function (row, i) {
-        row.slice(1).forEach(function (name) { (mcuIndex[mcuKey(name)] = mcuIndex[mcuKey(name)] || []).push({ i: i, y: row[0] }); });
-      });
-    }
-    e = (mcuIndex[mcuKey(t && t.name)] || []).filter(function (x) { return !t.year || Math.abs(Number(t.year) - x.y) <= 1; })[0];
-    return e ? e.i : -1;
-  }
-  function isChronoCategory(name) {
-    return /^(marvel|mcu|universo marvel|universo cinematografico de marvel|marvel studios)$/.test(norm(name));
-  }
-  /* Los títulos de una categoría en el orden en que se muestran: Marvel por la historia; las demás, tal cual. */
-  function sortForCategory(name, titles) {
-    if (!isChronoCategory(name)) {
-      return titles;
-    }
-    return titles.slice().sort(function (a, b) {
-      var ia = chronoIndex(a);
-      var ib = chronoIndex(b);
-      if (ia >= 0 && ib >= 0) { return ia - ib; }
-      if (ia >= 0) { return -1; }
-      if (ib >= 0) { return 1; }
-      return (Number(a.year) || 9999) - (Number(b.year) || 9999) || String(a.name).localeCompare(String(b.name));
-    });
+    return out + (f.categories || []).map(function (c) { return " #" + String(c).replace(/\s+/g, "_"); }).join("") + (f.kids ? " #infantil" : "");
   }
 
   /* Lo que ve el perfil Kids: solo películas y series marcadas #infantil; nada sin clasificar. */
@@ -1434,84 +937,10 @@ var HFLibrary = (function () {
     });
     Object.keys(t).forEach(function (k) { doc.tags[k] = { at: tAt[k] || 0, c: t[k] }; });
     Object.keys(tAt).forEach(function (k) { if (!doc.tags[k]) { doc.tags[k] = { at: tAt[k], c: null }; } });
-    doc.iptv = load("iptv", null);
-    list.forEach(function (p) { withProfile(p.id, function () { doc.p[p.id].iptvfav = iptvFavLog(); }); });
     return doc;
   }
 
   function isNewer(a, b) { return !!a && (!b || (a.at || 0) > (b.at || 0)); }
-
-  /* ----- TV en vivo (IPTV, js/iptv.js) -----
-   * La lista M3U es de la cuenta (la misma en la TV y el celular): {url, name, at}. Favoritos y último canal, de cada
-   * perfil. Todo viaja con la sincronización (exportSync / mergeSync). */
-  function iptv() { var c = load("iptv", null); return c && c.url ? c : null; }
-  function setIptv(url, name) {
-    var clean = String(url || "").trim();
-    save("iptv", clean ? { url: clean, name: String(name || "").trim(), at: Date.now() } : { url: "", name: "", at: Date.now() });
-    changed("iptv");
-  }
-  function iptvFavLog() { return load("iptvfav", {}, true); }
-  function iptvFavs() {
-    var log = iptvFavLog();
-    var out = {};
-    Object.keys(log).forEach(function (k) { if (log[k] && log[k].on) { out[k] = true; } });
-    return out;
-  }
-  function toggleIptvFav(key) {
-    var log = iptvFavLog();
-    var on = !(log[key] && log[key].on);
-    log[key] = { on: on, at: Date.now() };
-    save("iptvfav", log, true);
-    changed("iptv");
-    return on;
-  }
-  function iptvLast() { return load("iptvlast", "", true); }
-  function setIptvLast(key) { save("iptvlast", key || "", true); }
-
-  /* Videos copiados de un grupo a otro (js/telegram.js dedupeCopies): {claveVieja: claveNueva}. En cada perfil de la
-   * cuenta, el progreso y Mi lista (los videos sin clasificar se guardan como «v:<clave>») pasan a la clave nueva sin pisar
-   * algo más reciente; las etiquetas puestas desde la TV se copian a la nueva. Devuelve true si cambió algo. */
-  function aliasKeys(map) {
-    var olds = Object.keys(map || {});
-    var any = { progress: false, mylist: false, tags: false };
-    var t;
-    var tAt;
-    if (!olds.length) {
-      return false;
-    }
-    profiles().forEach(function (p) {
-      withProfile(p.id, function () {
-        var pr = load("progress", {}, true);
-        var log = mylistLog();
-        var pc = false;
-        var lc = false;
-        olds.forEach(function (o) {
-          var n = map[o];
-          if (pr[o]) {
-            if (isNewer(pr[o], pr[n])) { pr[n] = pr[o]; }
-            delete pr[o];
-            pc = true;
-          }
-          if (log["v:" + o]) {
-            if (isNewer(log["v:" + o], log["v:" + n])) { log["v:" + n] = log["v:" + o]; }
-            delete log["v:" + o];
-            lc = true;
-          }
-        });
-        if (pc) { save("progress", pr, true); any.progress = true; }
-        if (lc) { save("mylistlog", log, true); save("mylist", listFromLog(log), true); any.mylist = true; }
-      });
-    });
-    t = tags();
-    tAt = load("tagsAt", {});
-    olds.forEach(function (o) {
-      var n = map[o];
-      if (t[o] !== undefined && t[n] === undefined) { t[n] = t[o]; tAt[n] = Date.now(); any.tags = true; }
-    });
-    if (any.tags) { save("tags", t); save("tagsAt", tAt); }
-    Object.keys(any).forEach(function (k) { if (any[k]) { changed(k); } });
-    return any.progress || any.mylist || any.tags;
-  }
 
   /* Fecha de un perfil para combinar. Los que se crearon o editaron antes de sincronizar no tienen fecha:
    * uno personalizado (otro nombre, avatar propio, PIN, infantil cambiado) vale 1 y le gana al de fábrica (0). */
@@ -1520,9 +949,6 @@ var HFLibrary = (function () {
     var f = FACTORY[p.id];
     if (p.at) {
       return p.at;
-    }
-    if (p.factory) {
-      return 0; // perfil inicial sin tocar (starterProfiles)
     }
     return f && f[0] === p.name && f[1] === p.avatar && f[2] === !!p.kids && !p.pin ? 0 : 1;
   }
@@ -1677,11 +1103,6 @@ var HFLibrary = (function () {
         save("tagsAt", tAt);
         any = true;
       }
-      /* TV en vivo: la lista de la cuenta */
-      if (doc.iptv && (doc.iptv.at || 0) > ((load("iptv", null) || {}).at || 0)) {
-        save("iptv", doc.iptv);
-        any = true;
-      }
       /* progreso y Mi lista de cada perfil */
       Object.keys(doc.p || {}).forEach(function (pid) {
         var r = doc.p[pid] || {};
@@ -1714,12 +1135,6 @@ var HFLibrary = (function () {
             save("mylist", listFromLog(log), true);
             any = true;
           }
-          if (r.iptvfav) {
-            var fav = iptvFavLog();
-            var fc = false;
-            Object.keys(r.iptvfav).forEach(function (k) { if (isNewer(r.iptvfav[k], fav[k])) { fav[k] = r.iptvfav[k]; fc = true; } });
-            if (fc) { save("iptvfav", fav, true); any = true; }
-          }
         });
       });
     } finally {
@@ -1751,20 +1166,6 @@ var HFLibrary = (function () {
       return { episode: eps[best + 1] || eps[best], resume: 0, started: true, finished: !eps[best + 1] };
     }
     return { episode: eps[best], resume: p.t, started: true };
-  }
-
-  /* Las claves de Telegram de un video: él mismo y cada pieza de cada versión (para HFTelegram.warm). En una serie, el capítulo que toca. */
-  function videoKeys(entry) {
-    var keys = [];
-    var seen = {};
-    function add(e) {
-      if (!e || e.anime) { return; }
-      if (e.video && e.video.key) { keys.push(String(e.video.key)); }
-      (e.versions || []).forEach(function (v) { (v.parts || [v]).forEach(function (p) { if (p && p.key) { keys.push(String(p.key)); } }); });
-    }
-    if (!entry) { return keys; }
-    if (entry.type === "series") { add(nextEpisode(entry).episode); } else { add(entry); }
-    return keys.filter(function (k) { if (seen[k]) { return false; } seen[k] = true; return true; });
   }
 
   function episodeAfter(series, ep) {
@@ -1840,21 +1241,7 @@ var HFLibrary = (function () {
     setTag: setTag,
     composeCaption: composeCaption,
     filterKids: filterKids,
-    isChronoCategory: isChronoCategory,
-    sortForCategory: sortForCategory,
-    CATEGORIES: CATEGORY_NAMES,
-    categoryFromTmdb: categoryFromTmdb,
-    kidsFromTmdb: kidsFromTmdb,
-    tmdbTag: tmdbTag,
-    langsTag: langsTag,
-    langName: langName,
-    subFileLang: subFileLang,
-    trackLabels: trackLabels,
-    canonicalCategory: canonicalCategory,
-    primaryCategory: primaryCategory,
-    chronoIndex: chronoIndex,
     enabledSources: enabledSources,
-    ensureAnimeProfile: ensureAnimeProfile,
     setEnabledSources: setEnabledSources,
     allEnabledSources: allEnabledSources,
     cachedItems: cachedItems,
@@ -1868,16 +1255,8 @@ var HFLibrary = (function () {
     onChange: onChange,
     exportSync: exportSync,
     mergeSync: mergeSync,
-    iptv: iptv,
-    setIptv: setIptv,
-    iptvFavs: iptvFavs,
-    toggleIptvFav: toggleIptvFav,
-    iptvLast: iptvLast,
-    setIptvLast: setIptvLast,
-    aliasKeys: aliasKeys,
     nextEpisode: nextEpisode,
     episodeAfter: episodeAfter,
-    videoKeys: videoKeys,
     formatDuration: formatDuration,
     formatClock: formatClock,
     formatSize: formatSize

@@ -1,6 +1,88 @@
-/* HomeFlix · arranque, OK/BACK por pantalla y el único manejador de teclado. */
+/* HomeFlix · arranque, actualizaciones, OK/BACK por pantalla y el único manejador de teclado. */
 
-/* Las actualizaciones de la app (botón ↻, modal) están en js/ui/updatemodal.js. */
+/* ===================== Actualizaciones =====================
+ * Pregunta a GitHub por el último release (como mucho cada 6 horas) y avisa si hay una versión más nueva.
+ * La instala Apps2Samsung (el repo es la fuente que tiene configurada). */
+
+var UPDATE_EVERY = 6 * 3600 * 1000;
+
+function appVersion() {
+  return typeof HF_VERSION !== "undefined" && HF_VERSION ? HF_VERSION : "";
+}
+
+function versionNewer(a, b) {
+  var x = String(a).split(".").map(Number);
+  var y = String(b).split(".").map(Number);
+  var i;
+  for (i = 0; i < 3; i += 1) {
+    if ((x[i] || 0) !== (y[i] || 0)) {
+      return (x[i] || 0) > (y[i] || 0);
+    }
+  }
+  return false;
+}
+
+function updateInfo() {
+  var info;
+  try {
+    info = JSON.parse(window.localStorage.getItem("hf.update") || "null");
+  } catch (e) {
+    info = null;
+  }
+  return info && appVersion() && versionNewer(info.version, appVersion()) ? info : null;
+}
+
+function checkUpdates(force) {
+  var last = Number(window.localStorage.getItem("hf.update.checkedAt") || 0);
+  var repo = typeof HF_UPDATE_REPO !== "undefined" ? HF_UPDATE_REPO : "";
+  if (!appVersion() || !repo || typeof fetch === "undefined" || (!force && Date.now() - last < UPDATE_EVERY)) {
+    return;
+  }
+  window.localStorage.setItem("hf.update.checkedAt", String(Date.now()));
+  fetch("https://api.github.com/repos/" + repo + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      if (!j || !j.tag_name) {
+        return;
+      }
+      window.localStorage.setItem("hf.update", JSON.stringify({
+        version: String(j.tag_name).replace(/^v/i, ""),
+        notes: String(j.body || "").replace(/[#*_`>]/g, "").replace(/\r/g, "").trim().slice(0, 600),
+        date: j.published_at || ""
+      }));
+      if (currentRoute === "profiles") {
+        renderUpdateBanner();
+      }
+      setSyncBadge();
+    }, function () {
+      /* sin internet o GitHub no responde: se intenta en la próxima apertura */
+    });
+}
+
+function dismissUpdate() {
+  var info = updateInfo();
+  if (info) {
+    window.localStorage.setItem("hf.update.dismissed", info.version);
+  }
+}
+
+function renderUpdateBanner() {
+  var el = byId("updateBanner");
+  var info = updateInfo();
+  var notes;
+  if (!el) {
+    return;
+  }
+  if (!info || window.localStorage.getItem("hf.update.dismissed") === info.version) {
+    el.innerHTML = "";
+    return;
+  }
+  notes = info.notes.split("\n").filter(function (l) { return l.trim(); }).slice(0, 2).join(" · ");
+  el.innerHTML = '<div class="hf2-update"><div class="txt"><b>Hay una versión nueva: v' + esc(info.version) + "</b> (tienes v" + esc(appVersion()) + ")" +
+    (notes ? "<small>" + esc(notes) + "</small>" : "") +
+    "<small>Para instalarla: en el teléfono abre Apps2Samsung → Apps instaladas → HomeFlix → Actualizar.</small></div>" +
+    '<span class="hf2-btn ghost small" data-focusable="true" data-action="hide-update" data-title="Ocultar aviso" data-description="Ocultar hasta la próxima versión" tabindex="0">Ocultar</span></div>';
+}
 
 /* ===================== OK, ◀ ▶ en opciones y BACK por pantalla ===================== */
 
@@ -14,24 +96,11 @@ function onAdjust(el, dir) {
 }
 
 function onLeaveRoute(from, to) {
-  if (from === "browse" && to !== "browse") {
-    dropUpdateModal();
-    heroPvCancel();
-  }
-  if (from === "detail" && to !== "detail" && typeof heroPvCancel === "function") {
-    heroPvCancel(); // la vista previa de la ficha (js/ui/detail.js)
-  }
   if (from === "login" && to !== "login") {
     cancelLogin();
   }
   if (from === "player" && to !== "player") {
     closePlayer();
-  }
-  if (from === "live" && to !== "live" && to !== "live-player") {
-    stopLivePreview();
-  }
-  if (from === "live-player" && to !== "live-player" && to !== "live") {
-    HFLive.stop();
   }
 }
 
@@ -40,9 +109,6 @@ function selectCurrentItem() {
   if (!el) {
     return;
   }
-  if (NXM.open) { handleNextModalSelect(el); return; }
-  if (CONF.open) { handleConfirmSelect(el); return; }
-  if (UPM.open) { handleUpdateSelect(el); return; }
   if (currentRoute === "splash") { handleSplashSelect(el); }
   else if (currentRoute === "login") { handleLoginSelect(el); }
   else if (currentRoute === "profiles") { handleProfileSelect(el); }
@@ -56,21 +122,15 @@ function selectCurrentItem() {
   else if (currentRoute === "tag-edit") { handleTagEditSelect(el); }
   else if (currentRoute === "search") { handleSearchSelect(el); }
   else if (currentRoute === "player") { handlePlayerAction(el); }
-  else if (currentRoute === "live") { handleLiveSelect(el); }
-  else if (currentRoute === "live-player") { handleLivePlayerSelect(el); }
 }
 
 function goBackByRoute() {
-  if (NXM.open) { closeNextModal(); return; }
-  if (CONF.open) { closeConfirm(false); return; }
-  if (UPM.open) { closeUpdateModal(); return; }
   if (currentRoute === "detail") { closeDetail(); return; }
   if (currentRoute === "tag-edit") { cancelTagEdit(); return; }
   if (currentRoute === "profile-edit") { openProfiles("", true); return; }
   if (currentRoute === "pin") { cancelPin(); return; }
   if (currentRoute === "guide") { closeGuide(); return; }
   if (currentRoute === "search") { openBrowse(browse.section); return; }
-  if (currentRoute === "live") { goBackLive(); return; }
   if (currentRoute === "settings") {
     if (settings.helpOpen) {
       settings.helpOpen = false;
@@ -81,11 +141,9 @@ function goBackByRoute() {
     return;
   }
   if (currentRoute === "browse") {
-    /* Desde cualquier fila o el destacado, BACK sube al menú (sobre la sección actual) sin mover la página ni las
-     * filas: se anota dónde se estaba para que ▼ vuelva ahí. */
+    /* Desde cualquier fila o el destacado, BACK sube al menú (sobre la sección actual) y la página vuelve arriba. */
     if (currentArea() && currentArea().name !== "top") {
-      browse.resume = { name: currentArea().name, item: state.itemIndex };
-      focusAreaByName("top", Math.max(0, menuIndex(browse.section)));
+      focusAreaByName("top", Math.max(0, MENU.map(function (m) { return m.id; }).indexOf(browse.section)));
       return;
     }
     if (browse.section !== "home") {
@@ -149,14 +207,6 @@ function handleKeyDown(event) {
   if (currentRoute === "player" && handlePlayerKey(code)) {
     return;
   }
-  if (currentRoute === "live-player" && handleLivePlayerKey(code)) {
-    event.preventDefault();
-    return;
-  }
-  if (currentRoute === "live" && handleLiveKey(code)) {
-    event.preventDefault();
-    return;
-  }
   if (currentRoute === "tag-edit" && handleTagEditKey(code)) {
     return;
   }
@@ -208,38 +258,7 @@ function findFocusableFromTarget(target) {
 }
 
 function handlePointerSelect(event) {
-  var element;
-  /* el botón de atrás del reproductor (‹, arriba a la izquierda) no es parte del foco del control, pero con puntero (mouse, Magic Remote) se pulsa */
-  if (currentRoute === "player" && event.target && event.target.closest && event.target.closest(".hf2-pl-back")) { exitPlayer(player.error); return; }
-  /* ✕ de los paneles del reproductor (audio y subtítulos, capítulos): equivale a BACK */
-  if (currentRoute === "player" && player.panel && event.target && event.target.closest && event.target.closest(".hf2-pl-close")) { closePanel(); return; }
-  /* web PC: un clic fuera del panel abierto (audio y subtítulos, capítulos) lo cierra */
-  if (currentRoute === "player" && player.panel && document.documentElement.getAttribute("data-web") === "pc" && event.target && event.target.closest &&
-      !event.target.closest("#plTracks,#plEps")) { closePanel(); return; }
-  /* con puntero (mouse o Magic Remote): «Inicio», «Volver» y el logo de la ficha llevan donde dicen (en la TV el control usa BACK) */
-  if (event.target && event.target.closest && /^(detail|search|guide|browse|live)$/.test(currentRoute) && !(event.target.closest("[data-focusable]"))) {
-    if (event.target.closest(".hf2-home") || event.target.closest(".hf2-brand")) { openBrowse("home"); return; }
-    if (event.target.closest(".hf2-back")) { goBackByRoute(); return; }
-  }
-  /* búsqueda (web PC): ‹ vuelve a la sección de donde se vino y ✕ borra lo escrito */
-  if (currentRoute === "search" && event.target && event.target.closest) {
-    if (event.target.closest(".hf2-s-back")) { openBrowse(browse.section); return; }
-    if (event.target.closest(".hf2-s-clear")) {
-      byId("searchInput").value = "";
-      renderSearchResults("input", 0);
-      focusInput(byId("searchInput"));
-      return;
-    }
-  }
-  /* selector de destacados: ‹ retrocede, › avanza y cada punto va a su destacado (todo el selector es un solo elemento enfocable y antes cualquier clic avanzaba) */
-  if (currentRoute === "browse" && event.target && event.target.closest) {
-    var pick = event.target.closest("#billboard .hf2-bb-dots .arr, #billboard .hf2-bb-dots .pts i");
-    if (pick) {
-      heroPointerPick(pick);
-      return;
-    }
-  }
-  element = findFocusableFromTarget(event.target);
+  var element = findFocusableFromTarget(event.target);
   if (event.target && event.target.tagName === "INPUT") {
     if (element) {
       syncStateToElement(element);
@@ -261,13 +280,10 @@ function onSyncRemote() {
   }
   rebuildLibrary();
   if (currentRoute === "browse") {
-    browseRepaint(); // llegó progreso / Mi lista de otro dispositivo: solo se repinta si cambió lo que se ve y nadie está navegando
+    a = currentArea();
+    renderBrowse(a ? a.name : null, state.itemIndex);
   } else if (currentRoute === "profiles") {
     renderProfiles(false);
-  } else if (currentRoute === "live" && !LV.editing) {
-    /* llegó (o se quitó) la lista desde el celular: volver a abrir «TV en vivo» con la nueva */
-    var cfg = HFIptv.config();
-    if (!cfg || !LV.data || LV.data.url !== cfg.url) { LV.data = null; openLive(); }
   }
 }
 
@@ -275,7 +291,7 @@ function onSyncRemote() {
 function registerTvKeys() {
   try {
     if (window.tizen && tizen.tvinputdevice) {
-      ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaFastForward", "MediaRewind", "MediaStop", "ChannelUp", "ChannelDown", "Info", "ColorF1Green", "ColorF2Yellow", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].forEach(function (k) {
+      ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaFastForward", "MediaRewind", "MediaStop", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].forEach(function (k) {
         try { tizen.tvinputdevice.registerKey(k); } catch (e) { /* no disponible en este modelo */ }
       });
     }
@@ -293,16 +309,6 @@ function fitToWindow() {
   if (!appRootEl || !w || !h) {
     return;
   }
-  /* Versión web en un computador (?web=1, js/web-pc.js): en una ventana más ancha que 16:9 el lienzo se ENSANCHA en vez de dejar franjas
-   * negras a los lados. La altura manda (1080 de diseño), y el ancho de diseño pasa a ser --W (css/app.css y hf2.css lo usan, con 1920 por
-   * defecto, o sea: en la TV no cambia nada). Si la ventana es más angosta que 16:9 queda como siempre (franjas arriba y abajo). */
-  if (document.documentElement.getAttribute("data-web") === "pc" && w / h > 1920 / 1080) {
-    s = h / 1080;
-    appRootEl.style.setProperty("--W", Math.round(w / s) + "px");
-    appRootEl.style.transform = "scale(" + s + ")";
-    return;
-  }
-  appRootEl.style.removeProperty("--W");
   if (Math.abs(s - 1) < 0.01) {
     appRootEl.style.transform = "";
     return;
@@ -315,46 +321,20 @@ window.onload = function () {
   statusMessageEl = byId("statusMessage");
   statusHintsEl = byId("statusHints");
   fitToWindow();
-  applyCardView();
-  initMenuFx();
   window.addEventListener("resize", fitToWindow, false);
   registerTvKeys();
-  showRoute("splash"); // la portada se pinta al terminar la intro (abajo)
+  openSplash("Pulsa OK para iniciar sesión con Telegram");
   document.addEventListener("keydown", handleKeyDown, false);
   document.addEventListener("click", handlePointerSelect, false);
   byId("searchInput").addEventListener("input", onSearchInput, false);
   /* Solo desarrollo: tablero de diseño (design/). La carpeta no va en el .wgt, así que en la TV nunca entra aquí. */
   if (/[?&]design=/.test(window.location.search)) {
-    openSplash("Pulsa OK para iniciar sesión con Telegram");
     var ds = document.createElement("script");
     ds.src = "design/tv-views.js";
     document.head.appendChild(ds);
     return;
   }
   HFSync.onRemote(onSyncRemote);
-  HFRemote.onMessage(onCastMessage); // «Ver en la TV» desde el celular (js/ui/cast.js)
-  /* Intro de marca (js/intro.js) mientras se revisa la sesión; con sesión se entra directo a «¿Quién está viendo?».
-   * Si en ese rato el celular ya mandó un video (la app se abrió desde «Ver en la TV»), no se toca la pantalla. */
-  /* La portada (decenas de pósters) se pinta DESPUÉS de la intro y solo si hace falta: decodificar esas imágenes mientras
-   * corre la animación la traba en las TVs más modestas. */
-  var session = warmUpTelegram();
-  /* En la TV la intro sostiene su final hasta que la sesión esté lista (si no, quedaba una pantalla vacía antes de los perfiles). */
-  HFIntro.play({ base: "", ready: session.then(function () {}, function () {}) }).then(function () {
-    if (currentRoute !== "splash") {
-      return null; // ya se abrió otra cosa (p. ej. un video mandado desde el celular)
-    }
-    if (telegramUser) {
-      onTelegramReady(telegramUser);
-      return null;
-    }
-    openSplash("Pulsa OK para iniciar sesión con Telegram");
-    return Promise.race([session, new Promise(function (r) { setTimeout(function () { r(null); }, 8000); })]).then(function () {
-      if (currentRoute === "splash" && telegramUser) {
-        onTelegramReady(telegramUser);
-      }
-    });
-  });
-  setTimeout(function () { checkUpdates(); }, 9000);
-  /* llegó hasta aquí: esta interfaz arranca bien (js/arranque.js no vuelve atrás) */
-  setTimeout(function () { if (typeof HFUpdate !== "undefined") { HFUpdate.ok(); } }, 6000);
+  warmUpTelegram();
+  setTimeout(function () { checkUpdates(false); }, 4000);
 };

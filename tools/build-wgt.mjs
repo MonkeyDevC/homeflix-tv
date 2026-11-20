@@ -12,7 +12,7 @@ const root = join(fileURLToPath(import.meta.url), '..', '..');
 
 // Lo que va dentro del paquete. Todo lo demás (.cursor, .sign, tools, engine, dist, *.old.*) queda fuera.
 // *.local.* (por ejemplo js/config.local.js con tu api_hash) NUNCA entra al paquete.
-const INCLUDE = ['config.xml', 'index.html', 'app.html', 'icon.png', 'css', 'js', 'images'];
+const INCLUDE = ['config.xml', 'index.html', 'icon.png', 'css', 'js', 'images'];
 const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./, /^images\/(portadas|avatares)\/(originales\/|.*\.(md|txt)$)/i, /^js\/(portadas|imagenes)\.js$/];
 
 function walk(path) {

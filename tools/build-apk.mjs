@@ -6,7 +6,7 @@
 //                                              con «adb reverse»; los cambios se ven recargando, sin reinstalar.
 //   node tools/build-apk.mjs --release       → APK de publicación sin firmar (firmarlo es un paso aparte)
 //
-// Igual que el .wgt: copia mobile/, js/, images/, app.html y css/ (la interfaz de la TV, para Android TV) a android/app/build/www con la clave de Telegram ofuscada
+// Igual que el .wgt: copia mobile/, js/ e images/ a android/app/build/www con la clave de Telegram ofuscada
 // dentro de js/config.js; *.local.* y los originales pesados nunca entran.
 // Necesita: SDK de Android (ANDROID_HOME o %LOCALAPPDATA%\Android\Sdk) y un JDK 17–21 (JAVA_HOME o Eclipse Adoptium).
 import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, rmSync, copyFileSync, existsSync } from 'node:fs';
@@ -24,9 +24,7 @@ const dev = args.has('--dev');
 const install = args.has('--install');
 const DEVICE = process.env.ANDROID_SERIAL || '';
 
-/* app.html y css/ son la interfaz de la TV: el mismo APK la abre en un Android TV / stick (MainActivity.detectTv);
- * images/intro/intro.mp4 es la intro en video que usa esa interfaz. */
-const INCLUDE = ['mobile', 'js', 'images', 'app.html', 'css'];
+const INCLUDE = ['mobile', 'js', 'images'];
 const EXCLUDE = [/\.old\./, /\.local\./, /(^|\/)\./, /^images\/(portadas|avatares)\/(originales\/|.*\.(md|txt)$)/i, /^js\/(portadas|imagenes)\.js$/];
 
 function walk(path) {

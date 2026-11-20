@@ -131,7 +131,7 @@ function renderLogin() {
       "<li><span>1</span><div>Desde el teléfono entra a <b>my.telegram.org</b>.</div></li>" +
       "<li><span>2</span><div>Abre <b>API development tools</b>.</div></li>" +
       "<li><span>3</span><div>Crea una app y copia <b>api_id</b> y <b>api_hash</b>.</div></li></ol>" +
-      '<div class="hf2-help-tip">' + (window.HF_TV ? "Tip: la app Google TV del celular (control remoto) trae un teclado para escribir aquí." : "Tip: con Apps2Samsung puedes escribir desde el teclado del teléfono.") + "</div>";
+      '<div class="hf2-help-tip">Tip: con Apps2Samsung puedes escribir desde el teclado del teléfono.</div>';
     sideClass = "help";
   } else if (loginState === "password") {
     main = '<div class="hf2-kicker">Verificación en dos pasos</div><h1 class="hf2-title small">Escribe tu contraseña<br>de Telegram</h1>' +
@@ -189,10 +189,6 @@ function showLoginError(message) {
 
 function errorText(e) {
   var message = String((e && e.message) || e || "Error desconocido");
-  /* el navegador solo da WebCrypto (lo necesita Telegram) con https o en localhost: pasa al abrir la web por la IP */
-  if (/WebCrypto|crypto\.subtle/i.test(message)) {
-    return "Telegram necesita una conexión segura. Abre HomeFlix en este mismo equipo con http://localhost (no con la IP ni el nombre del equipo); desde otro dispositivo, ábrelo por https.";
-  }
   if (/network|fetch|websocket|sin respuesta/i.test(message)) {
     return "No hay conexión con Telegram. Revisa el internet de la TV y vuelve a intentarlo. (" + message + ")";
   }
@@ -218,7 +214,6 @@ function rememberUser(user) {
   HFLibrary.rememberAccount({ slot: HFTelegram.slot(), id: user.id, name: user.name, username: user.username }, HFTelegram.MAIN_SLOT);
   loadLibraryFromCache();
   HFSync.start(); // Mi lista, progreso y perfiles iguales en la TV y el celular (js/sync.js)
-  HFRemote.start(); // para recibir lo que mande el celular (js/ui/cast.js)
 }
 
 function onTelegramReady(user) {
@@ -401,7 +396,6 @@ function leaveLogin() {
 function logoutTelegram() {
   var jobs;
   updateStatus("Cerrando sesión de Telegram…");
-  HFRemote.stop();
   /* primero se guarda en Telegram lo que estaba pendiente de sincronizar */
   HFSync.stop().then(function () {
     jobs = accountList().map(function (a) {
@@ -412,29 +406,28 @@ function logoutTelegram() {
     return Promise.all(jobs);
   }).then(function () {
     HFLibrary.forgetAllAccounts();
-    /* se recarga para que la próxima cuenta empiece con el motor de Telegram limpio (js/telegram.js logout) */
-    window.location.reload();
+    telegramUser = null;
+    activeProfile = null;
+    setLibraryItems([]);
+    openSplash("Sesión de Telegram cerrada");
   });
 }
 
-/* Al abrir la app: ¿ya hay sesión? (si la hay, el botón principal dice «Continuar»). Devuelve una promesa con el
- * usuario o null, para que al terminar la intro se entre directo a los perfiles (js/ui/app.js). */
+/* Al abrir la app: si ya hay sesión, el botón principal dice «Continuar». */
 function warmUpTelegram() {
   if (!HFTelegram.available() || !HFTelegram.credentials()) {
-    return Promise.resolve(null);
+    return;
   }
   HFTelegram.cleanupSlots(HFLibrary.accounts().map(function (a) { return a.slot; }));
-  return HFTelegram.me().then(function (user) {
+  HFTelegram.me().then(function (user) {
     if (user && !telegramUser) {
       rememberUser(user);
-      /* solo si la portada ya está a la vista (durante la intro no se pinta: la intro decide a dónde ir) */
-      if (currentRoute === "splash" && !HFIntro.active() && byId("scrSplash").innerHTML) {
+      if (currentRoute === "splash") {
         renderSplash();
       }
     }
-    return user || null;
   }, function () {
-    return null; // se mostrará el error al entrar al login
+    /* se mostrará el error al entrar al login */
   });
 }
 
@@ -450,8 +443,6 @@ function profileAvatarHtml(p, cls) {
 
 function openProfiles(message, editMode) {
   pruneEmptyAccounts();
-  HFAnime.resetAccount();
-  HFLibrary.ensureAnimeProfile(); // perfil «Anime» (js/library.js); no hace nada si ya existe, no hay lugar o se borró
   showRoute("profiles");
   renderProfiles(!!editMode);
   if (message) {
@@ -459,11 +450,29 @@ function openProfiles(message, editMode) {
   }
 }
 
+/* Estado de la sincronización con el celular (js/sync.js), para la línea de abajo de los perfiles. */
+function syncLine() {
+  var st = HFSync.status();
+  var min;
+  if (st.state === "busy") {
+    return "Sincronizando con el celular…";
+  }
+  if (st.state === "error") {
+    return "No se pudo sincronizar: " + esc(st.error);
+  }
+  if (!st.at) {
+    return "Sincronización pendiente";
+  }
+  min = Math.round((Date.now() - st.at) / 60000);
+  return "Sincronizado " + (min < 1 ? "hace un momento" : "hace " + min + " min");
+}
+
 function renderProfiles(editMode, focusName, focusIndex) {
   var root = byId("scrProfiles");
   var accs = accountList();
   var multi = accs.length > 1;
   var cards;
+  var accountLine;
   profilesEditMode = !!editMode;
   logoutArmed = false;
   /* los perfiles de todas las cuentas, cuenta por cuenta (la principal primero) */
@@ -481,6 +490,10 @@ function renderProfiles(editMode, focusName, focusIndex) {
       profileAvatarHtml(p, profilesEditMode ? "editing" : "") + '<div class="hf2-pname">' + (p.pin ? '<span class="hf2-pname-lock">' + IC.lock + "</span>" : "") + esc(p.name) + "</div>" +
       (multi ? '<div class="hf2-pacc">' + IC.plane + esc(e.a.name) + "</div>" : "") + "</div>";
   });
+  accountLine = multi
+    ? IC.plane + accs.length + " cuentas de Telegram conectadas: <b>" + accs.map(function (a) { return esc(a.name); }).join("</b>, <b>") + "</b>"
+    : IC.plane + "Conectado con Telegram como <b>" + esc(telegramUser ? telegramUser.name : "") + "</b>" + (telegramUser && telegramUser.username ? " · @" + esc(telegramUser.username) : "");
+  accountLine += " · " + syncLine();
   if (profileEntries.length < HFLibrary.MAX_TOTAL_PROFILES) {
     cards.push('<div class="hf2-profile" data-focusable="true" data-action="add-profile" data-title="Agregar perfil" data-description="Crear un perfil nuevo" tabindex="0"><div class="hf2-avatar add">+</div><div class="hf2-pname">Agregar</div></div>');
   }
@@ -492,13 +505,16 @@ function renderProfiles(editMode, focusName, focusIndex) {
     '<div class="hf2-profiles">' + cards.join("") + "</div>" +
     '<div class="hf2-center-actions"><div class="hf2-btn ghost small icon" data-focusable="true" data-action="edit-profiles" data-title="Editar perfiles" tabindex="0">' +
       (profilesEditMode ? IC.check + "Listo" : IC.pencil + "Editar perfiles") + "</div></div>" +
-    '<div class="hf2-version">' + esc(appVersion() ? "HomeFlix v" + appVersion() : "HomeFlix") + "</div>";
+    '<div class="hf2-account">' + accountLine + "</div>" +
+    '<div class="hf2-version">' + esc(appVersion() ? "HomeFlix v" + appVersion() : "HomeFlix") + "</div>" +
+    '<div id="updateBanner" style="position:absolute;left:0;right:0;top:920px;z-index:6"></div>';
+  renderUpdateBanner();
   setAreas([
     { name: "top", items: root.querySelectorAll(".hf2-top-actions [data-focusable]"), dir: "h" },
     { name: "profiles", items: root.querySelectorAll(".hf2-profiles [data-focusable]"), dir: "h" },
-    { name: "actions", items: root.querySelectorAll(".hf2-center-actions [data-focusable]"), dir: "h" }
+    { name: "actions", items: root.querySelectorAll(".hf2-center-actions [data-focusable]"), dir: "h" },
+    { name: "update", items: root.querySelectorAll("#updateBanner [data-focusable]"), dir: "h" }
   ], focusName || "profiles", focusIndex || 0);
-  checkUpdates(); // si pasó un rato desde la última revisión, se pregunta de nuevo (queda anotado para el aviso de la barra)
 }
 
 function handleProfileSelect(el) {
@@ -517,6 +533,7 @@ function handleProfileSelect(el) {
   if (action === "settings") { openSettings({ returnTo: "profiles" }); return; }
   if (action === "edit-profiles") { renderProfiles(!profilesEditMode, "actions", 0); return; }
   if (action === "add-profile") { openAccountPicker(); return; }
+  if (action === "hide-update") { dismissUpdate(); renderProfiles(profilesEditMode); return; }
   if (!id) { return; }
   /* cada perfil vive en su cuenta: primero se pasa a esa cuenta de Telegram */
   switchAccount(accountById(el.getAttribute("data-account")));
@@ -557,7 +574,6 @@ function enterProfile(id) {
     }
   });
   HFLibrary.setProfile(activeProfile.id);
-  applyCardView();
   rebuildLibrary();
   openBrowse("home", "Perfil: " + activeProfile.name + (activeProfile.kids ? " (infantil)" : ""));
 }
@@ -741,23 +757,17 @@ function handleProfileEditSelect(el) {
     }
     openProfiles("Perfil guardado", true);
   } else if (action === "delete") {
-    /* un modal de confirmación (antes el botón se agrandaba con «¿Seguro? OK otra vez» y se salía del panel) */
-    var delId = profileEdit.id;
-    var delName = String(profileEdit.name || "").trim() || "este perfil";
-    askConfirm({
-      title: "¿Borrar el perfil «" + delName + "»?",
-      text: "Se borrarán también su progreso y su Mi lista. Esto no se puede deshacer.",
-      okLabel: "Borrar",
-      cancelLabel: "Cancelar",
-      danger: true,
-      onOk: function () {
-        HFLibrary.deleteProfile(delId);
-        if (activeProfile && activeProfile.id === delId) {
-          activeProfile = null;
-        }
-        openProfiles("Perfil borrado", true);
-      }
-    });
+    if (el.getAttribute("data-confirm") !== "true") {
+      el.setAttribute("data-confirm", "true");
+      el.textContent = "¿Seguro? OK otra vez";
+      updateStatus("Pulsa OK otra vez para borrar el perfil con su progreso y Mi lista");
+      return;
+    }
+    HFLibrary.deleteProfile(profileEdit.id);
+    if (activeProfile && activeProfile.id === profileEdit.id) {
+      activeProfile = null;
+    }
+    openProfiles("Perfil borrado", true);
   } else if (action === "cancel") {
     openProfiles("", true);
   }
@@ -820,29 +830,6 @@ function renderPin(focusName, focusIndex) {
   }
 }
 
-/* Cada número que se pulsa ya NO vuelve a dibujar toda la pantalla (logo, avatar con su imagen grande, teclado de 12 teclas y el motor de
- * foco): en la TV eso era una tarea de ~660 ms por dígito (se sentía el lag). Solo se cambian los puntos, el título y la nota. */
-function pinPaint() {
-  var f = pinFlow;
-  var root = byId("scrPin");
-  var dots;
-  var title;
-  var note;
-  var i;
-  if (!f || !root) { return; }
-  dots = root.querySelectorAll(".hf2-pin-dots i");
-  for (i = 0; i < dots.length; i += 1) {
-    dots[i].className = i < f.entered.length ? "on" : "";
-  }
-  title = root.querySelector(".hf2-pin-title");
-  if (title) { title.textContent = f.step === "repeat" ? "Repite el PIN" : f.title; }
-  note = root.querySelector(".hf2-pin-note");
-  if (note) {
-    note.textContent = f.error || (f.step === "repeat" ? "Para confirmar que lo escribiste bien" : f.note || "Usa los números del control o el teclado de abajo");
-    note.className = "hf2-pin-note" + (f.error ? " error" : "");
-  }
-}
-
 function pinRefocus() {
   var a = currentArea();
   if (a && a.name.indexOf("pad-") === 0) {
@@ -859,7 +846,8 @@ function pinDigit(d) {
   }
   f.entered += d;
   f.error = "";
-  pinPaint();
+  r = pinRefocus();
+  renderPin(r.name, r.index);
   if (f.entered.length === 4) {
     setTimeout(pinComplete, 150);
   }
@@ -892,7 +880,7 @@ function pinComplete() {
     f.error = "Los PIN no coinciden. Escríbelo de nuevo.";
   }
   f.entered = "";
-  pinPaint();
+  renderPin(r.name, r.index);
   updateStatus(f.error || "Repite el PIN");
 }
 
@@ -902,7 +890,8 @@ function pinBackspace() {
     return;
   }
   pinFlow.entered = pinFlow.entered.slice(0, -1);
-  pinPaint();
+  r = pinRefocus();
+  renderPin(r.name, r.index);
 }
 
 function cancelPin() {
@@ -971,7 +960,6 @@ function switchAccount(acc, force) {
   settings.counts = {};
   loadLibraryFromCache();
   HFSync.start();
-  HFRemote.start();
   /* en segundo plano: ¿sigue abierta la sesión de esa cuenta? (la pueden cerrar desde el teléfono) */
   slotName = acc.slot;
   HFTelegram.me().then(function (u) {

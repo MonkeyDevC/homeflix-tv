@@ -32,13 +32,6 @@
     { id: "d", title: "Dibujos animados", kind: "channel" }, { id: "e", title: "Documentales", kind: "group" }
   ];
 
-  function animeSetup() {
-    HFSync.key = function () { return Promise.resolve("Qx7_" + "k".repeat(40)); };
-    HFSync.server = "http://localhost:4510/productos/HomeFlix";
-    HFTelegram.image = function (k) { return Promise.resolve(/^https?:/.test(k) ? k : HFDemo.mediaUrl(k)); };
-    HFLibrary.setEnabledSources({ "-5479575394": "NETSUCKS", anime: "Anime" }, HFLibrary.profiles()[0].id);
-  }
-
   function title(re) {
     return Object.keys(library.titles).map(function (k) { return library.titles[k]; }).filter(function (t) { return re.test(t.name); })[0];
   }
@@ -73,26 +66,6 @@
     },
     "detail-movie": function () { enterProfile(HFLibrary.profiles()[0].id); openDetail(title(/Hoppers/)); },
     "detail-series": function () { enterProfile(HFLibrary.profiles()[0].id); openDetail(title(/Ciudad ne/)); },
-    /* Canal Anime: habla con el servidor local (servidor/, puerto 4510) que a su vez pregunta a la anime-api */
-    "anime-home": async function () { animeSetup(); enterProfile(HFLibrary.profiles()[0].id); openBrowse("anime"); await sleep(6000); },
-    "anime-detail": async function () {
-      animeSetup(); enterProfile(HFLibrary.profiles()[0].id); openBrowse("anime");
-      await sleep(5000);
-      openDetail(HFAnime.rows()[0].titles[0]);
-      await sleep(6000);
-    },
-    "anime-search": async function () {
-      animeSetup(); enterProfile(HFLibrary.profiles()[0].id); openSearch();
-      byId("searchInput").value = "frieren"; onSearchInput();
-      await sleep(5000);
-    },
-    "anime-player": async function () {
-      animeSetup(); enterProfile(HFLibrary.profiles()[0].id);
-      var t = HFAnime.byKey("a:21") || (await HFAnime.search("one piece"))[0];
-      await HFAnime.ensure(t);
-      HFLibrary.setProgress = function () {};
-      openPlayer(t.seasons[0].episodes[0], 0, t);
-    },
     "player": async function () {
       var t = title(/Hoppers/);
       enterProfile(HFLibrary.profiles()[0].id);

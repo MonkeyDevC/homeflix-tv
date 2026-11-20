@@ -1,6 +1,0 @@
-# HomeFlix: se agrega DENTRO del bloque «scalvache.shop { ... }» de /etc/caddy/Caddyfile, antes del «handle» final
-# (el que manda todo lo demás a NexusCard). La API interna (/interno/v1) nunca pasa por aquí.
-	@homeflix path /productos/HomeFlix /productos/HomeFlix/*
-	handle @homeflix {
-		reverse_proxy 127.0.0.1:4500
-	}

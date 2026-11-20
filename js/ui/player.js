@@ -18,10 +18,6 @@ function openPlayer(item, startAt, series) {
   }
   player.item = item;
   player.series = series || null;
-  if (series && !item.anime && typeof HFTelegram !== "undefined" && HFTelegram.warm) {
-    /* el capítulo siguiente se va adelantando: al terminar este empieza sin esperar a Telegram */
-    HFTelegram.warm(HFLibrary.videoKeys(HFLibrary.episodeAfter(series, item)));
-  }
   player.nextVisible = false;
   player.nextCancelled = false;
   player.backArmed = false;
@@ -36,7 +32,7 @@ function openPlayer(item, startAt, series) {
   poster.style.backgroundImage = "";
   poster.removeAttribute("data-loaded");
   poster.setAttribute("data-hidden", "false");
-  poster.setAttribute("data-img", item.anime ? (item.coverKey || (series && (series.bannerKey || series.imageKey)) || "") : item.type === "episode" || item.type === "video" ? item.key : (item.bannerKey || item.imageKey || entryVideoKey(item)));
+  poster.setAttribute("data-img", item.type === "episode" || item.type === "video" ? item.key : (item.bannerKey || item.imageKey || entryVideoKey(item)));
   poster.innerHTML = fallbackArt(poster.getAttribute("data-img"), "pp");
   poster.setAttribute("data-img-w", "1280");
   poster.removeAttribute("data-queued");
@@ -57,7 +53,6 @@ function openPlayer(item, startAt, series) {
       if (player.panel === "tracks") {
         renderTracksPanel();
       }
-      castNotify(); // el celular que controla ve las pistas nuevas (js/ui/cast.js)
     }
   });
   if (HFPlayback.simulated && byId("plNotice")) {
@@ -68,7 +63,7 @@ function openPlayer(item, startAt, series) {
 function playerTitles() {
   var it = player.item;
   if (it.type === "episode") {
-    return { title: it.seriesName, sub: epTag(it) + " · " + it.title };
+    return { title: it.seriesName, sub: "T" + it.season + ":E" + it.episode + " · " + it.title };
   }
   return { title: it.name, sub: titleMeta(it) };
 }
@@ -86,9 +81,9 @@ function renderPlayerChrome() {
     pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="quality" data-title="Calidad" data-description="Automática según tu internet, o elegirla a mano" tabindex="0">' + IC.gear + "Calidad</span>";
   }
   if (nextEp) {
-    pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="next" data-title="Siguiente" data-description="Siguiente: ' + epTag(nextEp) + " · " + esc(nextEp.title) + '" tabindex="0">' + IC.next + "Siguiente</span>";
+    pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="next" data-title="Siguiente" data-description="Siguiente: T' + nextEp.season + ":E" + nextEp.episode + " · " + esc(nextEp.title) + '" tabindex="0">' + IC.next + "Siguiente</span>";
   }
-  if (!currentProfileIsKids() && !it.anime) {
+  if (!currentProfileIsKids()) {
     pills += '<span class="hf2-pl-pill" data-focusable="true" data-action="edit-tag" data-title="Editar" data-description="Cambiar nombre, temporada, capítulo o si es infantil" tabindex="0">' + IC.pencil + "Editar</span>";
   }
   playerChrome().innerHTML =
@@ -168,7 +163,6 @@ function showPlayerError(msg) {
 function onPlayerState(s) {
   var toggle = byId("plToggle");
   player.state = s;
-  castNotify();
   if (player.error) {
     return;
   }
@@ -206,9 +200,6 @@ function onPlayerTime(t, dur, buffered) {
   }
   if (player.series && player.item.type === "episode" && remaining <= 15 && !player.nextCancelled && !player.panel) {
     showNextCard(Math.ceil(remaining));
-    if (nextSkip() > 0 && remaining <= nextSkip() && player.nextVisible) {
-      playNextEpisode();
-    }
   }
 }
 
@@ -220,23 +211,20 @@ function showNextCard(seconds) {
   }
   if (!player.nextVisible) {
     player.nextVisible = true;
-    el.innerHTML = '<div class="hf2-next-art hf2-img" data-img="' + esc(nextEp.coverKey || nextEp.key) + '" data-img-w="480">' + fallbackArt(nextEp.key, "nx") + '<span class="hf2-ep-num">' + nextEp.episode + "</span></div>" +
+    el.innerHTML = '<div class="hf2-next-art hf2-img" data-img="' + esc(nextEp.key) + '" data-img-w="480">' + fallbackArt(nextEp.key, "nx") + '<span class="hf2-ep-num">' + nextEp.episode + "</span></div>" +
       '<div class="hf2-next-body"><div class="hf2-kicker">Siguiente capítulo</div>' +
       '<div class="hf2-next-title">T' + nextEp.season + ":E" + nextEp.episode + " · " + esc(nextEp.title) + "</div>" +
       (nextEp.description ? '<div class="hf2-next-desc">' + esc(nextEp.description.slice(0, 110)) + "</div>" : "") +
       '<div class="hf2-next-count"><span class="bar"><i id="plNextBar" style="width:0%"></i></span><span id="plNextCount"></span></div>' +
       '<div class="hf2-next-actions"><span class="hf2-btn primary small icon" data-focusable="true" data-action="next-now" data-title="Ver ahora" tabindex="0">' + IC.play + "Ver ahora</span>" +
       '<span class="hf2-btn ghost small" data-focusable="true" data-action="next-cancel" data-title="Ver créditos" data-description="Seguir viendo este capítulo hasta el final" tabindex="0">Ver créditos</span></div></div>';
-    el.setAttribute("data-size", nxSize());
-    el.style.setProperty("--nx-a", String(nxAlpha() / 100));
     el.setAttribute("data-visible", "true");
     byId("scrPlayer").setAttribute("data-next", "true");
     queueImage(el.querySelector("[data-img]"));
     setPlayerAreas("next", 0);
   }
-  var skip = nextSkip();
-  byId("plNextCount").textContent = "Empieza en " + Math.max(0, seconds - skip) + " s";
-  byId("plNextBar").style.width = Math.min(100, Math.round(((15 - seconds) / (15 - skip)) * 100)) + "%";
+  byId("plNextCount").textContent = "Empieza en " + seconds + " s";
+  byId("plNextBar").style.width = Math.min(100, Math.round(((15 - seconds) / 15) * 100)) + "%";
 }
 
 function hideNextCard() {
@@ -277,7 +265,6 @@ function savePlayerProgress() {
 function closePlayer() {
   savePlayerProgress();
   HFPlayback.close();
-  castClosed(); // si lo controlaba un celular, deja de mostrar el control
   if (player.hideTimer) {
     clearTimeout(player.hideTimer);
     player.hideTimer = null;
@@ -407,7 +394,7 @@ function renderTracksPanel() {
         return '<div class="hf2-track' + (s.current ? " on" : "") + '" data-focusable="true" data-track-kind="sub" data-track-key="' + esc(s.key) + '" data-title="' + esc(s.label) + '" tabindex="0"><span class="ck">' + (s.current ? IC.check : "") + "</span><b>" + esc(s.label) + "</b></div>";
       }).join("") + (tr.subs.length ? "" : '<div class="hf2-text" style="font-size:19px">Este video no trae subtítulos</div>');
   }
-  el.innerHTML = '<div class="hf2-pl-close" title="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>' + "<h2>" + (qs ? "Audio, subtítulos y calidad" : "Audio y subtítulos") + "</h2>" +
+  el.innerHTML = "<h2>" + (qs ? "Audio, subtítulos y calidad" : "Audio y subtítulos") + "</h2>" +
     '<div class="hf2-tracks-cols"><div class="tr-audio"><div class="hf2-tracks-h">' + IC.audio + "Audio</div>" + audio + quality + "</div>" +
     '<div class="tr-subs"><div class="hf2-tracks-h">' + IC.subs + "Subtítulos</div>" + subs +
     '<div class="hf2-tracks-h small">Tamaño</div><div class="hf2-segment">' +
@@ -475,7 +462,7 @@ function openEpisodesPanel() {
 
 function renderEpisodesPanel(focusName, focusIndex) {
   var s = player.series;
-  var season = s.seasons[player.epSeason] || s.seasons[0] || { episodes: [] };
+  var season = s.seasons[player.epSeason] || s.seasons[0];
   var currentIdx = -1;
   var watched = 0;
   var cards = season.episodes.map(function (ep, i) {
@@ -484,8 +471,8 @@ function renderEpisodesPanel(focusName, focusIndex) {
     var prog = progressInfo(ep.key);
     if (now) { currentIdx = i; }
     if (p && p.done) { watched += 1; }
-    return '<div class="hf2-ep' + (now ? " now" : "") + '" data-focusable="true" data-ref="v:' + esc(ep.key) + '" data-title="' + esc(ep.title) + '" data-description="' + epTag(ep) + " · " + esc(ep.title) + " · " + esc(HFLibrary.formatDuration(ep.video.duration)) + '" tabindex="0">' +
-      '<div class="hf2-ep-art hf2-img" data-img="' + esc(ep.coverKey || ep.key) + '" data-img-w="480">' + fallbackArt(ep.key, "pe") + '<span class="hf2-ep-num">' + ep.episode + "</span>" +
+    return '<div class="hf2-ep' + (now ? " now" : "") + '" data-focusable="true" data-ref="v:' + esc(ep.key) + '" data-title="' + esc(ep.title) + '" data-description="T' + ep.season + ":E" + ep.episode + " · " + esc(ep.title) + " · " + esc(HFLibrary.formatDuration(ep.video.duration)) + '" tabindex="0">' +
+      '<div class="hf2-ep-art hf2-img" data-img="' + esc(ep.key) + '" data-img-w="480">' + fallbackArt(ep.key, "pe") + '<span class="hf2-ep-num">' + ep.episode + "</span>" +
       (p && p.done && !now ? '<span class="hf2-ep-done">' + IC.check + "Visto</span>" : "") +
       (now ? '<span class="hf2-ep-now">' + IC.play + "Viendo ahora</span>" : "") +
       (prog ? '<span class="hf2-card-progress"><i style="width:' + prog.pct + '%"></i></span>' : "") +
@@ -494,8 +481,8 @@ function renderEpisodesPanel(focusName, focusIndex) {
       '<div class="hf2-ep-desc">' + esc(ep.description || "") + "</div></div>";
   });
   var el = byId("plEps");
-  el.innerHTML = '<div class="hf2-pl-close" title="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>' + '<div class="hf2-pl-eps-head"><h2>Capítulos</h2><div class="hf2-seasons">' + s.seasons.map(function (x, i) {
-    return '<span class="hf2-pill' + (i === player.epSeason ? " on" : "") + '" data-focusable="true" data-ep-season="' + i + '" data-title="' + esc(seasonLabel(x)) + '" tabindex="0">' + esc(seasonLabel(x)) + " <b>" + x.episodes.length + "</b></span>";
+  el.innerHTML = '<div class="hf2-pl-eps-head"><h2>Capítulos</h2><div class="hf2-seasons">' + s.seasons.map(function (x, i) {
+    return '<span class="hf2-pill' + (i === player.epSeason ? " on" : "") + '" data-focusable="true" data-ep-season="' + i + '" data-title="Temporada ' + x.number + '" tabindex="0">Temporada ' + x.number + " <b>" + x.episodes.length + "</b></span>";
   }).join("") + '<span class="hf2-seasons-note">Viste ' + watched + " de " + season.episodes.length + (currentIdx >= 0 ? " · estás en el " + (currentIdx + 1) : "") + "</span></div></div>" +
     '<div class="hf2-ep-viewport"><div class="hf2-ep-track pl" id="plEpsTrack">' + cards.join("") + "</div></div>";
   el.setAttribute("data-visible", "true");

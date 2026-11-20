@@ -27,15 +27,6 @@ function readDotEnv() {
   return out;
 }
 
-/** Clave de TMDB (themoviedb.org) para buscar portadas y banners en el preparador: TMDB_API_KEY en el .env, sea la
- *  «clave de API» v3 (32 caracteres) o el «token de lectura» v4 (empieza por eyJ). Se lee en cada uso para que no haga
- *  falta reiniciar el preparador al ponerla. null si no está. */
-export function loadTmdbKey() {
-  const env = { ...readDotEnv(), ...process.env };
-  const k = String(env.TMDB_API_KEY || env.TMDB_TOKEN || '').trim();
-  return k || null;
-}
-
 /** {id, hash} o null si no está configurada. Lanza error si está pero tiene mal formato. */
 export function loadApiKey() {
   const env = { ...readDotEnv(), ...process.env };

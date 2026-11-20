@@ -1,6 +1,0 @@
-recomendador/.venv/
-**/__pycache__/
-**/.pytest_cache/
-recomendador/sesiones/
-recomendador/.env
-**/*.session

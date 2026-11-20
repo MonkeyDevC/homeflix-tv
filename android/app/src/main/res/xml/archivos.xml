@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Lo que HomeFlix comparte con otras apps: el APK nuevo para el instalador de Android (Actualizador.java). -->
-<paths>
-    <cache-path name="apk" path="apk/" />
-</paths>

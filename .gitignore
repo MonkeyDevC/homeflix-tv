@@ -31,28 +31,3 @@ android/build/
 android/app/build/
 android/local.properties
 *.apk
-
-# Servidor (servidor/): dependencias y datos locales
-servidor/node_modules/
-servidor/data/
-
-# Preparador: el ícono del acceso directo lo arma tools/publicar-version.mjs
-tools/preparador/logo.ico
-
-# Preparador: marca de reinicio tras actualizarse
-.reinicio
-.cola.json
-
-# Certificado propio del servidor de desarrollo (node tools/serve.mjs --https): nunca al repo
-.cert/
-
-# Motor de recomendaciones (recomendador/): entorno, claves y sesiones de Telegram, nunca al repo
-recomendador/.venv/
-recomendador/.env
-recomendador/sesiones/
-*.session
-*.session-journal
-__pycache__/
-.pytest_cache/
-*.egg-info/
-local/versiones/

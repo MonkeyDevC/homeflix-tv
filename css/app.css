@@ -24,7 +24,7 @@ body {
 
 #app {
   position: relative;
-  width: var(--W, 1920px);
+  width: 1920px;
   height: 1080px;
   overflow: hidden;
   background: #0b0c0e;
@@ -51,9 +51,7 @@ body {
 #app[data-route="detail"] #scrDetail,
 #app[data-route="tag-edit"] #scrTagEdit,
 #app[data-route="search"] #scrSearch,
-#app[data-route="player"] #scrPlayer,
-#app[data-route="live"] #scrLive,
-#app[data-route="live-player"] #scrLivePlayer {
+#app[data-route="player"] #scrPlayer {
   display: block;
 }
 
@@ -292,7 +290,7 @@ body {
   position: absolute;
   left: 0;
   top: 0;
-  width: var(--W, 1920px);
+  width: 1920px;
   height: 1080px;
 }
 
@@ -400,12 +398,41 @@ body {
   color: #ffb3a6;
 }
 
+.hf2-update {
+  display: flex;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 28px;
+  border-radius: 18px;
+  border: 2px solid rgba(230, 193, 147, 0.55);
+  background: rgba(110, 90, 66, 0.25);
+  text-align: left;
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.hf2-update b {
+  color: #f0d2a8;
+}
+
+.hf2-update .txt {
+  flex: 1;
+  margin-right: 20px;
+}
+
+.hf2-update small {
+  display: block;
+  color: #b9bcc0;
+  font-size: 18px;
+}
+
 /* ----- Piezas de la app que no estaban en el tablero ----- */
 #playerChrome {
   position: absolute;
   left: 0;
   top: 0;
-  width: var(--W, 1920px);
+  width: 1920px;
   height: 1080px;
   z-index: 4;
 }
@@ -550,12 +577,7 @@ body {
  * Dentro del menú (BACK o ▲ hasta arriba): la barra se vuelve sólida, el menú gana un riel y el ítem
  * enfocado es una píldora dorada, como los botones; la sección actual conserva su subrayado si no está enfocada. */
 .hf2-menu {
-  /* centrado en la pantalla (no entre el logo y los botones, que miden distinto) */
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  margin-left: 0;
+  margin-left: 48px;
   padding: 6px;
   border-radius: 40px;
   border: 2px solid transparent;
@@ -725,8 +747,8 @@ body {
   width: 62px;
   height: 62px;
   border-radius: 50%;
-  background: #121418 url(../images/logo.png) center / cover no-repeat;
-  border: 0;
+  background: #f4f4f2 url(../images/panda-login.png) 50% 6% / 150% auto no-repeat;
+  border: 3px solid rgba(255, 255, 255, 0.85);
   opacity: 0.9;
 }
 .hf2-ph-name {
@@ -1104,70 +1126,34 @@ body {
   color: #fff;
 }
 
-/* Cambio de destacado: el nuevo queda OPACO debajo (sin bache oscuro a mitad del cruce) y el anterior, encima, se desvanece
- * con un leve movimiento contrario; la imagen nueva entra deslizándose y asentándose. Solo transform y opacity. */
+/* Entrada del título nuevo al cambiar de destacado (como repartir una carta: llega con arco y un rebote corto) */
 @keyframes hfArtNext {
-  0% { transform: translate3d(64px, 0, 0) scale3d(1.04, 1.04, 1); }
-  100% { transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
+  0% { opacity: 0; transform: translate3d(140px, -18px, 0) rotate(1.2deg) scale(1.04); }
+  100% { opacity: 1; transform: none; }
 }
 @keyframes hfArtPrev {
-  0% { transform: translate3d(-64px, 0, 0) scale3d(1.04, 1.04, 1); }
-  100% { transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
-}
-@keyframes hfArtOutNext {
-  0% { transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
-  100% { transform: translate3d(-46px, 0, 0) scale3d(1.015, 1.015, 1); }
-}
-@keyframes hfArtOutPrev {
-  0% { transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
-  100% { transform: translate3d(46px, 0, 0) scale3d(1.015, 1.015, 1); }
+  0% { opacity: 0; transform: translate3d(-140px, -18px, 0) rotate(-1.2deg) scale(1.04); }
+  100% { opacity: 1; transform: none; }
 }
 @keyframes hfCopyIn {
-  0% { opacity: 0; transform: translate3d(0, 24px, 0); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-@keyframes hfGhostOut {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
-}
-.hf2-billboard .hf2-bb-art,
-.hf2-billboard .hf2-bb-copy > * {
-  will-change: transform, opacity;
+  0% { opacity: 0; transform: translate3d(0, 26px, 0); }
+  100% { opacity: 1; transform: none; }
 }
 .hf2-billboard.enter-next .hf2-bb-art {
-  animation: hfArtNext 0.7s cubic-bezier(0.16, 0.84, 0.3, 1) both;
+  animation: hfArtNext 0.6s cubic-bezier(0.25, 1.18, 0.4, 1) both;
 }
 .hf2-billboard.enter-prev .hf2-bb-art {
-  animation: hfArtPrev 0.7s cubic-bezier(0.16, 0.84, 0.3, 1) both;
+  animation: hfArtPrev 0.6s cubic-bezier(0.25, 1.18, 0.4, 1) both;
 }
 .hf2-billboard.enter-next .hf2-bb-copy > *,
 .hf2-billboard.enter-prev .hf2-bb-copy > * {
-  animation: hfCopyIn 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) both;
-  animation-delay: 0.12s;
+  animation: hfCopyIn 0.5s cubic-bezier(0.25, 1.2, 0.4, 1) both;
 }
-.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(2) { animation-delay: 0.18s; }
-.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(3) { animation-delay: 0.24s; }
-.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(4) { animation-delay: 0.3s; }
-.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(5) { animation-delay: 0.36s; }
-.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(6) { animation-delay: 0.36s; }
-.hf2-billboard > .hf2-billboard.ghost {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  height: auto;
-  z-index: 3;
-  pointer-events: none;
-  will-change: opacity;
-  animation: hfGhostOut 0.55s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-}
-.hf2-billboard > .hf2-billboard.ghost.out-next .hf2-bb-art { animation: hfArtOutNext 0.55s cubic-bezier(0.4, 0, 0.6, 1) both; }
-.hf2-billboard > .hf2-billboard.ghost.out-prev .hf2-bb-art { animation: hfArtOutPrev 0.55s cubic-bezier(0.4, 0, 0.6, 1) both; }
-/* «Circle blur»: el destacado anterior queda debajo (hermano del nuevo, que se revela encima con un círculo) */
-.hf2-billboard.ghost2 .hf2-bb-switch { visibility: hidden; }
-/* el fantasma no repite lo que ya está en el nuevo: sin selector de destacados */
-.hf2-billboard > .hf2-billboard.ghost .hf2-bb-switch { visibility: hidden; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(2) { animation-delay: 0.045s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(3) { animation-delay: 0.09s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(4) { animation-delay: 0.135s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(5) { animation-delay: 0.18s; }
+.hf2-billboard[class*="enter-"] .hf2-bb-copy > :nth-child(6) { animation-delay: 0.18s; }
 
 /* ----- Movimiento entre tarjetas: resorte suave con un rebote corto, en lugar del desplazamiento lineal ----- */
 .hf2-row-track.anim,
@@ -1303,7 +1289,7 @@ body {
 /* Selector centrado en la pantalla, con contorno en forma de pestaña (lo dibuja shapeHeroSwitch) */
 .hf2-bb-switch {
   justify-content: center;
-  width: calc(var(--W, 1920px) - 176px); /* 1920 − 2 × 88: el centro cae en el centro de la pantalla */
+  width: 1744px; /* 1920 − 2 × 88: el centro cae en el centro de la pantalla */
 }
 .hf2-billboard .hf2-bb-dots,
 .hf2-billboard.compact .hf2-bb-dots {
@@ -1352,29 +1338,14 @@ body {
 /* ----- Destacado integrado con la página: la imagen se desvanece sola (hacia la izquierda y hacia abajo) en vez de
  * taparse con un gris sólido, que no coincidía con el fondo degradado de la pantalla y dejaba una línea marcada.
  * Termina transparente justo en el borde del destacado, así no queda ningún corte. ----- */
-/* Antes la imagen se desvanecía con máscaras CSS (mask-image) anidadas. En la TV real (Samsung Q65B) cada máscara obliga a pintar el destacado en una
- * superficie aparte en cada cambio: quitarlas subió de ~22 a ~31 cuadros/s. Ahora el mismo desvanecido se hace con degradados SUPERPUESTOS del color del
- * fondo (lo que dejaba ver la máscara): sobre un color sólido, "imagen con alfa a" equivale a "imagen opaca + capa del fondo con alfa 1 - a", y dos capas
- * del mismo color suman 1 - (1-a1)(1-a2) = 1 - a1·a2, igual que las dos máscaras intersectadas. Una capa va dentro de la imagen (debajo de la sombra del
- * texto) y otra, más abajo, sobre imagen y sombra (lo que antes hacía la máscara de .hf2-bb-media). El fondo de la pantalla va de #131518 (arriba) a
- * #0d0e10 (abajo de 1080 px): el degradado inferior usa su color a la altura donde termina el destacado (780 px), el lateral el de la mitad. */
 .hf2-billboard .hf2-bb-art,
 .hf2-billboard.compact .hf2-bb-art {
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-.hf2-billboard .hf2-bb-art::after,
-.hf2-billboard.compact .hf2-bb-art::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(15, 16, 18, 0) 0%, rgba(15, 16, 18, 0) 46%, rgba(15, 16, 18, 0.4) 68%, rgba(15, 16, 18, 0.8) 86%, rgb(15, 16, 18) 100%),
-    linear-gradient(90deg, rgb(17, 19, 21) 0%, rgba(17, 19, 21, 0.45) 16%, rgba(17, 19, 21, 0) 42%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 16%, #000 42%),
+    linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.6) 68%, rgba(0, 0, 0, 0.2) 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 16%, #000 42%),
+    linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.6) 68%, rgba(0, 0, 0, 0.2) 86%, transparent 100%);
+  mask-composite: intersect;
 }
 
 /* Solo una sombra suave y translúcida para que el texto se lea; sin colores sólidos que corten el fondo. */
@@ -1383,1148 +1354,4 @@ body {
     linear-gradient(90deg, rgba(11, 12, 14, 0.7) 0%, rgba(11, 12, 14, 0.45) 32%, rgba(11, 12, 14, 0) 60%),
     linear-gradient(0deg, rgba(11, 12, 14, 0.35) 0%, rgba(11, 12, 14, 0) 40%);
   pointer-events: none;
-}
-
-/* Selección de perfiles: el logo de HomeFlix más grande */
-#scrProfiles .hf2-brand { top: 46px; }
-#scrProfiles .hf2-brand .hf2-logo { width: 108px; height: 108px; border-width: 4px; }
-#scrProfiles .hf2-brand .hf2-wordmark { margin-left: 24px; font-size: 70px; }
-
-/* Botón «Actualizar» de la barra: el ícono gira mientras se leen los chats (solo transform: lo mueve la GPU) */
-.hf2-refresh.spinning svg { animation: hf2-refresh-spin 0.9s linear infinite; }
-@keyframes hf2-refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* ----- Modal de actualización (js/ui/updatemodal.js) -----
- * Fuera de las pantallas, encima de todo; mismo panel que la ayuda de formato (borde dorado). */
-.hf2-modal {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(8, 9, 10, 0.78);
-  /* el modal cuelga de #app, fuera de las pantallas .hf2: trae sus propios colores */
-  --text: #f4f4f2;
-  --muted: #b9bcc0;
-  --dim: #8a8e94;
-  --gold-1: #f0d2a8;
-  --gold-2: #c99a66;
-  --gold-text: #d9b28a;
-  --gold-ring: #e6c193;
-  color: var(--text);
-  font-family: inherit;
-}
-
-.hf2-modal-card {
-  position: relative;
-  width: 940px;
-  padding: 44px 52px 40px;
-  border-radius: 26px;
-  background: linear-gradient(180deg, #2b2d31 0%, #1d1f22 100%);
-  border: 2px solid rgba(230, 193, 147, 0.55);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 36px rgba(230, 193, 147, 0.16);
-  text-align: left;
-}
-/* al terminar el brillo pasa de dorado a verde (el resplandor verde aparece con opacidad: no se anima un box-shadow) */
-.hf2-modal-card::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 26px;
-  pointer-events: none;
-  opacity: 0;
-  box-shadow: 0 0 40px rgba(60, 196, 137, 0.3);
-}
-.hf2-modal-card.um-lista { border-color: rgba(60, 196, 137, 0.6); }
-.hf2-modal-card.um-lista::after { animation: umGlow 0.8s ease-out forwards; }
-@keyframes umGlow { from { opacity: 0; } to { opacity: 1; } }
-/* entrada: el fondo se oscurece y la tarjeta sube con la curva suave de siempre */
-.hf2-modal.first { animation: umFade 0.35s ease both; }
-.hf2-modal.first .hf2-modal-card { animation: umRise 0.6s cubic-bezier(0.16, 0.84, 0.3, 1) both; }
-@keyframes umFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes umRise { from { opacity: 0; transform: translate3d(0, 34px, 0) scale3d(0.96, 0.96, 1); } to { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); } }
-
-.um-head {
-  display: flex;
-  align-items: center;
-}
-
-.um-ic {
-  width: 84px;
-  height: 84px;
-  margin-right: 28px;
-  flex: none;
-}
-
-.um-ic svg {
-  width: 84px;
-  height: 84px;
-  stroke: var(--gold-1);
-}
-
-.um-title {
-  color: var(--text);
-  font-size: 38px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.um-sub {
-  margin-top: 8px;
-  color: var(--gold-text);
-  font-size: 23px;
-}
-
-.um-notes {
-  margin-top: 30px;
-  padding: 20px 26px 24px;
-  border-radius: 16px;
-  background: rgba(201, 154, 102, 0.12);
-}
-
-.um-lbl {
-  color: var(--dim);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.um-notes p {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 24px;
-  line-height: 1.4;
-}
-
-.um-warn {
-  margin: 24px 0 0;
-  color: var(--muted);
-  font-size: 23px;
-  line-height: 1.45;
-}
-
-.um-warn.err {
-  color: #ffb3a6;
-}
-
-/* barra de progreso: dorada mientras baja, verde al terminar */
-.um-prog {
-  margin-top: 32px;
-}
-
-/* La barra se mueve con transform (GPU) y se recorta con clip-path (en la TV un overflow:hidden con bordes redondeados deja salir
- * las capas animadas en rectángulo). Relleno dorado; al terminar se funde a verde con la misma paleta de la píldora. */
-.um-bar {
-  position: relative;
-  height: 20px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  overflow: hidden;
-  -webkit-clip-path: inset(0 round 10px);
-  clip-path: inset(0 round 10px);
-}
-
-.um-bar .um-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 100%;
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-  background: linear-gradient(90deg, #c99a66 0%, #f0d2a8 100%);
-  will-change: transform;
-}
-
-.um-bar .um-fill.ok {
-  background: linear-gradient(90deg, #1f8a5b 0%, #3cc489 100%);
-  opacity: 0;
-  transition: opacity 0.6s ease;
-}
-
-.um-prog.done .um-bar .um-fill.ok {
-  opacity: 1;
-}
-
-/* brillo que cruza la barra mientras baja (igual que en la píldora de sincronización) */
-.um-bar .um-shine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 40%;
-  background: linear-gradient(100deg, rgba(255, 236, 208, 0) 0%, rgba(255, 236, 208, 0.3) 50%, rgba(255, 236, 208, 0) 100%);
-  transform: translate3d(-110%, 0, 0);
-  animation: umShine 1.7s linear infinite;
-  will-change: transform;
-}
-
-.um-prog.done .um-bar .um-shine {
-  animation: none;
-  opacity: 0;
-}
-
-@keyframes umShine { to { transform: translate3d(260%, 0, 0); } }
-
-.um-prog-txt {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 14px;
-  color: var(--muted);
-  font-size: 22px;
-}
-
-.um-prog-txt #umPct {
-  color: var(--text);
-  font-weight: 800;
-}
-
-.um-prog-txt #umPct {
-  transition: color 0.5s ease;
-}
-
-.um-prog.done .um-prog-txt #umPct {
-  color: #5fd9a3;
-}
-
-.um-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 36px;
-}
-
-/* los botones del cuadro: mismo tamaño siempre (con o sin icono) y el icono en un recuadro fijo */
-.hf2-modal .hf2-btn {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 300px;
-  min-width: 300px;
-  height: 72px;
-  margin: 0 0 0 20px;
-  padding: 0 30px;
-  border-radius: 36px;
-  font-size: 23px;
-  white-space: nowrap;
-}
-
-/* Botones del cuadro: los dos se ven IGUALES en reposo (borde dorado, fondo tenue; el principal con un tinte dorado) y la selección
- * es el relleno dorado del botón, no un aro: antes el aro blanco del foco, del mismo color que el borde del otro botón, parecía el
- * contorno más grueso del principal y lo hacía ver más alto. Enfocado ninguno cambia de tamaño. */
-.hf2-modal .hf2-btn,
-.hf2-modal .hf2-btn.primary,
-.hf2-modal .hf2-btn.ghost {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  border: 2.5px solid rgba(230, 193, 147, 0.5);
-  box-shadow: none;
-  transform: none;
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-.hf2-modal .hf2-btn.primary {
-  background: rgba(240, 210, 168, 0.14);
-  border-color: rgba(230, 193, 147, 0.75);
-}
-.hf2-modal .hf2-btn[data-focused="true"],
-.hf2-modal .hf2-btn.primary[data-focused="true"],
-.hf2-modal .hf2-btn.ghost[data-focused="true"] {
-  background: linear-gradient(180deg, #f0d2a8 0%, #d9ab76 100%);
-  color: #2a1d0e;
-  border-color: #f0d2a8;
-  box-shadow: 0 0 24px rgba(230, 193, 147, 0.32);
-  transform: none;
-}
-.hf2-modal .hf2-btn[data-focused="true"] svg {
-  stroke: #2a1d0e;
-}
-.um-btn-ic .um-check.static,
-.um-btn-ic .um-check.static .um-circ,
-.um-btn-ic .um-check.static .um-tick {
-  stroke: currentColor;
-}
-
-.hf2-btn.off {
-  opacity: 0.4;
-}
-
-/* cargando: aro tenue con un arco dorado que gira */
-.um-spin {
-  animation: um-rot 1s linear infinite;
-}
-
-.um-spin .um-ring {
-  stroke: rgba(255, 255, 255, 0.14);
-}
-
-.um-spin .um-arc {
-  stroke: var(--gold-1);
-  stroke-dasharray: 38 120;
-}
-
-@keyframes um-rot {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* terminado: el círculo se dibuja, la palomita le sigue y el conjunto «salta» un poco */
-.um-check {
-  animation: um-pop 0.6s cubic-bezier(0.16, 0.84, 0.3, 1);
-}
-
-.um-check .um-circ,
-.um-check .um-tick {
-  stroke: #3cc489;
-  stroke-dasharray: 120;
-  stroke-dashoffset: 120;
-  animation: um-draw 0.6s ease forwards;
-}
-
-.um-check .um-tick {
-  stroke-dasharray: 32;
-  stroke-dashoffset: 32;
-  animation: um-draw 0.35s 0.45s ease forwards;
-}
-
-@keyframes um-draw {
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes um-pop {
-  0% { transform: scale(0.82); }
-  100% { transform: scale(1); }
-}
-
-/* la palomita pequeña dentro del botón «Reiniciar ahora» */
-.um-btn-ic {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  margin-right: 14px;
-}
-
-.um-btn-ic svg {
-  width: 30px;
-  height: 30px;
-  stroke: currentColor;
-}
-
-.um-btn-ic svg.um-spin .um-ring { stroke: rgba(255, 255, 255, 0.25); }
-.um-btn-ic svg.um-spin .um-arc { stroke: currentColor; }
-
-.um-check.static,
-.um-check.static .um-circ,
-.um-check.static .um-tick {
-  animation: none;
-  stroke: #2a1d0e;
-  stroke-dashoffset: 0;
-}
-
-
-/* =====================================================================
-   TV en vivo (IPTV) · js/ui/live.js
-   ===================================================================== */
-#app[data-route="live-player"] .hf2-footer.app { display: none; }
-#scrLive, #scrLivePlayer { width: var(--W, 1920px); height: 1080px; }
-#scrLive { background: #0d0e10; }
-
-/* --- vista previa: el recuadro es un «agujero» en la página; AVPlay (o el <video> fuera de la TV) dibuja detrás --- */
-.lv-media { position: absolute; left: 88px; top: 152px; width: 880px; height: 495px; background: #000; overflow: hidden; }
-.lv-media object, .lv-media video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: transparent; }
-.lv-media video { background: #000; object-fit: contain; }
-html.hf-live-on #app[data-route="live"] .lv-media, html.hf-live-on #app[data-route="live-player"] .lv-media { z-index: 0; }
-html:not(.hf-live-on) .lv-media { visibility: hidden; }
-#app:not([data-route="live"]):not([data-route="live-player"]) .lv-media { display: none; }
-#scrLive { overflow: hidden; }
-html.hf-live-av, html.hf-live-av body, html.hf-live-av #app, html.hf-live-av #scrLive, html.hf-live-av #scrLivePlayer { background: transparent !important; }
-html.hf-live-on #scrLivePlayer { background: transparent; }
-.lv-hole { position: absolute; z-index: 1; border-radius: 6px; box-shadow: 0 0 0 1920px #0d0e10; pointer-events: none; }
-.lv-pv { position: absolute; z-index: 2; left: 88px; top: 152px; width: 880px; height: 495px; border-radius: 6px; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12); pointer-events: none; }
-.lv-pv-badge { position: absolute; left: 20px; top: 18px; padding: 6px 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.62); color: #fff; font-size: 18px; font-weight: 800; letter-spacing: 1.5px; display: none; align-items: center; }
-.lv-pv-badge.on { display: flex; }
-.lv-pv-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: var(--muted); font-size: 24px; background: linear-gradient(160deg, #15171b, #0b0c0e); }
-.lv-pv-state.hide { display: none; }
-.lv-pv-state.err { color: #ff9b8a; }
-.lv-pv-state.err b { font-size: 28px; color: #ffb4a6; }
-.lv-pv-state.err small { font-size: 20px; color: var(--dim); max-width: 720px; text-align: center; }
-.lv-pv-logo { width: 220px; height: 110px; background: center / contain no-repeat; opacity: 0.9; }
-
-/* --- lo que dan ahora, debajo del recuadro --- */
-.lv-info { position: absolute; z-index: 2; left: 88px; top: 672px; width: 880px; height: 250px; overflow: hidden; }
-.lv-i-ch { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 22px; }
-.lv-i-logo { width: 84px; height: 48px; border-radius: 8px; background: rgba(255, 255, 255, 0.07) center / contain no-repeat; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: var(--dim); flex: none; }
-.lv-i-num { color: var(--gold-1); font-weight: 800; font-size: 26px; font-variant-numeric: tabular-nums; }
-.lv-i-ch b { color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lv-info h3 { margin: 12px 0 6px; font-size: 40px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lv-i-desc { margin: 0 0 14px; font-size: 21px; line-height: 1.38; color: var(--muted); height: 58px; overflow: hidden; }
-.lv-i-desc.dim { color: var(--dim); }
-.lv-i-next { display: block; margin-top: 8px; font-size: 19px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lv-i-keys { margin-top: 10px; font-size: 19px; color: var(--dim); }
-.lv-i-keys b { display: inline-block; padding: 2px 12px; margin-right: 8px; border-radius: 8px; border: 2px solid rgba(255, 255, 255, 0.35); color: var(--text); font-size: 17px; }
-.lv-prog { display: flex; align-items: center; gap: 16px; font-size: 19px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.lv-prog .lv-bar { flex: 1; }
-.lv-bar { display: block; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.22); overflow: hidden; }
-.lv-bar i { display: block; height: 100%; background: #fff; border-radius: 3px; }
-.lv-bar.big { height: 7px; }
-.lv-bar.big i { background: var(--gold-1); }
-
-.lv-tools { position: absolute; z-index: 2; left: 88px; top: 936px; width: 880px; display: flex; align-items: center; gap: 14px; }
-.lv-tools .hf2-chip { margin: 0; padding: 10px 20px; border-radius: 22px; font-size: 18px; gap: 10px; border: 2px solid transparent; }
-.lv-tools .hf2-chip svg { width: 22px; height: 22px; stroke: currentColor; }
-.lv-tools .hf2-chip[data-focused="true"] { background: var(--gold-1); color: #2a1d0e; }
-.lv-status { margin-left: 8px; color: var(--dim); font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* --- a la derecha: categorías en pestañas y lista de canales --- */
-.lv-right { position: absolute; z-index: 2; left: 1030px; top: 152px; width: 802px; bottom: 96px; display: flex; flex-direction: column; }
-.lv-tabs { height: 66px; overflow: hidden; position: relative; flex: none; }
-.lv-ttrack { position: relative; display: flex; gap: 14px; will-change: transform; transition: transform .18s ease-out; width: max-content; padding: 3px 3px; }
-.lv-tab { flex: none; height: 56px; padding: 0 28px; border-radius: 28px; border: 2px solid rgba(255, 255, 255, 0.28); display: flex; align-items: center; font-size: 23px; font-weight: 600; color: var(--muted); white-space: nowrap; }
-.lv-tab.on { background: rgba(255, 255, 255, 0.14); color: var(--text); border-color: rgba(255, 255, 255, 0.14); }
-.lv-tab[data-focused="true"] { background: var(--gold-1); color: #2a1d0e; border-color: var(--gold-1); }
-.lv-gtrack, .lv-ctrack { position: relative; will-change: transform; transition: transform .18s ease-out; }
-.lv-head { display: flex; align-items: baseline; gap: 18px; height: 54px; flex: none; margin-top: 4px; }
-.lv-head h2 { margin: 0; font-size: 30px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
-.lv-head span { color: var(--dim); font-size: 18px; }
-.lv-cview { flex: 1; overflow: hidden; position: relative; }
-.lv-ch { height: 116px; margin-bottom: 8px; padding: 0 18px 0 12px; border-radius: 14px; display: flex; align-items: center; gap: 16px; background: transparent; border: 2px solid transparent; }
-.lv-ch.live { background: rgba(255, 255, 255, 0.06); }
-.lv-ch[data-focused="true"] { background: rgba(255, 255, 255, 0.14); border-color: var(--gold-ring); }
-.lv-thumb i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 28px; font-weight: 800; color: var(--dim); }
-.lv-thumb.has i { display: none; }
-.lv-thumb { position: relative; width: 176px; height: 99px; flex: none; border-radius: 8px; background: #1a1c20 center / cover no-repeat; overflow: hidden; }
-.lv-thumb.plain.has { background-size: 70% auto; background-color: #14161a; }
-.lv-eq { display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: flex-end; justify-content: center; gap: 4px; padding-bottom: 28px; background: rgba(0, 0, 0, 0.35); }
-.lv-ch.live .lv-eq { display: flex; }
-.lv-eq u { display: block; width: 6px; height: 12px; background: #fff; border-radius: 2px; animation: lveq 0.9s ease-in-out infinite; }
-.lv-eq u:nth-child(2) { animation-delay: .25s; }
-.lv-eq u:nth-child(3) { animation-delay: .5s; }
-@keyframes lveq { 0%, 100% { height: 8px; } 50% { height: 30px; } }
-.lv-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-.lv-name b { font-size: 25px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lv-name small { font-size: 19px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
-.lv-name .lv-bar { width: 220px; margin-top: 2px; }
-.lv-i { width: 34px; height: 34px; flex: none; color: var(--muted); }
-.lv-i svg { width: 100%; height: 100%; stroke: currentColor; }
-.lv-fav { color: var(--gold-1); font-size: 24px; flex: none; }
-.lv-none { padding: 40px 10px; color: var(--muted); font-size: 24px; }
-.lv-dot { display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 50%; background: #e5484d; vertical-align: 1px; }
-.lv-dot.sm { width: 10px; height: 10px; margin-right: 8px; }
-
-.lv-empty { position: absolute; left: 0; right: 0; top: 190px; bottom: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; color: var(--muted); font-size: 24px; }
-.lv-card { width: 1100px; padding: 54px 64px; border-radius: 28px; background: rgba(24, 26, 30, 0.85); border: 1px solid var(--line); }
-.lv-card h1 { margin: 0 0 14px; font-size: 46px; font-weight: 800; color: var(--text); }
-.lv-card p { margin: 0 0 26px; font-size: 24px; line-height: 1.45; color: var(--muted); }
-.lv-card .lv-tip { margin: 26px 0 0; font-size: 21px; color: var(--dim); }
-.lv-field { display: block; padding: 0; border-radius: 18px; border: 2px solid var(--line); background: rgba(0, 0, 0, 0.35); }
-.lv-field[data-focused="true"] { border-color: var(--gold-ring); box-shadow: 0 0 0 4px rgba(230, 193, 147, 0.25); }
-.lv-input { width: 100%; height: 84px; padding: 0 26px; border: 0; background: transparent; color: var(--text); font-size: 26px; font-family: inherit; }
-.lv-btns { display: flex; margin: 30px -14px 0; }
-.lv-btns .hf2-btn { min-width: 300px; }
-.lv-spin { width: 64px; height: 64px; border-radius: 50%; border: 6px solid rgba(255, 255, 255, 0.15); border-top-color: var(--gold-1); animation: lvspin 0.9s linear infinite; }
-.lv-spin.sm { display: inline-block; width: 20px; height: 20px; border-width: 3px; vertical-align: -3px; margin-right: 10px; }
-@keyframes lvspin { to { transform: rotate(360deg); } }
-
-/* --- pantalla completa --- */
-#scrLivePlayer { background: #000; }
-.lv-osd { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; padding: 90px 88px 56px; background: linear-gradient(0deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.6) 62%, transparent 100%); opacity: 0; transition: opacity .3s; }
-.lv-osd.show { opacity: 1; }
-.lv-osd-top { display: flex; align-items: center; gap: 26px; }
-.lv-osd-logo { width: 150px; height: 84px; border-radius: 12px; background: rgba(255, 255, 255, 0.08) center / contain no-repeat; flex: none; }
-.lv-osd-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.lv-osd-t b { font-size: 44px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lv-osd-t small { font-size: 22px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lv-osd-st { font-size: 24px; color: var(--muted); max-width: 700px; text-align: right; font-weight: 700; }
-.lv-osd-st.error { color: #ff9b8a; font-weight: 600; }
-.lv-osd-st.reproduciendo { color: #fff; letter-spacing: 1.5px; }
-.lv-prog.big { margin-top: 24px; font-size: 24px; color: #fff; }
-.lv-osd-keys { margin-top: 22px; color: var(--dim); font-size: 20px; }
-.lv-panel { position: absolute; z-index: 4; left: 0; right: 0; bottom: 250px; display: none; justify-content: center; }
-.lv-panel.show { display: flex; }
-.lv-panel-in { display: flex; gap: 18px; padding: 16px; border-radius: 40px; background: rgba(16, 17, 20, 0.88); border: 1px solid var(--line); }
-.lv-pbtn { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 38px; border-radius: 36px; font-size: 26px; font-weight: 700; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 2px solid transparent; }
-.lv-pbtn svg { width: 30px; height: 30px; stroke: currentColor; }
-.lv-pbtn[data-focused="true"] { background: var(--gold-1); color: #2a1d0e; }
-.lv-digits { display: none; position: absolute; right: 88px; top: 70px; z-index: 30; padding: 14px 34px; border-radius: 20px; background: rgba(0, 0, 0, 0.75); border: 2px solid var(--gold-ring); color: var(--gold-1); font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; }
-html.hf-live-on #scrLive { background: transparent; }
-.lv-tools .lv-favchip { background: rgba(240, 210, 168, 0.14); color: var(--gold-1); }
-.lv-tools .lv-favchip[data-focused="true"] { background: var(--gold-1); color: #2a1d0e; }
-.lv-tools .hf2-chip { white-space: nowrap; }
-html.hf-live-av .lv-media.lv-media-full { background: transparent; border-radius: 0; }
-
-/* ----- Aviso de sincronización: píldora abajo al centro (js/ui/library.js SyncToast) -----
- * El color (verde/rojo) y el brillo viven dentro de .st-clip, que recorta con clip-path: en la TV las capas animadas se
- * salían en rectángulo por las esquinas redondeadas con un simple overflow:hidden + border-radius. */
-#syncToast {
-  position: absolute;
-  left: 50%;
-  bottom: 92px;
-  z-index: 60;
-  pointer-events: none;
-  opacity: 0;
-  transform: translate3d(-50%, 36px, 0) scale3d(0.9, 0.9, 1);
-  transition: transform 0.6s cubic-bezier(0.16, 0.84, 0.3, 1), opacity 0.4s ease;
-  will-change: transform, opacity;
-}
-#syncToast.on { opacity: 1; transform: translate3d(-50%, 0, 0) scale3d(1, 1, 1); }
-#syncToast.out { opacity: 0; transform: translate3d(-50%, 14px, 0) scale3d(0.95, 0.95, 1); transition-duration: 0.5s; }
-#app[data-route="player"] #syncToast,
-#app[data-route="live-player"] #syncToast,
-#app[data-route="splash"] #syncToast { display: none; }
-.st-pill {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  height: 56px;
-  padding: 0 28px 0 18px;
-  border-radius: 28px;
-  background: #1b1d21;
-  border: 2px solid rgba(230, 193, 147, 0.55);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6), 0 0 26px rgba(230, 193, 147, 0.17);
-  color: #f0d2a8;
-}
-.st-clip {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 26px;
-  overflow: hidden;
-  -webkit-clip-path: inset(0 round 26px);
-  clip-path: inset(0 round 26px);
-}
-.st-bg { position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0; transition: opacity 0.5s ease; }
-.st-bg.ok { background: linear-gradient(120deg, #1f8a5b 0%, #3cc489 100%); }
-.st-bg.bad { background: linear-gradient(120deg, #b3342f 0%, #e5594f 100%); }
-.done .st-bg.ok, .fail .st-bg.bad { opacity: 1; }
-.st-shine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 60%;
-  background: linear-gradient(100deg, rgba(255, 236, 208, 0) 0%, rgba(255, 236, 208, 0.26) 50%, rgba(255, 236, 208, 0) 100%);
-  transform: translate3d(-110%, 0, 0);
-  animation: stShine 1.7s linear infinite;
-  will-change: transform;
-}
-.done .st-shine, .fail .st-shine { animation: none; opacity: 0; }
-@keyframes stShine { to { transform: translate3d(190%, 0, 0); } }
-.st-ring {
-  position: absolute;
-  left: -2px;
-  top: -2px;
-  right: -2px;
-  bottom: -2px;
-  border-radius: 30px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  opacity: 0;
-}
-.done .st-ring, .fail .st-ring { animation: stRing 1s ease-out 0.12s both; }
-@keyframes stRing { 0% { opacity: 0.9; transform: scale3d(1, 1, 1); } 100% { opacity: 0; transform: scale3d(1.16, 1.45, 1); } }
-.st-icon { position: relative; width: 32px; height: 32px; flex: none; color: #f0d2a8; }
-.st-icon svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-.st-spin { animation: stSpin 0.95s linear infinite; will-change: transform; transition: opacity 0.3s ease; }
-@keyframes stSpin { to { transform: rotate(360deg); } }
-.done .st-spin, .fail .st-spin { opacity: 0; }
-.st-check, .st-cross { stroke-dasharray: 1; stroke-dashoffset: 1; }
-.done .st-check { animation: stDraw 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards; }
-.fail .st-cross { animation: stDraw 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards; }
-@keyframes stDraw { to { stroke-dashoffset: 0; } }
-/* Rejilla: los dos textos ocupan la misma celda, así el aviso mide lo que el más largo (con la letra del tema Wii «Sincronizando catálogo…» no cabía en 205 px). */
-.st-text { position: relative; display: grid; height: 26px; min-width: 205px; overflow: hidden; font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
-.st-text b { grid-area: 1 / 1; position: relative; line-height: 26px; white-space: nowrap; font-weight: 700; transition: transform 0.5s cubic-bezier(0.16, 0.84, 0.3, 1), opacity 0.35s ease; }
-.st-busy { color: #f0d2a8; transform: translate3d(0, 0, 0); opacity: 1; }
-.st-end { color: #fff; transform: translate3d(0, 100%, 0); opacity: 0; }
-.done .st-busy, .fail .st-busy { transform: translate3d(0, -100%, 0); opacity: 0; }
-.done .st-end, .fail .st-end { transform: translate3d(0, 0, 0); opacity: 1; transition-delay: 0.12s; }
-.done .st-pill, .fail .st-pill { border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6), 0 0 28px rgba(60, 196, 137, 0.3); }
-.fail .st-pill { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6), 0 0 28px rgba(229, 89, 79, 0.3); }
-.done .st-icon, .fail .st-icon { color: #fff; }
-
-/* ----- Menú superior: icono por ítem y solo se despliega el nombre de quien tiene el foco (como la barra del celular) -----
- * Misma suavidad de siempre, pero SIN animar anchos (eso recalculaba el diseño en cada cuadro y trababa la TV): el diseño final se
- * aplica de golpe y js/ui/core.js (menuLayout, técnica FLIP) desliza cada ítem, la píldora dorada, la píldora tenue y el riel
- * desde donde estaban con transform. El nombre aparece con un fundido. */
-.hf2-menu {
-  isolation: isolate;
-}
-.hf2-menu span,
-.hf2-menu span.on {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 10px 22px;
-  font-weight: 700;
-  transition: color 0.35s ease;
-  will-change: transform;
-  transform-origin: 0 50%; /* igual que las píldoras: el deslizamiento (menuLayout) alinea el borde izquierdo, así que escala desde ahí y no se sale del menú */
-}
-.hf2-menu span svg {
-  display: block;
-  width: 30px;
-  height: 30px;
-  flex: none;
-  fill: none;
-  stroke: currentColor;
-}
-.hf2-menu span .lbl {
-  display: none;
-  margin-left: 12px;
-  white-space: nowrap;
-  font-weight: 700;
-}
-.hf2-menu span[data-focused="true"] .lbl,
-.hf2-menu span.on .lbl {
-  display: block;
-  animation: hfMenuLbl 0.45s ease 0.1s both;
-}
-/* con el foco en el menú, la sección actual (si no es la enfocada) vuelve a ser solo icono */
-#app[data-active-area="top"] .hf2-menu span.on:not([data-focused="true"]) .lbl {
-  display: none;
-}
-@keyframes hfMenuLbl { from { opacity: 0; } to { opacity: 1; } }
-.hf2-menu span[data-focused="true"],
-#app[data-active-area="top"] .hf2-menu span[data-focused="true"] {
-  background: none;
-  color: #2a1d0e;
-}
-.hf2-menu span::before,
-.hf2-menu span::after,
-.hf2-menu span.on::after {
-  content: none;
-  display: none;
-}
-.hf2-menu .mp-gold,
-.hf2-menu .mp-tint,
-.hf2-menu .mp-rail {
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-  transform-origin: 0 50%;
-  will-change: transform, opacity;
-}
-.hf2-menu .mp-gold {
-  border-radius: 30px;
-  background: linear-gradient(180deg, #f0d2a8, #c99a66);
-  opacity: 0;
-  transition: opacity 0.35s ease;
-}
-.hf2-menu .mp-tint {
-  border-radius: 30px;
-  background: rgba(255, 255, 255, 0.12);
-  opacity: 1;
-  transition: opacity 0.35s ease;
-}
-.hf2-menu .mp-rail {
-  left: -2px;
-  top: -2px;
-  right: -2px;
-  bottom: -2px;
-  border-radius: 40px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 2px solid rgba(230, 193, 147, 0.35);
-  opacity: 0;
-  transition: opacity 0.4s ease;
-}
-#app[data-active-area="top"] .hf2-menu .mp-gold { opacity: 1; }
-#app[data-active-area="top"] .hf2-menu .mp-tint { opacity: 0; }
-#app[data-active-area="top"] .hf2-menu .mp-rail { opacity: 1; }
-#app[data-active-area="top"] .hf2-menu {
-  background: none;
-  border-color: transparent;
-}
-
-/* ----- Vista previa del destacado: el video sale sobre la imagen con un fundido, a TODO el ancho (js/ui/library.js, HeroPv) -----
- * Va en su propio contenedor, FUERA de la máscara del banner (.hf2-bb-media): la TV no dibuja un <video> dentro de un contenedor con
- * mask-image. La mezcla con el fondo de abajo es un degradado encima (.hf2-bb-vfade) que termina en el color exacto del fondo. */
-.hf2-bb-vmedia {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.9s ease;
-  will-change: opacity;
-}
-.hf2-bb-vmedia.on { opacity: 1; }
-.hf2-bb-pv {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--W, 1920px);
-  height: 780px;
-  object-fit: cover;
-  background: #000;
-}
-.hf2-billboard.compact .hf2-bb-pv { height: 720px; }
-/* con el video a todo el ancho se necesita un degradado más suave que el del banner (sólido a la izquierda): oscuro a la izquierda
- * para leer el texto y cada vez más claro hacia la derecha */
-.hf2-bb-vmedia .hf2-bb-shade {
-  background: linear-gradient(90deg, rgba(19, 21, 24, 0.9) 0%, rgba(19, 21, 24, 0.62) 28%, rgba(19, 21, 24, 0.18) 52%, rgba(19, 21, 24, 0) 72%);
-}
-.hf2-bb-vfade {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-}
-
-/* ----- El destacado se disuelve hacia abajo, sin línea divisoria -----
- * Antes el degradado inferior terminaba en un color fijo (#121417) distinto al fondo real de la pantalla en esa altura (que va de
- * #131518 a #0d0e10): se veía un corte. Ahora imagen, video y degradados viven en .hf2-bb-media y ese contenedor se vuelve
- * transparente hacia abajo con una máscara de muchos pasos (curva suave, sin bandas): el destacado se funde con el fondo, sea
- * cual sea su color y la altura a la que esté. El texto y los botones (.hf2-bb-copy) quedan fuera de la máscara. */
-.hf2-bb-media {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-}
-/* el desvanecido hacia abajo (antes una máscara de 11 pasos): capa del color del fondo con el alfa invertido, sobre imagen y sombra */
-.hf2-bb-media::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(15, 16, 18, 0) 0%, rgba(15, 16, 18, 0) 48%, rgba(15, 16, 18, 0.05) 54%, rgba(15, 16, 18, 0.15) 60%, rgba(15, 16, 18, 0.3) 66%, rgba(15, 16, 18, 0.48) 72%, rgba(15, 16, 18, 0.66) 78%, rgba(15, 16, 18, 0.81) 84%, rgba(15, 16, 18, 0.92) 90%, rgba(15, 16, 18, 0.98) 95%, rgb(15, 16, 18) 100%);
-}
-
-/* ----- Búsqueda de canales: botón a la izquierda de las categorías que se expande y ocupa toda la fila (js/ui/live.js) ----- */
-.lv-sbtn {
-  flex: none;
-  width: 56px;
-  height: 56px;
-  border-radius: 28px;
-  border: 2px solid rgba(255, 255, 255, 0.28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-}
-.lv-sbtn svg { width: 28px; height: 28px; stroke: currentColor; fill: none; }
-.lv-sbtn[data-focused="true"] { background: var(--gold-1); color: #2a1d0e; border-color: var(--gold-1); }
-.lv-ttrack.fresh .lv-tab, .lv-ttrack.fresh .lv-sbtn { animation: lvTabIn 0.5s cubic-bezier(0.16, 0.84, 0.3, 1) both; }
-@keyframes lvTabIn { from { opacity: 0; transform: translate3d(-18px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
-/* el campo: su fondo y borde nacen del tamaño del botón y crecen hacia la derecha hasta cubrir la fila; lo de dentro entra con un fundido */
-.lv-sfield {
-  position: relative;
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 790px;
-  height: 56px;
-  padding: 0 26px;
-  border-radius: 28px;
-  color: var(--text);
-}
-.lv-sfield .lv-sbg {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 28px;
-  border: 2px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.07);
-  transform-origin: 0 50%;
-  animation: lvSExpand 0.6s cubic-bezier(0.16, 0.84, 0.3, 1) both;
-  will-change: transform, opacity;
-}
-.lv-sfield[data-focused="true"] .lv-sbg { border-color: var(--gold-ring); background: rgba(230, 193, 147, 0.1); }
-@keyframes lvSExpand { from { opacity: 0.4; transform: scale3d(0.071, 1, 1); } to { opacity: 1; transform: scale3d(1, 1, 1); } }
-.lv-sfield > svg { position: relative; width: 28px; height: 28px; flex: none; stroke: var(--gold-1); fill: none; animation: lvSFade 0.45s ease 0.2s both; }
-.lv-sinput {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 26px;
-  animation: lvSFade 0.45s ease 0.2s both;
-}
-@keyframes lvSFade { from { opacity: 0; } to { opacity: 1; } }
-
-/* ----- PIN: el relleno de cada punto aparece con una escala suave (solo transform, lo hace la GPU) ----- */
-.hf2-pin-dots i { position: relative; }
-.hf2-pin-dots i::after {
-  content: "";
-  position: absolute;
-  left: -3px;
-  top: -3px;
-  right: -3px;
-  bottom: -3px;
-  border-radius: 50%;
-  background: var(--gold-ring);
-  transform: scale3d(0, 0, 1);
-  transition: transform 0.28s cubic-bezier(0.16, 0.84, 0.3, 1);
-}
-.hf2-pin-dots i.on { background: transparent; }
-.hf2-pin-dots i.on::after { transform: scale3d(1, 1, 1); }
-/* La pantalla del PIN tiene fondos grandes (resplandor, avatar): cada punto que se llena repintaba todo y la TV tardaba 200–470 ms por
- * dígito. Con capas propias solo se repinta el punto (medido: 15–27 ms por dígito). */
-.hf2-pin-dots,
-#scrPin .hf2-pin .hf2-avatar,
-#scrPin .hf2-glow { will-change: transform; }
-
-/* ----- Editar perfil: los 4 botones (Guardar, Chats, Borrar, Cancelar) sumaban 940 px y el último se salía 42 px del panel (que termina
- * en x=1710). Ahora son de 190 px con 16 px entre ellos: terminan en x=1620, dentro del panel; con 2 botones (perfil nuevo) no cambian. ----- */
-.hf2-panel.edit .hf2-actions .hf2-btn {
-  min-width: 190px;
-  padding: 0 22px;
-  margin: 0 16px 0 0;
-  white-space: nowrap;
-  justify-content: center;
-}
-.hf2-panel.edit .hf2-actions .hf2-btn:last-child { margin-right: 0; }
-
-
-/* ----- Modal de confirmación (borrar perfil…): tarjeta más angosta, con el mismo estilo del cuadro de actualización ----- */
-.hf2-modal-card.cf { width: 800px; padding: 40px 48px 36px; }
-.hf2-modal-card.cf.danger { border-color: rgba(229, 89, 79, 0.6); }
-.hf2-modal-card.cf.danger::after { box-shadow: 0 0 40px rgba(229, 89, 79, 0.28); animation: umGlow 0.8s ease-out forwards; }
-.hf2-modal-card.cf .um-ic svg { stroke: #ff9b8a; }
-.cf-text { margin: 26px 0 0; font-size: 26px; line-height: 1.45; color: var(--muted); }
-.hf2-modal-card.cf .um-actions { margin-top: 34px; }
-.hf2-modal .hf2-btn.danger { border-color: rgba(229, 89, 79, 0.6); color: #ffb3a6; background: rgba(229, 89, 79, 0.1); }
-.hf2-modal .hf2-btn.danger[data-focused="true"] {
-  background: linear-gradient(180deg, #f27a6e 0%, #d9483d 100%);
-  border-color: #f27a6e;
-  color: #fff;
-  box-shadow: 0 0 24px rgba(229, 89, 79, 0.38);
-}
-
-
-/* ----- Vista vertical de tarjetas (Ajustes → Tarjetas): póster 2:3; los episodios y videos siguen horizontales (.wide) ----- */
-.hf-vcards .hf2-card:not(.wide):not(.big):not(.ghost) { width: 220px; margin-right: 26px; }
-.hf-vcards .hf2-card:not(.wide):not(.big):not(.ghost) .hf2-card-art { height: 330px; border-radius: 16px; }
-.hf-vcards .hf2-card:not(.wide):not(.big):not(.ghost) .hf2-card-title { font-size: 22px; }
-
-
-/* ----- Aviso «Siguiente capítulo»: tamaño (data-size) y transparencia del fondo (--nx-a), por perfil ----- */
-.hf2-next {
-  background: linear-gradient(180deg, rgba(40, 42, 46, calc(0.97 * var(--nx-a, 1))) 0%, rgba(26, 28, 31, calc(0.98 * var(--nx-a, 1))) 100%);
-  border-color: rgba(230, 193, 147, calc(0.5 * var(--nx-a, 1)));
-}
-.hf2-next[data-size="m"] { width: 640px; padding: 20px; right: 56px; bottom: 56px; border-radius: 20px; }
-.hf2-next[data-size="m"] .hf2-next-art { width: 208px; height: 117px; }
-.hf2-next[data-size="m"] .hf2-next-body { margin-left: 20px; min-width: 0; }
-.hf2-next[data-size="m"] .hf2-next-title { font-size: 23px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hf2-next[data-size="m"] .hf2-next-desc { display: none; }
-.hf2-next[data-size="m"] .hf2-next-count { font-size: 17px; margin-top: 10px; }
-.hf2-next[data-size="m"] .hf2-next-count .bar { width: 120px; }
-.hf2-next[data-size="m"] .hf2-next-actions { margin-top: 12px; }
-.hf2-next[data-size="m"] .hf2-next-actions .hf2-btn,
-.hf2-next[data-size="m"] .nx-fb { height: 50px; padding: 0 20px; font-size: 17px; }
-.hf2-next[data-size="s"] { width: 440px; padding: 14px; right: 40px; bottom: 40px; border-radius: 16px; border-width: 2px; }
-.hf2-next[data-size="s"] .hf2-next-art { width: 132px; height: 74px; border-radius: 10px; }
-.hf2-next[data-size="s"] .hf2-next-body { margin-left: 14px; min-width: 0; }
-.hf2-next[data-size="s"] .hf2-kicker { font-size: 13px; letter-spacing: 1px; }
-.hf2-next[data-size="s"] .hf2-next-title { font-size: 18px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hf2-next[data-size="s"] .hf2-next-desc { display: none; }
-.hf2-next[data-size="s"] .hf2-next-count { font-size: 14px; margin-top: 6px; }
-.hf2-next[data-size="s"] .hf2-next-count .bar { width: 70px; margin-right: 8px; }
-.hf2-next[data-size="s"] .hf2-next-actions { margin-top: 8px; }
-.hf2-next[data-size="s"] .hf2-next-actions .hf2-btn,
-.hf2-next[data-size="s"] .nx-fb { height: 40px; padding: 0 14px; font-size: 14px; margin-right: 8px; }
-
-/* ----- Modal «Siguiente capítulo» ----- */
-.hf2-modal-card.nx { width: 1240px; }
-.nx-body { display: flex; align-items: flex-start; margin-top: 30px; }
-.nx-cols { flex: 1; min-width: 0; padding-right: 36px; }
-.nx-row { margin-bottom: 26px; }
-.nx-lab { margin-bottom: 12px; color: var(--muted); font-size: 22px; font-weight: 700; }
-.nx-chips { display: flex; flex-wrap: wrap; }
-.nx-chip {
-  box-sizing: border-box; height: 58px; min-width: 128px; padding: 0 22px; margin: 0 12px 0 0;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 29px; border: 2px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05);
-  color: #d9dadc; font-size: 22px; font-weight: 700; white-space: nowrap;
-}
-.nx-chip.on { border-color: rgba(230, 193, 147, 0.75); color: var(--gold-1); background: rgba(230, 193, 147, 0.12); }
-.nx-chip[data-focused="true"] { background: linear-gradient(180deg, var(--gold-1), var(--gold-2)); border-color: var(--gold-1); color: #2a1d0e; }
-.nx-stage { flex: 0 0 auto; width: 576px; height: 324px; overflow: hidden; border-radius: 14px; border: 2px solid rgba(255, 255, 255, 0.14); position: relative; }
-.nx-screen { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform: scale(0.3); transform-origin: 0 0; }
-.nx-film { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 30% 30%, #5a6a82 0%, #2b3342 45%, #12151b 100%); }
-.nx-fake { z-index: 2; }
-.nx-fb {
-  box-sizing: border-box; display: inline-flex; align-items: center; margin-right: 14px; height: 62px; padding: 0 28px;
-  border-radius: 31px; border: 2px solid rgba(255, 255, 255, 0.3); color: #f4f4f2; font-size: 20px; font-weight: 800; white-space: nowrap;
-}
-.nx-fb.primary { background: linear-gradient(180deg, #f0d2a8, #c99a66); border-color: #f0d2a8; color: #2a1d0e; }
-
-/* Versión web en computador (?web=1): sin la barra de ayuda del control remoto */
-html[data-web="pc"] #status { display: none; }
-
-/* ----- Versión web en computador (data-web="pc", js/web-pc.js): efectos de tarjeta completos -----
- * La TV los deja fuera por liviana; en un computador sobra GPU. La tarjeta con el foco se inclina en 3D siguiendo el puntero (js/web-pc.js pone
- * --rx / --ry / --gx / --gy), lleva un brillo que se mueve con él y una sombra con halo dorado más profunda. */
-html[data-web="pc"] .hf2-card[data-focused="true"],
-html[data-web="pc"] .hf2-ep[data-focused="true"] {
-  transform: perspective(1100px) translate3d(0, -10px, 0) scale(1.12) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
-  will-change: transform;
-}
-html[data-web="pc"] .hf2-card.tilt,
-html[data-web="pc"] .hf2-ep.tilt {
-  transition: transform 0.14s ease-out, opacity 0.35s ease; /* siguiendo el puntero: sin el rebote del resorte */
-}
-html[data-web="pc"] .hf2-card[data-focused="true"] .hf2-card-art,
-html[data-web="pc"] .hf2-ep[data-focused="true"] .hf2-ep-art {
-  box-shadow: 0 0 0 5px #fff, 0 0 0 11px rgba(230, 193, 147, 0.85), 0 34px 60px rgba(0, 0, 0, 0.8), 0 0 70px rgba(230, 193, 147, 0.22);
-}
-html[data-web="pc"] .hf2-card-art::after,
-html[data-web="pc"] .hf2-ep-art::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 25%), rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 58%);
-  transition: opacity 0.3s ease;
-}
-html[data-web="pc"] .hf2-card[data-focused="true"] .hf2-card-art::after,
-html[data-web="pc"] .hf2-ep[data-focused="true"] .hf2-ep-art::after {
-  opacity: 1;
-}
-html[data-web="pc"] .hf2-card:active { transform: perspective(1100px) translate3d(0, -4px, 0) scale(1.04); }
-
-/* ----- Versión web en computador: comportamiento de página web (js/web-pc.js) -----
- * Rueda y trackpad desplazan a píxel, botones ‹ › en los carruseles y barra de desplazamiento propia. Sin el «foco que atenúa las demás tarjetas
- * de la fila» de la TV (con el mouse molesta). */
-html[data-web="pc"] .hf2-row[data-area-on="true"] .hf2-card { opacity: 1; }
-html[data-web="pc"] .hf2-scroll > .hf2-scroll-inner { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
-html[data-web="pc"] .hf2-row-viewport { position: relative; }
-html[data-web="pc"] .hf-car {
-  position: absolute;
-  top: 44%;
-  z-index: 7;
-  width: 52px;
-  height: 52px;
-  margin-top: -26px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
-  background: rgba(11, 12, 14, 0.78);
-  color: #fff;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
-}
-html[data-web="pc"] .hf-car svg { width: 26px; height: 26px; stroke: currentColor; }
-html[data-web="pc"] .hf-car.prev { left: 20px; }
-html[data-web="pc"] .hf-car.next { right: 20px; }
-html[data-web="pc"] .hf-car.next svg { transform: scaleX(-1); }
-html[data-web="pc"] .hf2-row:hover .hf-car:not(.off) { opacity: 1; pointer-events: auto; }
-html[data-web="pc"] .hf-car:hover { background: rgba(230, 193, 147, 0.95); color: #2a1d0e; transform: scale(1.08); }
-.hf-sb { display: none; position: fixed; top: 0; right: 0; bottom: 0; width: 14px; z-index: 50; background: transparent; }
-.hf-sb-thumb { position: absolute; top: 0; right: 3px; width: 8px; min-height: 48px; border-radius: 4px; background: rgba(255, 255, 255, 0.28); transition: background 0.2s ease, width 0.15s ease; cursor: grab; }
-.hf-sb:hover .hf-sb-thumb, .hf-sb.on .hf-sb-thumb { width: 10px; background: rgba(230, 193, 147, 0.8); }
-
-/* El destacado vecino que se arma de antemano (js/ui/library.js heroPrebuild) espera encima del actual casi transparente: sin texto ni selector,
- * para que no se lean sus letras detrás del título que se ve (con un 1 % de opacidad en una pantalla buena se alcanzaban a ver). */
-.hf2-billboard.pre .hf2-bb-copy,
-.hf2-billboard.pre .hf2-bb-switch { visibility: hidden; }
-
-/* El destacado nuevo, mientras se revela sobre el anterior, tapa lo que tiene debajo: fondo del color de la pantalla (degradado vertical fijo de
- * #131518 arriba a ~#0f1012 a los 780 px donde termina el destacado). Sin esto, alrededor del título y del texto nuevos se veía el anterior. */
-.hf2-billboard.revealing { background: linear-gradient(180deg, rgb(19, 21, 24), rgb(15, 16, 18) 780px); }
-
-/* Web en computador: el selector de destacados es solo la píldora (flechas y puntos); sin el contador «1 de 6» de abajo */
-html[data-web="pc"] .hf2-bb-dots small { display: none; }
-
-/* ----- Web en computador: reproductor nativo (js/web-pc.js) ----- */
-html[data-web="pc"] #scrPlayer { user-select: none; -webkit-user-select: none; }
-html[data-web="pc"] #scrPlayer[data-overlay="false"] { cursor: none; }
-html[data-web="pc"] .hf2-pl-back { cursor: pointer; transition: background 0.2s ease, transform 0.2s ease; }
-html[data-web="pc"] .hf2-pl-back:hover { background: rgba(230, 193, 147, 0.9); transform: scale(1.06); }
-html[data-web="pc"] .hf2-pl-back:hover svg { stroke: #2a1d0e; }
-html[data-web="pc"] .hf2-pl-bar { cursor: pointer; }
-/* La bola mide 24 px y al pasar el mouse crece solo ~20 % de lo que crecía antes (de 24 a ~28 px; antes llegaba a ~43). Solo escala: antes llevaba también translate(-50%, -50%) sobre un margen negativo y se desplazaba hacia arriba, quedando por encima de la línea.
- * Tampoco crece con el aro de «enfocada» de la TV (32 px con borde blanco): en la web ese estado se queda en 24 px sin aro. */
-html[data-web="pc"] .hf2-pl-bar:hover b, html[data-web="pc"] #scrPlayer.hf-seeking .hf2-pl-bar b { transform: scale(1.16); }
-html[data-web="pc"] .hf2-pl-bar[data-focused="true"] b { width: 24px; height: 24px; margin: -12px 0 0 -12px; box-shadow: none; }
-html[data-web="pc"] .hf-hora { display: none; position: absolute; z-index: 9; transform: translate(-50%, -100%); flex-direction: column; align-items: center; padding: 6px 14px; border-radius: 10px; background: rgba(11, 12, 14, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 24px; font-weight: 700; pointer-events: none; }
-html[data-web="pc"] .hf-hora .hf-th { display: none; width: 256px; height: 144px; margin: 2px 0 8px; border-radius: 8px; background-color: #15171a; background-repeat: no-repeat; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
-html[data-web="pc"] .hf-hora.con .hf-th { display: block; }
-.hf-vol { display: flex; align-items: center; gap: 10px; margin-left: 18px; }
-.hf-vbtn { position: relative; width: 56px; height: 56px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s ease; }
-.hf-vbtn:hover { background: rgba(255, 255, 255, 0.24); }
-.hf-vbtn svg { width: 28px; height: 28px; stroke: #fff; }
-.hf-vbtn.mute i { position: absolute; left: 12px; right: 12px; top: 50%; height: 3px; margin-top: -1px; border-radius: 2px; background: #fff; transform: rotate(-40deg); }
-.hf-vol input[type="range"] { -webkit-appearance: none; appearance: none; width: 160px; height: 6px; border-radius: 3px; outline: none; cursor: pointer; background: linear-gradient(90deg, #e6c193 var(--p, 100%), rgba(255, 255, 255, 0.25) var(--p, 100%)); }
-.hf-vol input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(230, 193, 147, 0.6); }
-
-/* ----- Ficha: «Inicio» y «Volver» como botones (se pulsan con mouse/puntero; en la TV el control usa BACK, así que ahí no se ve «Inicio») ----- */
-.hf2-dt-nav { display: contents; }
-.hf2-home { display: none; }
-html[data-web="pc"] .hf2-dt-nav { position: absolute; right: 88px; top: 48px; z-index: 6; display: flex; gap: 14px; }
-html[data-web="pc"] .hf2-back,
-html[data-web="pc"] .hf2-home {
-  position: static;
-  display: flex;
-  align-items: center;
-  height: 52px;
-  padding: 0 24px 0 16px;
-  border-radius: 26px;
-  border: 1.5px solid rgba(255, 255, 255, 0.28);
-  background: rgba(11, 12, 14, 0.55);
-  color: #fff;
-  font-size: 21px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-html[data-web="pc"] .hf2-back svg,
-html[data-web="pc"] .hf2-home svg { width: 26px; height: 26px; margin-right: 8px; stroke: currentColor; }
-html[data-web="pc"] .hf2-back:hover,
-html[data-web="pc"] .hf2-home:hover { background: linear-gradient(180deg, #f0d2a8, #c99a66); color: #2a1d0e; border-color: transparent; transform: scale(1.05); }
-html[data-web="pc"] .hf2-brand.dt, html[data-web="pc"] .hf2-brand.small { cursor: pointer; }
-
-/* ----- Reproductor (web PC): ✕ para cerrar los paneles de audio/subtítulos y capítulos (en la TV se cierran con BACK) ----- */
-.hf2-pl-close { display: none; }
-html[data-web="pc"] .hf2-pl-close {
-  position: absolute;
-  top: 48px;
-  right: 50px;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.28);
-  background: rgba(11, 12, 14, 0.55);
-  color: #fff;
-  cursor: pointer;
-  z-index: 8;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-html[data-web="pc"] .hf2-pl-close svg { width: 26px; height: 26px; }
-html[data-web="pc"] .hf2-pl-close:hover { background: linear-gradient(180deg, #f0d2a8, #c99a66); color: #2a1d0e; border-color: transparent; transform: scale(1.08); }
-html[data-web="pc"] .hf2-pl-eps .hf2-pl-close { top: -352px; right: 50px; }
-
-/* ----- Ficha con el fondo del destacado (hero): la imagen va a la derecha (1340 px), se funde con el fondo por la izquierda y por abajo con los mismos
- * degradados superpuestos del destacado (sin máscaras: ver más arriba) y solo queda una sombra suave para leer el texto. Antes la imagen (1400 × 1080)
- * llegaba hasta abajo y dejaba un corte vertical visible a la izquierda. ----- */
-.hf2-dt-art {
-  width: 1340px;
-  height: 900px;
-}
-.hf2-dt-art::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(15, 16, 18, 0) 0%, rgba(15, 16, 18, 0) 40%, rgba(15, 16, 18, 0.4) 62%, rgba(15, 16, 18, 0.8) 82%, rgb(15, 16, 18) 100%),
-    linear-gradient(90deg, rgb(17, 19, 21) 0%, rgba(17, 19, 21, 0.45) 16%, rgba(17, 19, 21, 0) 42%);
-}
-.hf2-dt-shade {
-  background:
-    linear-gradient(90deg, rgba(11, 12, 14, 0.7) 0%, rgba(11, 12, 14, 0.45) 32%, rgba(11, 12, 14, 0) 60%),
-    linear-gradient(0deg, rgba(11, 12, 14, 0.35) 0%, rgba(11, 12, 14, 0) 40%),
-    linear-gradient(180deg, rgba(11, 12, 14, 0.55) 0%, rgba(11, 12, 14, 0) 18%);
-  pointer-events: none;
-}
-
-/* ----- Ficha: vista previa a todo el ancho (como el destacado) y, en la web PC, el fundido de la imagen con máscara (sin cortes de color) ----- */
-.hf2-bb-vmedia.dt { bottom: auto; height: 900px; }
-/* el video termina unos píxeles ANTES del final del degradado (que llega a 900 px con alfa 1): con el lienzo escalado, la última fila del video
- * quedaba a medio tapar y se veía una franja fina de imagen justo en el borde. */
-.hf2-bb-vmedia.dt .hf2-bb-pv { height: 888px; }
-html[data-web="pc"] .hf2-dt-art {
-  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 14%, #000 42%), linear-gradient(180deg, #000 0%, #000 40%, rgba(0, 0, 0, 0.55) 64%, rgba(0, 0, 0, 0) 100%);
-  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 14%, #000 42%), linear-gradient(180deg, #000 0%, #000 40%, rgba(0, 0, 0, 0.55) 64%, rgba(0, 0, 0, 0) 100%);
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
-}
-html[data-web="pc"] .hf2-dt-art::after { display: none; }
-
-/* ----- Barra del reproductor (web PC): zona de contacto estable ----- 
- * Antes la bola crecía al pasar el mouse y su borde (que cambia al crecer) decidía si había «hover»: en el filo se encogía y agrandaba sin parar.
- * Ahora el «hover» lo da una zona invisible alrededor de toda la barra (más grande que la bola agrandada) y la bola no recibe el puntero. */
-html[data-web="pc"] .hf2-pl-bar::before { content: ""; position: absolute; left: -14px; right: -14px; top: -24px; bottom: -24px; }
-html[data-web="pc"] .hf2-pl-bar b { pointer-events: none; transition: transform 0.16s ease; }
-
-/* ----- Búsqueda (web PC): botón volver, borrar, lista con desplazamiento propio ----- */
-.hf2-s-back, .hf2-s-clear { display: none; }
-html[data-web="pc"] .hf2-s-back {
-  position: absolute; left: 88px; top: 140px; width: 56px; height: 56px; z-index: 7;
-  align-items: center; justify-content: center; border-radius: 50%; cursor: pointer;
-  border: 1.5px solid rgba(255, 255, 255, 0.28); background: rgba(11, 12, 14, 0.55); color: #fff;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-html[data-web="pc"] #app[data-route="search"] .hf2-s-back { display: flex; }
-html[data-web="pc"] .hf2-s-back svg { width: 28px; height: 28px; stroke: currentColor; }
-html[data-web="pc"] .hf2-s-back:hover { background: linear-gradient(180deg, #f0d2a8, #c99a66); color: #2a1d0e; border-color: transparent; transform: scale(1.06); }
-html[data-web="pc"] #scrSearch .hf2-searchbox { margin-left: 164px; }
-html[data-web="pc"] .hf2-s-clear {
-  margin-left: auto; width: 48px; height: 48px; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer;
-  color: var(--muted); transition: background 0.2s ease, color 0.2s ease;
-}
-html[data-web="pc"] .hf2-s-clear svg { width: 26px; height: 26px; stroke: currentColor; }
-html[data-web="pc"] .hf2-s-clear:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
-html[data-web="pc"] .hf2-searchbox:has(input:not(:placeholder-shown)) .hf2-s-clear { display: flex; }
-html[data-web="pc"] .hf2-searchbox input { cursor: text; }
-html[data-web="pc"] #scrSearch .hf2-page {
-  bottom: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
-  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
-}
-html[data-web="pc"] #scrSearch #searchBody { padding-bottom: 160px; }
-
-/* ----- Ficha de serie (TV): tres arreglos de la lista de capítulos ----- */
-/* 1) Títulos de dos renglones: el texto de la serie queda ANCLADO justo encima de las temporadas (antes bajaba desde arriba y tapaba «4 temporadas · 24 capítulos» con los botones de temporada) */
-.hf2.dt.scrolled .hf2-dt-copy {
-  top: auto;
-  bottom: 740px;
-}
-/* 2) y 3) El capítulo enfocado crece (escala 1.1 + sube 8 px) y su aro y su descripción se salían del contenedor, que recorta (overflow: hidden) para esconder lo que ya pasó del carrusel.
- * Se le da aire por los cuatro lados (relleno) y se compensa con margen negativo: el carrusel queda donde estaba, pero ya no recorta al enfocado. */
-.hf2-dt-episodes .hf2-ep-viewport {
-  margin: -36px 0 -90px -52px;
-  padding: 42px 0 90px 52px;
-}
-/* 4) El capítulo enfocado sube y crece hacia las temporadas: separación suficiente para que su aro no toque ni tape los botones de temporada */
-.hf2-dt-episodes .hf2-seasons {
-  margin-bottom: 48px;
-}
-/* la descripción del capítulo enfocado se muestra entera hasta 8 renglones (más allá se corta con «…» en vez de salirse de la pantalla) */
-.hf2.dt.scrolled .hf2-ep[data-focused="true"] .hf2-ep-desc {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 8;
-  max-height: none;
 }

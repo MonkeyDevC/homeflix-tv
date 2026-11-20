@@ -11,42 +11,13 @@
       "port": 5173
     },
     {
-      "name": "homeflix-web",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "../homeflix-web/tools/serve.mjs",
-        "5174"
-      ],
-      "port": 5174
-    },
-    {
-      "name": "homeflix-movil",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "tools/serve.mjs",
-        "5176"
-      ],
-      "port": 5176
-    },
-    {
       "name": "preparador",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "tools/preparador/server.mjs",
-        "--no-open",
-        "--puerto=5181"
+        "--no-open"
       ],
-      "port": 5181
-    },
-    {
-      "name": "preparador-prueba",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "tools/preparador/server.mjs",
-        "--no-open",
-        "--puerto=5191"
-      ],
-      "port": 5191
+      "port": 5180
     }
   ]
 }

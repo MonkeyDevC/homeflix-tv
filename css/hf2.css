@@ -23,7 +23,7 @@
   --gold-text: #d9b28a;
   --gold-ring: #e6c193;
   position: relative;
-  width: var(--W, 1920px);
+  width: 1920px;
   height: 1080px;
   overflow: hidden;
   background: var(--bg);
@@ -51,8 +51,8 @@
   width: 78px;
   height: 78px;
   border-radius: 50%;
-  background: #121418 url(../images/logo.png) center / cover no-repeat;
-  border: 0; /* la insignia del mono ya trae su aro dorado */
+  background: #f4f4f2 url(../images/panda-login.png) 50% 6% / 150% auto no-repeat;
+  border: 3px solid rgba(255, 255, 255, 0.9);
 }
 
 .hf2-wordmark {
@@ -3008,18 +3008,14 @@
   font-weight: 700;
 }
 
-/* Marca de agua: en la esquina superior derecha de la pantalla, con el mismo margen arriba que a la derecha
- * (.hf2-pl-top está a 52 px de arriba y 70 px de la derecha: los desplazamientos negativos compensan). */
 .hf2-pl-brand {
-  position: absolute;
-  top: -8px;   /* 44 px del borde de arriba */
-  right: -26px; /* 44 px del borde derecho */
-  opacity: 0.9;
+  margin-left: auto;
+  opacity: 0.85;
 }
 
 .hf2-pl-brand .hf2-logo {
-  width: 88px;
-  height: 88px;
+  width: 54px;
+  height: 54px;
   border-width: 2px;
 }
 
@@ -3272,9 +3268,6 @@
 
 .hf2-track b {
   font-weight: 700;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .hf2-track small {
